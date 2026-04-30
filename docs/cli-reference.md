@@ -13,7 +13,7 @@ Commands:
 af doctor
 af manifest validate <path>
 af core check <core_dir>
-af core new <core_dir> --name <name>
+af core new <core_dir> --name <name> [--language systemverilog|verilog]
 af core lint <core_dir> --backend verilator
 af core sim <core_dir> --backend verilator
 af core report <core_dir_or_build_dir>
@@ -39,3 +39,7 @@ Every CLI error has:
 - `message`
 - `hint`
 - `exit_code`
+
+`af core new` defaults to SystemVerilog and can also emit a Verilog-2001
+starter. Use the Verilog starter when a buyer-facing core must remain portable
+across older FPGA flows before vendor wrappers are added.

@@ -61,6 +61,37 @@ fn wrapper_generate_fusesoc_writes_core() {
 }
 
 #[test]
+fn core_new_supports_verilog_2001_scaffold() {
+    let dir = tempdir().unwrap();
+    let core_dir = dir.path().join("verilog-demo");
+    let build = tempdir().unwrap();
+
+    let mut cmd = Command::cargo_bin("af").unwrap();
+    cmd.arg("--build-root")
+        .arg(build.path())
+        .args(["core", "new"])
+        .arg(&core_dir)
+        .args(["--name", "verilog-demo", "--language", "verilog", "--json"])
+        .assert()
+        .success()
+        .stdout(contains("\"language\": \"verilog\""));
+
+    assert!(core_dir.join("af-core.toml").is_file());
+    assert!(core_dir.join("rtl/verilog_demo.v").is_file());
+
+    let mut check = Command::cargo_bin("af").unwrap();
+    check
+        .arg("--build-root")
+        .arg(build.path())
+        .args(["core", "check"])
+        .arg(&core_dir)
+        .arg("--json")
+        .assert()
+        .success()
+        .stdout(contains("\"status\": \"passed\""));
+}
+
+#[test]
 fn broken_fixtures_fail_without_panics() {
     let root = repo_root();
     let fixtures = [

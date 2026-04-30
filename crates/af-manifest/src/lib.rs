@@ -27,7 +27,9 @@ impl ManifestError {
     pub fn hint(&self) -> &'static str {
         match self {
             ManifestError::Read { .. } => "Check that the manifest path exists and is readable.",
-            ManifestError::Parse { .. } => "Fix the TOML syntax and field types in af-core.toml.",
+            ManifestError::Parse { .. } => {
+                "Fix TOML syntax and schema shape. Required v0.2 fields include af_version, name, vendor, library, core, version, [rtl], [sources], clocks, resets, ports, and relative source paths; use `af core new` for a valid scaffold or migrate legacy project metadata."
+            }
             ManifestError::Validation { .. } => {
                 "Fix the listed manifest issues before running backend commands."
             }

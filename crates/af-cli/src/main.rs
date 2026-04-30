@@ -405,15 +405,17 @@ fn core_new(
     library: &str,
     language: &str,
 ) -> Result<CliOutput, CliError> {
-    if language != "systemverilog" {
+    if !matches!(language, "systemverilog" | "verilog") {
         return Err(CliError::new(
             "AF_CORE_NEW_LANGUAGE_UNSUPPORTED",
             format!("core new language `{language}` is unsupported"),
-            "Use --language systemverilog for the built-in scaffold.",
+            "Use --language systemverilog or --language verilog for the built-in scaffold.",
             2,
         ));
     }
     let module = to_module_ident(name)?;
+    let extension = if language == "verilog" { "v" } else { "sv" };
+    let source_file = format!("rtl/{module}.{extension}");
     let rtl_dir = core_dir.join("rtl");
     fs::create_dir_all(&rtl_dir).map_err(|err| {
         CliError::new(
@@ -440,12 +442,12 @@ description = "Generated AccelFury core scaffold."
 
 [rtl]
 top = "{module}"
-language = "systemverilog"
+language = "{language}"
 default_clock = "clk"
 default_reset = "rst_n"
 
 [sources]
-files = ["rtl/{module}.sv"]
+files = ["{source_file}"]
 include_dirs = []
 
 [[clocks]]
@@ -486,8 +488,28 @@ verilator = true
 fusesoc = true
 "#
     );
-    let rtl = format!(
-        r#"// SPDX-License-Identifier: Apache-2.0
+    let rtl = if language == "verilog" {
+        format!(
+            r#"// SPDX-License-Identifier: Apache-2.0
+module {module} (
+  input wire clk,
+  input wire rst_n,
+  input wire enable,
+  output reg done
+);
+  always @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      done <= 1'b0;
+    end else begin
+      done <= enable;
+    end
+  end
+endmodule
+"#
+        )
+    } else {
+        format!(
+            r#"// SPDX-License-Identifier: Apache-2.0
 module {module} (
   input  logic clk,
   input  logic rst_n,
@@ -503,9 +525,13 @@ module {module} (
   end
 endmodule
 "#
-    );
+        )
+    };
     write_new_file(&core_dir.join("af-core.toml"), manifest.as_bytes())?;
-    write_new_file(&rtl_dir.join(format!("{module}.sv")), rtl.as_bytes())?;
+    write_new_file(
+        &rtl_dir.join(format!("{module}.{extension}")),
+        rtl.as_bytes(),
+    )?;
     let manifest = CoreManifest::from_path(core_dir.join("af-core.toml"))?;
     Ok(CliOutput {
         human: format!("core scaffold written: {}", core_dir.display()),
