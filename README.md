@@ -11,8 +11,10 @@ Current scope:
 - scaffold SystemVerilog or Verilog-2001 starter cores;
 - run Verilator lint/smoke checks when Verilator is available;
 - export a FuseSoC `.core`;
+- export a LiteX reference wrapper skeleton;
 - write JSON and Markdown reports;
 - generate GitHub Actions CI;
+- provide devcontainer/open-source flow metadata;
 - maintain board/toolchain registries imported from `core-template`;
 - ship `cores/af-mod-add` and `examples/af-pdm-rx` as first packaged cores.
 
@@ -24,9 +26,14 @@ cargo run -p af-cli --bin af -- manifest validate examples/af-pdm-rx/af-core.tom
 cargo run -p af-cli --bin af -- manifest validate cores/af-mod-add/af-core.toml
 cargo run -p af-cli --bin af -- core check examples/af-pdm-rx
 cargo run -p af-cli --bin af -- core new /tmp/af-demo --name af-demo --language verilog
+cargo run -p af-cli --bin af -- init core af-demo --root /tmp
 cargo run -p af-cli --bin af -- registry check
+cargo run -p af-cli --bin af -- board list
+cargo run -p af-cli --bin af -- board check boards/tang-nano-20k/af-board.toml
 cargo run -p af-cli --bin af -- board matrix --output docs/board_matrix.md
 cargo run -p af-cli --bin af -- wrapper generate examples/af-pdm-rx --target fusesoc
+cargo run -p af-cli --bin af -- wrapper generate examples/af-pdm-rx --target litex --board tang-nano-20k
+cargo run -p af-cli --bin af -- build examples/af-pdm-rx --board tang-nano-20k --backend litex
 ```
 
 `af core lint examples/af-pdm-rx --backend verilator` runs `verilator --lint-only` if Verilator is installed. If it is not installed, the command returns a structured `AF_BACKEND_UNAVAILABLE` error.
@@ -48,10 +55,19 @@ belongs in [TODO.md](TODO.md) or in a direct `af` code change.
 ## Documentation
 
 - [Architecture](docs/architecture.md)
+- [Product Requirements](docs/product-requirements.md)
+- [SRS](docs/software-requirements-specification.md)
+- [Technical Design](docs/technical-design.md)
 - [Manifest Reference](docs/manifest-reference.md)
 - [CLI Reference](docs/cli-reference.md)
+- [Backend Author Guide](docs/backend-author-guide.md)
 - [Core Author Guide](docs/core-author-guide.md)
+- [Board Author Guide](docs/board-author-guide.md)
 - [Security Model](docs/security-model.md)
+- [Testing Strategy](docs/testing-strategy.md)
+- [Release Process](docs/release-process.md)
+- [Known Limitations](docs/known-limitations.md)
+- [Roadmap](docs/roadmap.md)
 - [TЗ Compliance Review And Development Roadmap](docs/dev-roadmap.md)
 - [Licensing](docs/licensing.md)
 - [Core Template Provenance](docs/provenance.md)

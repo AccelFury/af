@@ -103,7 +103,10 @@ jobs:
         run: |
           cargo run -p af-cli --bin af -- doctor --json
           cargo run -p af-cli --bin af -- core check examples/af-pdm-rx --json
+          cargo run -p af-cli --bin af -- board check boards/tang-nano-20k/af-board.toml --json
+          cargo run -p af-cli --bin af -- backend list --json
           cargo run -p af-cli --bin af -- wrapper generate examples/af-pdm-rx --target fusesoc --json
+          cargo run -p af-cli --bin af -- wrapper generate examples/af-pdm-rx --target litex --board tang-nano-20k --json
       - name: Optional OSS CAD Suite hint
         run: |
           if command -v verilator >/dev/null 2>&1; then

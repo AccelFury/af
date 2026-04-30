@@ -163,7 +163,7 @@ fn sanitize_component(input: &str) -> String {
 
 fn file_type(language: &str) -> &'static str {
     match language {
-        "verilog" => "verilogSource",
+        "verilog" | "verilog-2001" => "verilogSource",
         "vhdl" => "vhdlSource",
         _ => "systemVerilogSource",
     }
