@@ -2,11 +2,11 @@
 FROM rust:1-slim-bookworm
 
 ARG AF_INSTALL_LITEX=false
+ARG RUST_TOOLCHAIN=1.95.0-x86_64-unknown-linux-gnu
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV AF_OFFLINE=true
 ENV PATH="/opt/af-python/bin:${PATH}"
-ENV RUSTUP_TOOLCHAIN=stable-x86_64-unknown-linux-gnu
 
 RUN set -eux; \
     apt-get update; \
@@ -39,15 +39,7 @@ RUN set -eux; \
         echo "Skipping optional LiteX Python package; af MVP generates LiteX wrapper skeletons without importing litex."; \
     fi
 
-WORKDIR /opt/af-src
-
-COPY . /opt/af-src
-
-RUN set -eux; \
-    rustc --version; \
-    cargo --version; \
-    cargo fetch --locked; \
-    cargo build --locked -p af-cli --bin af
+ENV RUSTUP_TOOLCHAIN=${RUST_TOOLCHAIN}
 
 WORKDIR /work
 

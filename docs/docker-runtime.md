@@ -5,7 +5,7 @@ repeatable when the host does not have FPGA tools in `PATH`.
 
 The runtime installs:
 
-- Rust stable with `rustfmt` and `clippy`;
+- Rust stable for building the CLI inside the container;
 - Verilator for `af core lint` and `af core sim`;
 - FuseSoC for package visibility checks and `.core` validation workflows;
 - optional LiteX Python package when built with `--build-arg AF_INSTALL_LITEX=true`;
@@ -21,16 +21,19 @@ logic.
 Build the runtime:
 
 ```bash
-docker build -t accelfury-af:oss .
+make docker-build
 ```
 
 Run the full Docker smoke:
 
 ```bash
-docker run --rm -v "$PWD:/work" -w /work \
-  -e AF_BUILD_ROOT=/work/.af-build/docker-smoke \
-  accelfury-af:oss scripts/docker-smoke.sh
+make docker-smoke
 ```
+
+The Makefile mounts the host Cargo registry and a `/tmp/af-docker-target`
+target cache. This keeps the in-container Rust build deterministic without
+runtime `rustup` channel sync and without repeated crates.io downloads after
+the first cached build.
 
 The smoke covers:
 

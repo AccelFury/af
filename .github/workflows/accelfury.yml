@@ -43,12 +43,24 @@ jobs:
           path: .af-build/**
   docker-open-source-flow:
     runs-on: ubuntu-latest
+    env:
+      RUST_TOOLCHAIN: 1.95.0-x86_64-unknown-linux-gnu
     steps:
       - uses: actions/checkout@v4
       - name: Build Docker runtime
-        run: docker build -t accelfury-af:ci .
+        run: docker build --build-arg RUST_TOOLCHAIN=$RUST_TOOLCHAIN -t accelfury-af:ci .
       - name: Docker smoke
-        run: docker run --rm -v "$PWD:/work" -w /work -e AF_BUILD_ROOT=/work/.af-build/docker-smoke accelfury-af:ci scripts/docker-smoke.sh
+        run: |
+          docker run --rm \
+            -v "$PWD:/work" \
+            -v "$HOME/.cargo/registry:/usr/local/cargo/registry" \
+            -v "$HOME/.cargo/git:/usr/local/cargo/git" \
+            -v "/tmp/af-docker-target:/tmp/af-target" \
+            -w /work \
+            -e AF_BUILD_ROOT=/work/.af-build/docker-smoke \
+            -e RUSTUP_TOOLCHAIN=$RUST_TOOLCHAIN \
+            -e CARGO_TARGET_DIR=/tmp/af-target \
+            accelfury-af:ci scripts/docker-smoke.sh
       - uses: actions/upload-artifact@v4
         if: always()
         with:

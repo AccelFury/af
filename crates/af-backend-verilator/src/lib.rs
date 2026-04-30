@@ -246,11 +246,17 @@ pub fn verilator_smoke_command(manifest: &CoreManifest, core_dir: &Path) -> Comm
             "--cc".to_string(),
             "--exe".to_string(),
             "--build".to_string(),
+            "--timing".to_string(),
             "--top-module".to_string(),
             top,
         ]
     } else {
-        vec!["--lint-only".to_string(), "--top-module".to_string(), top]
+        vec![
+            "--lint-only".to_string(),
+            "--timing".to_string(),
+            "--top-module".to_string(),
+            top,
+        ]
     };
     for include_dir in &manifest.sources.include_dirs {
         args.push(format!("-I{include_dir}"));

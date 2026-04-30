@@ -68,8 +68,5 @@ across older FPGA flows before vendor wrappers are added.
 Use the Docker runtime when host tools are missing:
 
 ```bash
-docker build -t accelfury-af:oss .
-docker run --rm -v "$PWD:/work" -w /work \
-  -e AF_BUILD_ROOT=/work/.af-build/docker-smoke \
-  accelfury-af:oss scripts/docker-smoke.sh
+make smoke
 ```

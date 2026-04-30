@@ -40,14 +40,13 @@ cargo run -p af-cli --bin af -- build examples/af-pdm-rx --board tang-nano-20k -
 
 ## Docker Open-Source Flow
 
-Use Docker when the host does not have Verilator, FuseSoC, LiteX or Yosys in
-`PATH`:
+Use Docker when the host does not have Verilator, FuseSoC or Yosys in `PATH`.
+The default image treats the LiteX Python package as optional because MVP
+LiteX support generates a skeleton/reference wrapper without executing a
+Python LiteX SoC build:
 
 ```bash
-docker build -t accelfury-af:oss .
-docker run --rm -v "$PWD:/work" -w /work \
-  -e AF_BUILD_ROOT=/work/.af-build/docker-smoke \
-  accelfury-af:oss scripts/docker-smoke.sh
+make smoke
 ```
 
 The smoke script validates doctor output, manifest migration, core checks,

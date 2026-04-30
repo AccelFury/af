@@ -36,7 +36,7 @@ module tb_af_pdm_rx;
     rst_n = 1'b1;
     repeat (20) begin
       @(posedge clk);
-      pdm_data_i <= ~pdm_data_i;
+      pdm_data_i = ~pdm_data_i;
     end
 
     sample_ready_i = 1'b0;
