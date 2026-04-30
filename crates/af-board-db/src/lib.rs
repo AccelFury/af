@@ -427,4 +427,22 @@ mod tests {
         let issues = profile.validate();
         assert_eq!(issues[0].code, "AF_BOARD_PIN_VERIFICATION_MISSING");
     }
+
+    #[test]
+    fn mvp_tang_profiles_are_valid() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(2)
+            .expect("workspace root");
+        for relative in [
+            "boards/tang-nano-20k/af-board.toml",
+            "boards/tang-primer-20k/af-board.toml",
+        ] {
+            let profile = BoardProfile::from_path(root.join(relative)).expect(relative);
+            assert!(profile
+                .pins
+                .iter()
+                .all(|pin| pin.location.is_none() || pin.verified == Some(false)));
+        }
+    }
 }
