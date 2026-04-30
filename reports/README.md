@@ -8,3 +8,4 @@ Place generated reports here:
 - `timing/` for timing closure reports
 - `simulation/` for Verilator simulation logs
 - `board_bringup/` for hardware bring-up evidence
+- `agent/` for LLM-agent session logs and compact execution evidence

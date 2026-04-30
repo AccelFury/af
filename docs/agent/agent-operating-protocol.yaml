@@ -1,0 +1,437 @@
+schema_version: "1.0"
+document_id: "accelfury-af-agent-operating-protocol"
+language: "en"
+audience:
+  - "LLM coding agents"
+  - "LLM verification agents"
+  - "LLM documentation agents"
+  - "LLM release and quality agents"
+
+tool:
+  name: "af"
+  repository_role: "Unified AccelFury FPGA/IP monorepo"
+  public_interface: "cargo run -p af-cli --bin af -- <command>"
+  preferred_output_mode: "--json"
+  build_root_default: ".af-build"
+  generated_output_policy:
+    default_build_outputs: ".af-build/"
+    persistent_reports: "reports/"
+    generated_outputs_must_be_marked: true
+    do_not_commit_by_default:
+      - ".af-build/"
+      - "target/"
+      - "obj_dir/"
+
+command_contract:
+  global_flags:
+    json:
+      flag: "--json"
+      use: "Use for all automated agent calls unless human-only output is explicitly needed."
+    quiet:
+      flag: "--quiet"
+      use: "Use only when another artifact captures command result."
+    verbose:
+      flag: "--verbose"
+      use: "Use when debugging unexpected CLI behavior."
+    build_root:
+      flag: "--build-root <path>"
+      use: "Use task-specific build roots for smoke tests to avoid overwriting evidence."
+  stable_exit_codes:
+    "0": "success"
+    "2": "validation or input structure error"
+    "3": "backend command failed"
+    "4": "backend unavailable"
+    "5": "output or report generation failed"
+  error_shape:
+    required_fields:
+      - "code"
+      - "message"
+      - "hint"
+      - "exit_code"
+    optional_fields:
+      - "details"
+
+usage_scenarios:
+  - id: "environment_health"
+    intent: "Determine whether the local toolchain is usable and which optional backends are missing."
+    when_to_use:
+      - "Start of a new task"
+      - "Before backend lint, simulation, or wrapper work"
+      - "When a command reports backend unavailable"
+    command: "cargo run -p af-cli --bin af -- doctor --json"
+    success_criteria:
+      - "Command exits 0."
+      - "JSON report is parseable."
+      - "Unavailable optional tools are recorded as warnings, not ignored."
+    on_failure:
+      - "Append a TODO issue if the failure indicates missing doctor coverage."
+      - "Log the blocker with command, exit code, and stderr summary."
+
+  - id: "manifest_validation"
+    intent: "Validate one core manifest without running backend tools."
+    when_to_use:
+      - "After editing any af-core.toml"
+      - "Before core check, wrapper generation, lint, or simulation"
+    command_template: "cargo run -p af-cli --bin af -- manifest validate <core_dir>/af-core.toml --json"
+    success_criteria:
+      - "Command exits 0."
+      - "validation.valid is true."
+      - "No manifest path escapes the core directory."
+    on_failure:
+      - "Fix schema, path, clock, reset, port, vector, or tooling fields."
+      - "Append a TODO issue only if the manifest gap requires product work rather than local data correction."
+
+  - id: "core_package_check"
+    intent: "Check that declared RTL files exist and the declared top module is discoverable."
+    when_to_use:
+      - "After editing RTL source declarations"
+      - "After importing or scaffolding a core"
+      - "Before wrapper export or backend validation"
+    command_template: "cargo run -p af-cli --bin af -- core check <core_dir> --json"
+    success_criteria:
+      - "Command exits 0."
+      - "inspection.issues is empty."
+      - "Reports are written under the selected build root."
+    on_failure:
+      - "Fix missing files, invalid paths, or top module mismatch."
+      - "Log scanned files and issue codes."
+
+  - id: "registry_integrity"
+    intent: "Validate board registry entries, aliases, required board directories, constraints, and wrappers."
+    when_to_use:
+      - "After editing registries/"
+      - "After adding, moving, or deleting board assets"
+      - "Before release or CI changes touching board support"
+    command: "cargo run -p af-cli --bin af -- registry check --json"
+    success_criteria:
+      - "Command exits 0."
+      - "registry.valid is true."
+      - "registry.issues is empty."
+    on_failure:
+      - "Fix missing board assets or registry data."
+      - "Append a TODO issue when validation requires new registry capabilities."
+
+  - id: "board_matrix_refresh"
+    intent: "Regenerate the board support matrix from the canonical registry."
+    when_to_use:
+      - "After registry changes"
+      - "Before release notes involving board support"
+    command: "cargo run -p af-cli --bin af -- board matrix --output docs/board_matrix.md --json"
+    success_criteria:
+      - "Command exits 0."
+      - "docs/board_matrix.md exists and includes all registry boards."
+    on_failure:
+      - "Run registry_integrity first."
+      - "Log the output path and failure code."
+
+  - id: "vector_generation"
+    intent: "Regenerate deterministic vectors for the imported af-mod-add arithmetic core."
+    when_to_use:
+      - "After changing af-field-ref"
+      - "After changing vector format or af-mod-add tests"
+      - "Before simulation work that depends on vectors"
+    command: "cargo run -p af-cli --bin af -- vectors generate --json"
+    success_criteria:
+      - "Command exits 0."
+      - "basic_count and random_count are greater than zero."
+      - "Generated vector files remain deterministic for the same seed."
+    on_failure:
+      - "Fix reference arithmetic or output path handling."
+      - "Append a TODO issue if vector coverage is insufficient."
+
+  - id: "backend_lint"
+    intent: "Run backend RTL lint for a checked core."
+    when_to_use:
+      - "After RTL changes"
+      - "Before claiming backend compatibility"
+    command_template: "cargo run -p af-cli --bin af -- core lint <core_dir> --backend verilator --json"
+    preconditions:
+      - "Run environment_health."
+      - "Run core_package_check for the same core."
+      - "Verilator must be installed for this gate to pass."
+    success_criteria:
+      - "Command exits 0."
+      - "backend_report.status is Passed."
+    allowed_blockers:
+      - code: "AF_BACKEND_UNAVAILABLE"
+        meaning: "Optional backend missing from PATH."
+        required_log: "Record as tooling blocker, not as RTL failure."
+
+  - id: "backend_sim"
+    intent: "Run backend simulation for a checked core when supported."
+    when_to_use:
+      - "After testbench or RTL behavior changes"
+      - "Before release claims involving runtime behavior"
+    command_template: "cargo run -p af-cli --bin af -- core sim <core_dir> --backend verilator --json"
+    preconditions:
+      - "Run environment_health."
+      - "Run core_package_check for the same core."
+      - "Verilator must be installed for this gate to pass."
+    success_criteria:
+      - "Command exits 0."
+      - "backend_report.status is Passed."
+    allowed_blockers:
+      - code: "AF_BACKEND_UNAVAILABLE"
+        meaning: "Optional backend missing from PATH."
+        required_log: "Record as tooling blocker, not as simulation failure."
+
+  - id: "wrapper_export"
+    intent: "Export backend wrapper metadata, currently FuseSoC .core files."
+    when_to_use:
+      - "After manifest or source file changes"
+      - "Before integration with external IP package tooling"
+    command_template: "cargo run -p af-cli --bin af -- wrapper generate <core_dir> --target fusesoc --json"
+    success_criteria:
+      - "Command exits 0."
+      - "wrapper.artifacts contains the generated .core file."
+    on_failure:
+      - "Run manifest_validation and core_package_check."
+      - "Append a TODO issue if target backend coverage is missing."
+
+  - id: "core_scaffold"
+    intent: "Create a minimal new AccelFury core package."
+    when_to_use:
+      - "User requests a new core"
+      - "Agent needs a disposable smoke-test core"
+    command_template: "cargo run -p af-cli --bin af -- core new <core_dir> --name <name> --json"
+    safety_rules:
+      - "Never run in a non-empty target directory unless explicitly requested."
+      - "Immediately run core_package_check on the created core."
+
+  - id: "board_scaffold"
+    intent: "Create and register a draft board target."
+    when_to_use:
+      - "User requests a new board target"
+      - "A verified board onboarding plan reaches scaffold stage"
+    command_template: "cargo run -p af-cli --bin af -- board new --board-id <id> --vendor <vendor> --family <family> --constraint-format <format> --json"
+    safety_rules:
+      - "Generated boards are draft placeholders."
+      - "Do not claim pinout, voltage, timing, or hardware bringup verification."
+      - "Immediately run registry_integrity."
+
+logging:
+  purpose: "Create compact, append-only evidence that future agents can parse."
+  directory: "reports/agent/logs/"
+  file_naming: "reports/agent/logs/YYYY-MM-DD/<run_id>.jsonl"
+  format: "JSON Lines, one event per line"
+  required_fields:
+    - "schema_version"
+    - "ts_utc"
+    - "run_id"
+    - "agent"
+    - "event_type"
+    - "summary"
+  optional_fields:
+    - "task_id"
+    - "scenario_id"
+    - "command"
+    - "exit_code"
+    - "status"
+    - "paths"
+    - "artifacts"
+    - "evidence"
+    - "blockers"
+    - "todo_issue_ids"
+  event_types:
+    - "session_started"
+    - "decision"
+    - "command_started"
+    - "command_finished"
+    - "artifact_written"
+    - "validation_passed"
+    - "validation_failed"
+    - "blocker_found"
+    - "todo_issue_appended"
+    - "maturity_reflection_appended"
+    - "session_finished"
+  secrets_policy:
+    - "Never log credentials, private keys, tokens, serial numbers, or customer data."
+    - "When in doubt, log a redacted summary and the local path to the evidence."
+  minimal_command_event_example:
+    schema_version: "1.0"
+    ts_utc: "2026-04-30T00:00:00Z"
+    run_id: "20260430T000000Z-agent"
+    agent: "codex"
+    event_type: "command_finished"
+    scenario_id: "registry_integrity"
+    command: "cargo run -p af-cli --bin af -- registry check --json"
+    exit_code: 0
+    status: "passed"
+    summary: "Board registry validation passed."
+
+todo_issues:
+  purpose: "Capture actionable maturity, quality, value, safety, and usability gaps."
+  file: "docs/agent/todo-issues.jsonl"
+  format: "Append-only JSON Lines"
+  append_rule:
+    - "Append a new event for each discovered issue."
+    - "Do not rewrite old events to update status; append a status_changed event."
+    - "Each issue_id must be stable and unique."
+  required_fields:
+    - "schema_version"
+    - "event_type"
+    - "issue_id"
+    - "created_at_utc"
+    - "created_by"
+    - "status"
+    - "severity"
+    - "maturity_dimension"
+    - "title"
+    - "evidence"
+    - "recommended_action"
+    - "acceptance_criteria"
+  event_types:
+    - "opened"
+    - "status_changed"
+    - "evidence_added"
+    - "closed"
+  statuses:
+    - "open"
+    - "in_progress"
+    - "blocked"
+    - "done"
+    - "wont_fix"
+  severity_scale:
+    critical: "Blocks safe or correct use of the tool."
+    high: "Blocks an important workflow or creates misleading output."
+    medium: "Limits maturity, coverage, or maintainability."
+    low: "Improvement opportunity with limited current impact."
+  maturity_dimensions:
+    - "functional_maturity"
+    - "reliability"
+    - "verification_depth"
+    - "agent_operability"
+    - "usability"
+    - "security"
+    - "interoperability"
+    - "user_value"
+  append_example:
+    schema_version: "1.0"
+    event_type: "opened"
+    issue_id: "AF-TODO-0000"
+    created_at_utc: "2026-04-30T00:00:00Z"
+    created_by: "agent"
+    status: "open"
+    severity: "medium"
+    maturity_dimension: "verification_depth"
+    title: "Add native regression coverage for a new backend scenario."
+    evidence:
+      - "Existing tests do not cover the new workflow."
+    recommended_action: "Add a deterministic test and update CLI docs."
+    acceptance_criteria:
+      - "cargo test --locked --workspace --no-fail-fast passes."
+      - "The new scenario is documented in docs/cli-reference.md."
+
+self_reflection:
+  purpose: "Measure whether changes increase functional maturity, quality, and user value."
+  file: "docs/agent/maturity-ledger.jsonl"
+  format: "Append-only JSON Lines"
+  trigger_conditions:
+    - "After any substantial code or documentation change."
+    - "After a failed validation gate that cannot be fixed immediately."
+    - "Before declaring a release or major milestone ready."
+    - "After discovering a new maturity gap."
+  scoring_scale:
+    "0": "Nonexistent or unknown."
+    "1": "Scaffold only; not reliably usable."
+    "2": "Usable MVP with known limitations."
+    "3": "Integrated and repeatable for common workflows."
+    "4": "Robust with strong validation and clear failure modes."
+    "5": "Production-grade, monitored, documented, and high-confidence."
+  dimensions:
+    functional_maturity:
+      question: "Does the tool solve complete user workflows end to end?"
+      evidence_examples:
+        - "Commands available"
+        - "Workflow coverage"
+        - "Artifact quality"
+    reliability:
+      question: "Are failures deterministic, structured, and recoverable?"
+      evidence_examples:
+        - "Stable exit codes"
+        - "Structured errors"
+        - "Repeatable tests"
+    verification_depth:
+      question: "How much behavior is tested beyond smoke checks?"
+      evidence_examples:
+        - "Unit tests"
+        - "CLI integration tests"
+        - "Backend and registry validation"
+    agent_operability:
+      question: "Can LLM agents use the tool safely with minimal ambiguity?"
+      evidence_examples:
+        - "Machine-readable outputs"
+        - "Agent protocol"
+        - "TODO and log conventions"
+    usability:
+      question: "Can a human or agent discover the right command quickly?"
+      evidence_examples:
+        - "README"
+        - "CLI reference"
+        - "Actionable hints"
+    security:
+      question: "Does the tool avoid unsafe paths, shell injection, and misleading claims?"
+      evidence_examples:
+        - "Path validation"
+        - "No-shell command execution"
+        - "Draft hardware warnings"
+    interoperability:
+      question: "Does the tool integrate with external FPGA/IP ecosystems?"
+      evidence_examples:
+        - "FuseSoC export"
+        - "Board registries"
+        - "Toolchain metadata"
+    user_value:
+      question: "Does the tool reduce real user effort or risk?"
+      evidence_examples:
+        - "Core checks"
+        - "Board matrix"
+        - "Reports and generated workflows"
+  required_fields:
+    - "schema_version"
+    - "event_type"
+    - "reflection_id"
+    - "created_at_utc"
+    - "created_by"
+    - "scope"
+    - "scores"
+    - "overall_level"
+    - "evidence"
+    - "top_gaps"
+    - "next_todo_issue_ids"
+  overall_level_rule: "Use the floor of the average score, capped by the lowest score plus one."
+  append_example:
+    schema_version: "1.0"
+    event_type: "maturity_assessment"
+    reflection_id: "AF-REFLECT-0000"
+    created_at_utc: "2026-04-30T00:00:00Z"
+    created_by: "agent"
+    scope: "repository"
+    scores:
+      functional_maturity: 3
+      reliability: 3
+      verification_depth: 2
+      agent_operability: 3
+      usability: 3
+      security: 3
+      interoperability: 2
+      user_value: 3
+    overall_level: 2
+    evidence:
+      - "Core check, registry check, and wrapper export are available."
+    top_gaps:
+      - "Backend simulation coverage depends on optional tools."
+    next_todo_issue_ids:
+      - "AF-TODO-0000"
+
+agent_closure_rules:
+  before_final_response:
+    - "Run all validation scenarios that are relevant and locally executable."
+    - "If a gate is blocked by missing external tooling, log the blocker and append a TODO issue if product maturity can be improved."
+    - "Append maturity reflection when functionality, quality, or value materially changed."
+    - "Do not end with executable next steps that the agent can perform immediately."
+  final_response_must_include:
+    - "Files changed at a high level."
+    - "Validation commands that passed."
+    - "Blocked validations with exact reason."
+    - "Location of TODO issues and logs when relevant."
