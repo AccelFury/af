@@ -1,5 +1,5 @@
 [package]
-name = "af-security"
+name = "af-backend-litex"
 version = "0.1.0"
 edition.workspace = true
 license.workspace = true
@@ -7,6 +7,5 @@ authors.workspace = true
 repository.workspace = true
 
 [dependencies]
-serde.workspace = true
-thiserror.workspace = true
-toml.workspace = true
+af-backend.workspace = true
+af-manifest.workspace = true

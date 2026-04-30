@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::ffi::OsStr;
+use std::fs;
 use std::path::{Component, Path, PathBuf};
 use std::process::Command;
 use thiserror::Error;
@@ -128,12 +130,110 @@ pub fn safe_join(base: impl AsRef<Path>, relative: &str) -> Result<PathBuf, Secu
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+pub struct ToolchainManifest {
+    pub schema_version: String,
+    pub kind: String,
+    pub policy: ToolchainPolicy,
+    #[serde(default)]
+    pub tools: BTreeMap<String, ToolConfig>,
+    #[serde(default)]
+    pub artifacts: ArtifactPolicy,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+pub struct ToolchainPolicy {
+    #[serde(default = "default_true")]
+    pub offline: bool,
+    #[serde(default)]
+    pub allow_network: bool,
+    #[serde(default)]
+    pub allow_untrusted_scripts: bool,
+    #[serde(default)]
+    pub allow_shell: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+pub struct ToolConfig {
+    #[serde(default)]
+    pub required: bool,
+    #[serde(default)]
+    pub command: Option<String>,
+    #[serde(default)]
+    pub min_version: Option<String>,
+    #[serde(default)]
+    pub python_module: Option<String>,
+    #[serde(default)]
+    pub gw_sh: Option<String>,
+    #[serde(default)]
+    pub programmer_cli: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+pub struct ArtifactPolicy {
+    #[serde(default = "default_artifact_root")]
+    pub root: String,
+    #[serde(default = "default_true")]
+    pub keep_logs: bool,
+    #[serde(default = "default_true")]
+    pub write_json: bool,
+    #[serde(default = "default_true")]
+    pub write_markdown: bool,
+}
+
+impl Default for ArtifactPolicy {
+    fn default() -> Self {
+        Self {
+            root: default_artifact_root(),
+            keep_logs: true,
+            write_json: true,
+            write_markdown: true,
+        }
+    }
+}
+
+impl ToolchainManifest {
+    pub fn from_path(path: impl AsRef<Path>) -> Result<Self, SecurityError> {
+        let path = path.as_ref();
+        let raw = fs::read_to_string(path).map_err(|err| SecurityError::CommandExecution {
+            program: path.display().to_string(),
+            message: err.to_string(),
+        })?;
+        toml::from_str(&raw).map_err(|err| SecurityError::CommandExecution {
+            program: path.display().to_string(),
+            message: err.to_string(),
+        })
+    }
+
+    pub fn allows_executable(&self, program: &str) -> bool {
+        self.tools.values().any(|tool| {
+            tool.command.as_deref() == Some(program)
+                || tool.gw_sh.as_deref() == Some(program)
+                || tool.programmer_cli.as_deref() == Some(program)
+        })
+    }
+}
+
+fn default_true() -> bool {
+    true
+}
+
+fn default_artifact_root() -> String {
+    "build".to_string()
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct CommandSpec {
     pub program: String,
     #[serde(default)]
     pub args: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cwd: Option<PathBuf>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub env: BTreeMap<String, String>,
+    #[serde(default)]
+    pub allow_network: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub timeout_seconds: Option<u64>,
 }
 
 impl CommandSpec {
@@ -142,6 +242,9 @@ impl CommandSpec {
             program: program.into(),
             args: Vec::new(),
             cwd: None,
+            env: BTreeMap::new(),
+            allow_network: false,
+            timeout_seconds: None,
         }
     }
 
@@ -161,6 +264,21 @@ impl CommandSpec {
 
     pub fn cwd(mut self, cwd: impl Into<PathBuf>) -> Self {
         self.cwd = Some(cwd.into());
+        self
+    }
+
+    pub fn env(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
+        self.env.insert(key.into(), value.into());
+        self
+    }
+
+    pub fn allow_network(mut self, allow_network: bool) -> Self {
+        self.allow_network = allow_network;
+        self
+    }
+
+    pub fn timeout_seconds(mut self, timeout_seconds: u64) -> Self {
+        self.timeout_seconds = Some(timeout_seconds);
         self
     }
 }
@@ -198,6 +316,7 @@ impl CommandRunner for ProcessCommandRunner {
 
         let mut command = Command::new(OsStr::new(&spec.program));
         command.args(spec.args.iter().map(OsStr::new));
+        command.envs(spec.env.iter());
         if let Some(cwd) = &spec.cwd {
             command.current_dir(cwd);
         }
@@ -220,6 +339,30 @@ impl CommandRunner for ProcessCommandRunner {
             stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
         })
     }
+}
+
+pub fn redact_secret_text(input: &str) -> String {
+    input
+        .split_whitespace()
+        .map(|token| {
+            if looks_secret_token(token) {
+                "[REDACTED]"
+            } else {
+                token
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+fn looks_secret_token(token: &str) -> bool {
+    let lower = token.to_ascii_lowercase();
+    lower.contains("token=")
+        || lower.contains("password=")
+        || lower.contains("secret=")
+        || lower.contains("api_key=")
+        || lower.contains("apikey=")
+        || lower.contains("private_key=")
 }
 
 #[cfg(test)]

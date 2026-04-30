@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 use af_backend::{
-    AfBackend, BackendStatus, CommandRecord, CommandRunner, CommandSpec, ProcessCommandRunner,
-    ToolVersion,
+    AfBackend, BackendCapability, BackendStatus, CommandRecord, CommandRunner, CommandSpec,
+    ProcessCommandRunner, ToolVersion,
 };
 use af_backend_verilator::VerilatorBackend;
 use af_board_db::BoardDbError;
@@ -34,6 +34,10 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
+    Init {
+        #[command(subcommand)]
+        command: InitCommand,
+    },
     Doctor,
     Manifest {
         #[command(subcommand)]
@@ -51,6 +55,29 @@ enum Commands {
         #[command(subcommand)]
         command: BoardCommand,
     },
+    Build {
+        core_dir: PathBuf,
+        #[arg(long)]
+        board: String,
+        #[arg(long, default_value = "litex")]
+        backend: String,
+    },
+    Flash {
+        build_dir: PathBuf,
+        #[arg(long, default_value = "openfpgaloader")]
+        backend: String,
+    },
+    Clean {
+        #[arg(long)]
+        yes: bool,
+    },
+    Backend {
+        #[command(subcommand)]
+        command: BackendCommand,
+    },
+    Report {
+        input: PathBuf,
+    },
     Vectors {
         #[command(subcommand)]
         command: VectorsCommand,
@@ -66,8 +93,34 @@ enum Commands {
 }
 
 #[derive(Subcommand, Debug)]
+enum InitCommand {
+    Core {
+        name: String,
+        #[arg(long, default_value = "stream-ip")]
+        template: String,
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long, default_value = "ip")]
+        library: String,
+        #[arg(long, default_value = "systemverilog")]
+        language: String,
+    },
+}
+
+#[derive(Subcommand, Debug)]
 enum ManifestCommand {
-    Validate { path: PathBuf },
+    Validate {
+        path: PathBuf,
+    },
+    Migrate {
+        path: PathBuf,
+        #[arg(long)]
+        from: String,
+        #[arg(long)]
+        to: String,
+        #[arg(long)]
+        write: bool,
+    },
 }
 
 #[derive(Subcommand, Debug)]
@@ -94,6 +147,16 @@ enum CoreCommand {
         #[arg(long, default_value = "verilator")]
         backend: String,
     },
+    Formal {
+        core_dir: PathBuf,
+        #[arg(long, default_value = "sby")]
+        backend: String,
+    },
+    Package {
+        core_dir: PathBuf,
+        #[arg(long, default_value = "manifest")]
+        format: String,
+    },
     Report {
         input: PathBuf,
     },
@@ -109,6 +172,13 @@ enum RegistryCommand {
 
 #[derive(Subcommand, Debug)]
 enum BoardCommand {
+    List {
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+    },
+    Check {
+        path: PathBuf,
+    },
     Matrix {
         #[arg(long, default_value = ".")]
         root: PathBuf,
@@ -126,6 +196,18 @@ enum BoardCommand {
         constraint_format: String,
         #[arg(long, default_value = ".")]
         root: PathBuf,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+enum BackendCommand {
+    List,
+    Run {
+        backend: String,
+        #[arg(long, default_value = "lint")]
+        target: String,
+        #[arg(long)]
+        core_dir: Option<PathBuf>,
     },
 }
 
@@ -154,6 +236,8 @@ enum WrapperCommand {
         core_dir: PathBuf,
         #[arg(long)]
         target: String,
+        #[arg(long)]
+        board: Option<String>,
     },
 }
 
@@ -303,9 +387,24 @@ fn init_tracing(verbose: u8, quiet: bool) {
 
 fn execute(cli: &Cli) -> Result<CliOutput, CliError> {
     match &cli.command {
+        Commands::Init { command } => match command {
+            InitCommand::Core {
+                name,
+                template,
+                root,
+                library,
+                language,
+            } => init_core(root, name, template, library, language),
+        },
         Commands::Doctor => doctor(),
         Commands::Manifest { command } => match command {
             ManifestCommand::Validate { path } => manifest_validate(path),
+            ManifestCommand::Migrate {
+                path,
+                from,
+                to,
+                write,
+            } => manifest_migrate(path, from, to, *write),
         },
         Commands::Core { command } => match command {
             CoreCommand::Check { core_dir } => core_check(core_dir, &cli.build_root),
@@ -319,12 +418,20 @@ fn execute(cli: &Cli) -> Result<CliOutput, CliError> {
                 core_lint(core_dir, &cli.build_root, backend)
             }
             CoreCommand::Sim { core_dir, backend } => core_sim(core_dir, &cli.build_root, backend),
+            CoreCommand::Formal { core_dir, backend } => {
+                core_formal(core_dir, &cli.build_root, backend)
+            }
+            CoreCommand::Package { core_dir, format } => {
+                core_package(core_dir, &cli.build_root, format)
+            }
             CoreCommand::Report { input } => core_report(input, &cli.build_root),
         },
         Commands::Registry { command } => match command {
             RegistryCommand::Check { root } => registry_check(root),
         },
         Commands::Board { command } => match command {
+            BoardCommand::List { root } => board_list(root),
+            BoardCommand::Check { path } => board_check(path),
             BoardCommand::Matrix { root, output } => board_matrix(root, output.as_ref()),
             BoardCommand::New {
                 board_id,
@@ -334,6 +441,22 @@ fn execute(cli: &Cli) -> Result<CliOutput, CliError> {
                 root,
             } => board_new(root, board_id, vendor, family, constraint_format),
         },
+        Commands::Build {
+            core_dir,
+            board,
+            backend,
+        } => build(core_dir, &cli.build_root, board, backend),
+        Commands::Flash { build_dir, backend } => flash(build_dir, backend),
+        Commands::Clean { yes } => clean(&cli.build_root, *yes),
+        Commands::Backend { command } => match command {
+            BackendCommand::List => backend_list(),
+            BackendCommand::Run {
+                backend,
+                target,
+                core_dir,
+            } => backend_run(backend, target, core_dir.as_ref(), &cli.build_root),
+        },
+        Commands::Report { input } => core_report(input, &cli.build_root),
         Commands::Vectors { command } => match command {
             VectorsCommand::Generate {
                 basic_out,
@@ -344,9 +467,11 @@ fn execute(cli: &Cli) -> Result<CliOutput, CliError> {
             } => vectors_generate(basic_out, random_out, svh_out, *count, seed),
         },
         Commands::Wrapper { command } => match command {
-            WrapperCommand::Generate { core_dir, target } => {
-                wrapper_generate(core_dir, &cli.build_root, target)
-            }
+            WrapperCommand::Generate {
+                core_dir,
+                target,
+                board,
+            } => wrapper_generate(core_dir, &cli.build_root, target, board.as_deref()),
         },
         Commands::Ci { command } => match command {
             CiCommand::Generate { target, output } => ci_generate(target, output.as_ref()),
@@ -395,6 +520,85 @@ fn manifest_validate(path: &Path) -> Result<CliOutput, CliError> {
             "status": "passed",
             "manifest": manifest,
             "validation": report,
+        }),
+    })
+}
+
+fn init_core(
+    root: &Path,
+    name: &str,
+    template: &str,
+    library: &str,
+    language: &str,
+) -> Result<CliOutput, CliError> {
+    if template != "stream-ip" {
+        return Err(CliError::new(
+            "AF_INIT_TEMPLATE_UNSUPPORTED",
+            format!("init core template `{template}` is unsupported"),
+            "Use --template stream-ip for the MVP scaffold.",
+            2,
+        ));
+    }
+    core_new(&root.join(name), name, library, language)
+}
+
+fn manifest_migrate(path: &Path, from: &str, to: &str, write: bool) -> Result<CliOutput, CliError> {
+    if from != "0.1" || !matches!(to, "0.1" | "0.2") {
+        return Err(CliError::new(
+            "AF_MANIFEST_MIGRATION_UNSUPPORTED",
+            format!("manifest migration {from} -> {to} is unsupported"),
+            "Use --from 0.1 --to 0.2 for the built-in compatibility migration.",
+            2,
+        ));
+    }
+    let mut manifest = CoreManifest::from_path(path)?;
+    manifest.af_version = to.to_string();
+    if manifest.kind.is_none() {
+        manifest.kind = Some("accelfury.core".to_string());
+    }
+    let payload = toml::to_string_pretty(&manifest).map_err(|err| {
+        CliError::new(
+            "AF_MANIFEST_MIGRATION_SERIALIZE_FAILED",
+            err.to_string(),
+            "Report this bug with the manifest that could not be serialized.",
+            1,
+        )
+    })?;
+    let output = if write {
+        path.to_path_buf()
+    } else {
+        path.with_file_name(format!(
+            "{}.migrated-{to}.toml",
+            path.file_stem()
+                .and_then(|stem| stem.to_str())
+                .unwrap_or("af-core")
+        ))
+    };
+    if !write && output.exists() {
+        return Err(CliError::new(
+            "AF_FILE_EXISTS",
+            format!("refusing to overwrite existing migration output `{}`", output.display()),
+            "Pass --write to overwrite the source manifest, or remove the generated migration file intentionally.",
+            2,
+        ));
+    }
+    fs::write(&output, payload).map_err(|err| {
+        CliError::new(
+            "AF_MANIFEST_MIGRATION_WRITE_FAILED",
+            format!("failed to write `{}`: {err}", output.display()),
+            "Check filesystem permissions for the manifest directory.",
+            5,
+        )
+    })?;
+    Ok(CliOutput {
+        human: format!("manifest migrated: {}", output.display()),
+        json: json!({
+            "status": "passed",
+            "source": path,
+            "output": output,
+            "from": from,
+            "to": to,
+            "write": write,
         }),
     })
 }
@@ -565,6 +769,32 @@ fn registry_check(root: &Path) -> Result<CliOutput, CliError> {
         )
         .with_details(&report))
     }
+}
+
+fn board_list(root: &Path) -> Result<CliOutput, CliError> {
+    let boards = af_board_db::list_boards(root)?;
+    Ok(CliOutput {
+        human: boards
+            .iter()
+            .map(|board| format!("{} ({})", board.board_id, board.display_name))
+            .collect::<Vec<_>>()
+            .join("\n"),
+        json: json!({
+            "status": "passed",
+            "boards": boards,
+        }),
+    })
+}
+
+fn board_check(path: &Path) -> Result<CliOutput, CliError> {
+    let profile = af_board_db::check_board_profile(path)?;
+    Ok(CliOutput {
+        human: format!("board profile valid: {}", profile.id),
+        json: json!({
+            "status": "passed",
+            "board": profile,
+        }),
+    })
 }
 
 fn board_matrix(root: &Path, output: Option<&PathBuf>) -> Result<CliOutput, CliError> {
@@ -841,7 +1071,7 @@ fn core_lint(core_dir: &Path, build_root: &Path, backend: &str) -> Result<CliOut
                     4,
                 )
             } else {
-                ("AF_BACKEND_FAILED", "core lint backend command failed", 3)
+                ("AF_LINT_FAILED", "core lint backend command failed", 7)
             };
             Err(CliError::new(
                 code,
@@ -897,7 +1127,7 @@ fn core_sim(core_dir: &Path, build_root: &Path, backend: &str) -> Result<CliOutp
                     4,
                 )
             } else {
-                ("AF_BACKEND_FAILED", "core sim backend command failed", 3)
+                ("AF_SIMULATION_FAILED", "core sim backend command failed", 6)
             };
             Err(CliError::new(
                 code,
@@ -908,6 +1138,81 @@ fn core_sim(core_dir: &Path, build_root: &Path, backend: &str) -> Result<CliOutp
             .with_details(&detail))
         }
     }
+}
+
+fn core_formal(core_dir: &Path, build_root: &Path, backend: &str) -> Result<CliOutput, CliError> {
+    let checked = check_core(core_dir)?;
+    let mut report = AfReport::for_core("skipped", &checked.manifest);
+    report.warnings.push(format!(
+        "formal backend `{backend}` is not enabled in the MVP execution path"
+    ));
+    report.limitations.push(
+        "SymbiYosys formal checks are staged after the Verilator/FuseSoC/LiteX baseline."
+            .to_string(),
+    );
+    let written = write_reports(build_root.join("reports"), "core-formal", &report)?;
+    Err(CliError::new(
+        "AF_FORMAL_UNAVAILABLE",
+        format!("core formal backend `{backend}` is unavailable"),
+        "Keep formal entries disabled or install a future SymbiYosys backend.",
+        8,
+    )
+    .with_details(&json!({
+        "status": "skipped",
+        "reports": written,
+        "capabilities": af_backend_sby::capabilities(),
+    })))
+}
+
+fn core_package(core_dir: &Path, build_root: &Path, format: &str) -> Result<CliOutput, CliError> {
+    if !matches!(format, "manifest" | "tar.zst") {
+        return Err(CliError::new(
+            "AF_PACKAGE_FORMAT_UNSUPPORTED",
+            format!("package format `{format}` is unsupported"),
+            "Use --format manifest or --format tar.zst. The MVP writes a deterministic manifest package descriptor.",
+            2,
+        ));
+    }
+    let checked = check_core(core_dir)?;
+    let package_dir = build_root.join("package");
+    fs::create_dir_all(&package_dir).map_err(|err| {
+        CliError::new(
+            "AF_PACKAGE_CREATE_DIR_FAILED",
+            format!("failed to create `{}`: {err}", package_dir.display()),
+            "Check filesystem permissions and the selected build root.",
+            5,
+        )
+    })?;
+    let package_path = package_dir.join(format!("{}-package-manifest.json", checked.manifest.core));
+    let package = json!({
+        "generated_by": af_report::GENERATED_BY,
+        "schema_version": "0.1",
+        "kind": "accelfury.package_manifest",
+        "format": format,
+        "core": checked.manifest.vlnv(),
+        "sources": checked.manifest.sources.files.clone(),
+        "testbenches": checked.manifest.testbenches.clone(),
+        "limitations": checked.limitations.clone(),
+    });
+    write_json_file(&package_path, &package)?;
+    let mut report = AfReport::for_core("passed", &checked.manifest);
+    report.artifacts.push(package_path.display().to_string());
+    report.limitations.push(
+        "MVP package command writes a package manifest descriptor; archive signing/SBOM are future work."
+            .to_string(),
+    );
+    let written = write_reports(build_root.join("reports"), "core-package", &report)?;
+    Ok(CliOutput {
+        human: format!(
+            "core package descriptor written: {}",
+            package_path.display()
+        ),
+        json: json!({
+            "status": "passed",
+            "package": package_path,
+            "reports": written,
+        }),
+    })
 }
 
 fn core_report(input: &Path, build_root: &Path) -> Result<CliOutput, CliError> {
@@ -960,9 +1265,10 @@ fn wrapper_generate(
     core_dir: &Path,
     build_root: &Path,
     target: &str,
+    board: Option<&str>,
 ) -> Result<CliOutput, CliError> {
     let target = WrapperTarget::parse(target)?;
-    let report = generate_wrapper(core_dir, build_root, target)?;
+    let report = generate_wrapper(core_dir, build_root, target, board)?;
     Ok(CliOutput {
         human: format!(
             "wrapper generated: {}",
@@ -977,6 +1283,188 @@ fn wrapper_generate(
             "status": "passed",
             "wrapper": report,
         }),
+    })
+}
+
+fn build(
+    core_dir: &Path,
+    build_root: &Path,
+    board: &str,
+    backend: &str,
+) -> Result<CliOutput, CliError> {
+    match backend {
+        "litex" => {
+            let target = WrapperTarget::parse("litex")?;
+            let wrapper = generate_wrapper(core_dir, build_root, target, Some(board))?;
+            let checked = check_core(core_dir)?;
+            let mut report = AfReport::for_core("passed", &checked.manifest);
+            report.artifacts.extend(
+                wrapper
+                    .artifacts
+                    .iter()
+                    .map(|path| path.display().to_string()),
+            );
+            report.warnings.extend(wrapper.warnings);
+            report.limitations.extend(wrapper.limitations);
+            report.limitations.push(
+                "LiteX build is a reference dry-run skeleton; no vendor timing or bitstream is produced."
+                    .to_string(),
+            );
+            let written = write_reports(build_root.join("reports"), "build-report", &report)?;
+            Ok(CliOutput {
+                human: format!("build dry-run passed with litex for board `{board}`"),
+                json: json!({
+                    "status": "passed",
+                    "backend": backend,
+                    "board": board,
+                    "artifacts": wrapper.artifacts,
+                    "reports": written,
+                }),
+            })
+        }
+        other => Err(CliError::new(
+            "AF_BUILD_BACKEND_UNAVAILABLE",
+            format!("build backend `{other}` is unavailable"),
+            "Use --backend litex for the MVP dry-run path; vendor production backends are planned later.",
+            9,
+        )),
+    }
+}
+
+fn flash(build_dir: &Path, backend: &str) -> Result<CliOutput, CliError> {
+    Err(CliError::new(
+        "AF_FLASH_UNAVAILABLE",
+        format!(
+            "flash backend `{backend}` is unavailable for `{}`",
+            build_dir.display()
+        ),
+        "Flash support requires a produced bitstream artifact and is staged for MVP-2/3.",
+        10,
+    )
+    .with_details(&json!({
+        "capabilities": af_backend_flash::capabilities(),
+    })))
+}
+
+fn clean(build_root: &Path, yes: bool) -> Result<CliOutput, CliError> {
+    if !yes {
+        return Err(CliError::new(
+            "AF_CLEAN_CONFIRMATION_REQUIRED",
+            format!("refusing to clean `{}` without --yes", build_root.display()),
+            "Pass --yes to remove the selected build root.",
+            2,
+        ));
+    }
+    if !build_root.exists() {
+        return Ok(CliOutput {
+            human: format!("build root already clean: {}", build_root.display()),
+            json: json!({
+                "status": "passed",
+                "removed": false,
+                "build_root": build_root,
+            }),
+        });
+    }
+    fs::remove_dir_all(build_root).map_err(|err| {
+        CliError::new(
+            "AF_CLEAN_FAILED",
+            format!("failed to remove `{}`: {err}", build_root.display()),
+            "Check filesystem permissions or choose a writable build root.",
+            5,
+        )
+    })?;
+    Ok(CliOutput {
+        human: format!("build root removed: {}", build_root.display()),
+        json: json!({
+            "status": "passed",
+            "removed": true,
+            "build_root": build_root,
+        }),
+    })
+}
+
+fn backend_list() -> Result<CliOutput, CliError> {
+    let mut capabilities: Vec<BackendCapability> = Vec::new();
+    capabilities.extend(VerilatorBackend::process().capabilities());
+    capabilities.push(BackendCapability {
+        name: "fusesoc-package-export".to_string(),
+        supported: true,
+        detail: Some(
+            "FuseSoC .core generation is deterministic and does not require executing FuseSoC."
+                .to_string(),
+        ),
+    });
+    capabilities.push(BackendCapability {
+        name: "litex-wrapper-skeleton".to_string(),
+        supported: true,
+        detail: Some("LiteX skeleton/reference dry-run generation is available.".to_string()),
+    });
+    capabilities.extend(af_backend_yosys::capabilities());
+    capabilities.extend(af_backend_sby::capabilities());
+    capabilities.extend(af_backend_flash::capabilities());
+    capabilities.extend(af_backend_vendor::capabilities());
+    Ok(CliOutput {
+        human: capabilities
+            .iter()
+            .map(|capability| {
+                format!(
+                    "{}: {}",
+                    capability.name,
+                    if capability.supported {
+                        "supported"
+                    } else {
+                        "planned"
+                    }
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("\n"),
+        json: json!({
+            "status": "passed",
+            "capabilities": capabilities,
+        }),
+    })
+}
+
+fn backend_run(
+    backend: &str,
+    target: &str,
+    core_dir: Option<&PathBuf>,
+    build_root: &Path,
+) -> Result<CliOutput, CliError> {
+    match (backend, target) {
+        ("verilator", "lint") => {
+            let core_dir = required_backend_core(core_dir, "verilator lint")?;
+            core_lint(core_dir, build_root, backend)
+        }
+        ("verilator", "sim") | ("verilator", "simulate") => {
+            let core_dir = required_backend_core(core_dir, "verilator sim")?;
+            core_sim(core_dir, build_root, backend)
+        }
+        ("litex", "generate-wrapper") => {
+            let core_dir = required_backend_core(core_dir, "litex generate-wrapper")?;
+            wrapper_generate(core_dir, build_root, "litex", None)
+        }
+        _ => Err(CliError::new(
+            "AF_BACKEND_RUN_UNSUPPORTED",
+            format!("backend run target `{backend}:{target}` is unsupported"),
+            "Use `af backend list` to inspect the available MVP backend capabilities.",
+            2,
+        )),
+    }
+}
+
+fn required_backend_core<'a>(
+    core_dir: Option<&'a PathBuf>,
+    target: &str,
+) -> Result<&'a PathBuf, CliError> {
+    core_dir.ok_or_else(|| {
+        CliError::new(
+            "AF_BACKEND_RUN_CORE_REQUIRED",
+            format!("backend run {target} requires --core-dir"),
+            "Pass --core-dir <path> so the backend can load af-core.toml.",
+            2,
+        )
     })
 }
 

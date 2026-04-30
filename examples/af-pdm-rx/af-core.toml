@@ -1,105 +1,181 @@
-af_version = "0.1"
-name = "af-pdm-rx"
+schema_version = "0.1"
+kind = "accelfury.core"
+
+[name]
 vendor = "accelfury"
-library = "ip"
-core = "af_pdm_rx"
+library = "audio"
+core = "af-pdm-rx"
 version = "0.1.0"
-boards = ["sipeed_tang_nano_20k", "sipeed_tang_primer_20k_core"]
-known_limitations = [
-  "This MVP core captures and qualifies a PDM bitstream only; PDM-to-PCM conversion is explicitly outside the boundary.",
-  "No CDC/RDC/timing signoff is performed by the MVP toolchain.",
-  "No vendor bitstream flow is generated or executed."
-]
 
 [metadata]
+display_name = "AccelFury PDM RX"
 license = "Apache-2.0"
 authors = ["AccelFury contributors"]
 repository = "https://example.invalid/accelfury/af"
-description = "Minimal PDM input receiver example for AccelFury IP Toolchain MVP."
+description = "Raw PDM receiver for digital MEMS microphone bitstream capture. This core does not perform PDM-to-PCM decimation."
 
 [rtl]
 top = "af_pdm_rx"
 language = "systemverilog"
+systemverilog_subset = true
 default_clock = "clk"
 default_reset = "rst_n"
 
-[sources]
-files = ["rtl/af_pdm_rx.sv"]
-include_dirs = []
+[[sources]]
+path = "rtl/af_pdm_rx.sv"
+file_type = "systemVerilogSource"
+role = "rtl"
 
 [[parameters]]
-name = "OVERSAMPLE"
-value = "64"
-description = "PDM clock divider/sample qualifier used by the example logic."
+name = "CLK_DIV"
+kind = "integer"
+default = "16"
+min = "2"
+description = "Clock divider for generated PDM sampling clock."
+
+[[parameters]]
+name = "WORD_BITS"
+kind = "integer"
+default = "32"
+allowed = ["8", "16", "24", "32", "64"]
+description = "Number of captured PDM bits grouped into one output word."
+
+[[ports]]
+name = "clk"
+direction = "input"
+width = 1
+kind = "clock"
+clock_domain = "sys"
+
+[[ports]]
+name = "rst_n"
+direction = "input"
+width = 1
+kind = "reset"
+active = "low"
+reset_style = "async"
+clock_domain = "sys"
+
+[[ports]]
+name = "pdm_data_i"
+direction = "input"
+width = 1
+kind = "data"
+interface = "pdm_in"
+
+[[ports]]
+name = "pdm_clk_o"
+direction = "output"
+width = 1
+kind = "clock_out"
+interface = "pdm_in"
+
+[[ports]]
+name = "sample_word_o"
+direction = "output"
+width = "WORD_BITS"
+kind = "data"
+interface = "raw_stream"
+clock_domain = "sys"
+
+[[ports]]
+name = "sample_valid_o"
+direction = "output"
+width = 1
+kind = "valid"
+interface = "raw_stream"
+clock_domain = "sys"
+
+[[ports]]
+name = "sample_ready_i"
+direction = "input"
+width = 1
+kind = "ready"
+interface = "raw_stream"
+clock_domain = "sys"
 
 [[clocks]]
-name = "clk"
-frequency_hz = 50_000_000
+name = "sys"
+port = "clk"
+frequency_hz = 27000000
+description = "Default board/system clock for Tang Nano 20K reference build."
 
 [[resets]]
-name = "rst_n"
+name = "sys_rst_n"
+port = "rst_n"
 active = "low"
-asynchronous = true
-
-[[ports]]
-name = "clk"
-direction = "input"
-width = 1
-clock = "clk"
-description = "Core clock."
-
-[[ports]]
-name = "rst_n"
-direction = "input"
-width = 1
-reset = "rst_n"
-description = "Active-low reset."
-
-[[ports]]
-name = "pdm_data"
-direction = "input"
-width = 1
-clock = "clk"
-description = "Raw PDM input bitstream."
-
-[[ports]]
-name = "pdm_clk"
-direction = "output"
-width = 1
-clock = "clk"
-description = "Forwarded PDM clock for simple examples."
-
-[[ports]]
-name = "sample_valid"
-direction = "output"
-width = 1
-clock = "clk"
-reset = "rst_n"
-description = "Pulse indicating sample_bit was updated."
-
-[[ports]]
-name = "sample_bit"
-direction = "output"
-width = 1
-clock = "clk"
-reset = "rst_n"
-description = "Latest captured PDM bit."
+style = "async"
+clock_domain = "sys"
 
 [[interfaces]]
-name = "pdm"
-kind = "raw-pdm"
-clock = "clk"
-reset = "rst_n"
+name = "pdm_in"
+kind = "pdm_raw_rx"
+clock = "pdm_clk_o"
+data = "pdm_data_i"
+
+[[stream_interfaces]]
+name = "raw_stream"
+kind = "valid_ready"
+clock_domain = "sys"
+data = "sample_word_o"
+valid = "sample_valid_o"
+ready = "sample_ready_i"
+data_width = "WORD_BITS"
+payload_semantics = "raw_pdm_bit_group"
+
+[csr]
+present = false
+
+[interrupts]
+present = false
 
 [[testbenches]]
-name = "smoke"
+name = "verilator_smoke"
+backend = "verilator"
 top = "tb_af_pdm_rx"
 sources = ["tb/tb_af_pdm_rx.sv"]
+rtl_sources = ["rtl/af_pdm_rx.sv"]
+expected = "pass"
 
-[formal]
+[[formal]]
+name = "basic_handshake"
+backend = "sby"
 enabled = false
-properties = []
+files = []
 
-[backend_compatibility]
-verilator = true
-fusesoc = true
+[[boards]]
+name = "tang-nano-20k"
+status = "planned"
+backend = ["litex", "gowin", "openfpgaloader"]
+constraints = []
+
+[[boards]]
+name = "tang-primer-20k"
+status = "experimental"
+backend = ["litex", "gowin", "openfpgaloader"]
+constraints = []
+
+[[backend_compatibility]]
+backend = "verilator"
+status = "supported"
+min_version = "5.040"
+
+[[backend_compatibility]]
+backend = "fusesoc"
+status = "supported"
+
+[[backend_compatibility]]
+backend = "litex"
+status = "planned"
+
+[[known_limitations]]
+id = "AF-PDM-RX-LIM-001"
+text = "Core captures raw PDM bit groups only. It does not implement CIC/FIR decimation and does not output PCM audio."
+
+[[known_limitations]]
+id = "AF-PDM-RX-LIM-002"
+text = "Timing closure must be validated by target vendor backend and board constraints."
+
+[[known_limitations]]
+id = "AF-PDM-RX-LIM-003"
+text = "Audio quality is not checked because this core does not generate PCM audio."

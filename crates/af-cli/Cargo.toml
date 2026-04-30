@@ -12,8 +12,13 @@ path = "src/main.rs"
 
 [dependencies]
 af-backend.workspace = true
+af-backend-flash.workspace = true
 af-backend-fusesoc.workspace = true
+af-backend-litex.workspace = true
+af-backend-sby.workspace = true
+af-backend-vendor.workspace = true
 af-backend-verilator.workspace = true
+af-backend-yosys.workspace = true
 af-board-db.workspace = true
 af-ci.workspace = true
 af-core.workspace = true
@@ -26,6 +31,7 @@ miette.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
+toml.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 

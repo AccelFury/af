@@ -2,6 +2,7 @@
 use af_manifest::CoreManifest;
 use af_security::{safe_join, SecurityError};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use thiserror::Error;
@@ -74,6 +75,8 @@ impl RtlIssue {
 #[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
 pub struct RtlInspectionReport {
     pub scanned_files: Vec<PathBuf>,
+    #[serde(default)]
+    pub checks: BTreeMap<String, String>,
     pub issues: Vec<RtlIssue>,
 }
 
@@ -145,27 +148,158 @@ pub fn inspect_core(
                 ));
             }
         }
+        for source in &testbench.rtl_sources {
+            let path = safe_join(core_dir, source)?;
+            if !path.is_file() {
+                report.issues.push(RtlIssue::error(
+                    "AF_TESTBENCH_RTL_SOURCE_MISSING",
+                    format!(
+                        "testbench `{}` rtl source file `{source}` does not exist",
+                        testbench.name
+                    ),
+                    "Create the file or update the testbench rtl_sources list.",
+                ));
+            }
+        }
     }
 
-    if !source_text.is_empty() && !top_appears_in_source(&source_text, manifest) {
-        report.issues.push(RtlIssue::error(
-            "AF_TOP_MISSING",
-            format!(
-                "top `{}` was not found in declared RTL sources",
-                manifest.rtl.top
-            ),
-            "Ensure rtl.top matches a module/entity declared in sources.files.",
-        ));
+    if !source_text.is_empty() {
+        let top_header = top_declaration_header(&source_text, manifest);
+        if top_header.is_none() {
+            report
+                .checks
+                .insert("top_module_presence".to_string(), "fail".to_string());
+            report.issues.push(RtlIssue::error(
+                "AF_TOP_MISSING",
+                format!(
+                    "top `{}` was not found in declared RTL sources",
+                    manifest.rtl.top
+                ),
+                "Ensure rtl.top matches a module/entity declared in sources.files.",
+            ));
+        } else {
+            report
+                .checks
+                .insert("top_module_presence".to_string(), "pass".to_string());
+        }
+
+        if let Some(header) = top_header.as_deref() {
+            check_manifest_ports_in_header(&mut report, manifest, header);
+            check_clock_reset_bindings(&mut report, manifest);
+        }
     }
 
     Ok(report)
 }
 
-fn top_appears_in_source(source_text: &str, manifest: &CoreManifest) -> bool {
+fn top_declaration_header(source_text: &str, manifest: &CoreManifest) -> Option<String> {
     match manifest.rtl.language.as_str() {
-        "vhdl" => contains_token_sequence(source_text, "entity", &manifest.rtl.top),
-        _ => contains_token_sequence(source_text, "module", &manifest.rtl.top),
+        "vhdl" => {
+            if contains_token_sequence(source_text, "entity", &manifest.rtl.top) {
+                Some(source_text.to_string())
+            } else {
+                None
+            }
+        }
+        _ => module_header(source_text, &manifest.rtl.top),
     }
+}
+
+fn check_manifest_ports_in_header(
+    report: &mut RtlInspectionReport,
+    manifest: &CoreManifest,
+    header: &str,
+) {
+    if manifest.ports.is_empty() {
+        report
+            .checks
+            .insert("ports_manifest_match".to_string(), "skip".to_string());
+        return;
+    }
+    let mut missing = Vec::new();
+    for port in &manifest.ports {
+        if !contains_identifier(header, &port.name) {
+            missing.push(port.name.clone());
+            report.issues.push(RtlIssue::error(
+                "AF_PORT_MISSING",
+                format!(
+                    "manifest port `{}` was not found in top `{}` declaration",
+                    port.name, manifest.rtl.top
+                ),
+                "Update [[ports]] or the top module declaration so they agree.",
+            ));
+        }
+    }
+    report.checks.insert(
+        "ports_manifest_match".to_string(),
+        if missing.is_empty() { "pass" } else { "fail" }.to_string(),
+    );
+}
+
+fn check_clock_reset_bindings(report: &mut RtlInspectionReport, manifest: &CoreManifest) {
+    let port_names = manifest
+        .ports
+        .iter()
+        .map(|port| port.name.as_str())
+        .collect::<std::collections::BTreeSet<_>>();
+    let mut failed = false;
+
+    for clock in &manifest.clocks {
+        let bound_port = clock.port.as_deref().unwrap_or(clock.name.as_str());
+        if !port_names.contains(bound_port) {
+            failed = true;
+            report.issues.push(RtlIssue::error(
+                "AF_CLOCK_PORT_UNBOUND",
+                format!(
+                    "clock `{}` is not bound to a declared port `{bound_port}`",
+                    clock.name
+                ),
+                "Set clocks.port or add a matching clock port to [[ports]].",
+            ));
+        }
+    }
+    for reset in &manifest.resets {
+        let bound_port = reset.port.as_deref().unwrap_or(reset.name.as_str());
+        if !port_names.contains(bound_port) {
+            failed = true;
+            report.issues.push(RtlIssue::error(
+                "AF_RESET_PORT_UNBOUND",
+                format!(
+                    "reset `{}` is not bound to a declared port `{bound_port}`",
+                    reset.name
+                ),
+                "Set resets.port or add a matching reset port to [[ports]].",
+            ));
+        }
+    }
+
+    report.checks.insert(
+        "clock_reset_policy".to_string(),
+        if failed { "fail" } else { "pass" }.to_string(),
+    );
+}
+
+fn module_header(source_text: &str, top: &str) -> Option<String> {
+    let stripped = strip_line_comments(source_text);
+    let module_pattern = format!("module {top}");
+    let start = stripped.find(&module_pattern)?;
+    let rest = &stripped[start..];
+    let end = rest.find(");").map(|idx| idx + 2).unwrap_or(rest.len());
+    Some(rest[..end.min(rest.len())].to_string())
+}
+
+fn strip_line_comments(source_text: &str) -> String {
+    source_text
+        .lines()
+        .map(|line| line.split_once("//").map(|(code, _)| code).unwrap_or(line))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn contains_identifier(source_text: &str, ident: &str) -> bool {
+    source_text
+        .split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '$'))
+        .any(|token| token == ident)
 }
 
 fn contains_token_sequence(source_text: &str, first: &str, second: &str) -> bool {
@@ -204,6 +338,61 @@ top = "{top}"
 
 [sources]
 files = ["rtl/demo.sv"]
+
+[[clocks]]
+name = "clk"
+
+[[resets]]
+name = "rst_n"
+
+[[ports]]
+name = "clk"
+direction = "input"
+width = 1
+
+[[ports]]
+name = "rst_n"
+direction = "input"
+width = 1
+"#
+            ),
+            "af-core.toml",
+        )
+        .unwrap()
+    }
+
+    fn manifest_with_ports(top: &str) -> CoreManifest {
+        CoreManifest::from_toml_str(
+            &format!(
+                r#"
+af_version = "0.2"
+name = "demo"
+vendor = "accelfury"
+library = "ip"
+core = "demo"
+version = "0.1.0"
+
+[rtl]
+top = "{top}"
+language = "verilog"
+
+[sources]
+files = ["rtl/demo.v"]
+
+[[ports]]
+name = "clk"
+direction = "input"
+width = 1
+
+[[ports]]
+name = "enable"
+direction = "input"
+width = 1
+
+[[ports]]
+name = "done"
+direction = "output"
+width = 1
 "#
             ),
             "af-core.toml",
@@ -215,7 +404,11 @@ files = ["rtl/demo.sv"]
     fn finds_declared_top() {
         let dir = tempdir().unwrap();
         fs::create_dir_all(dir.path().join("rtl")).unwrap();
-        fs::write(dir.path().join("rtl/demo.sv"), "module demo; endmodule\n").unwrap();
+        fs::write(
+            dir.path().join("rtl/demo.sv"),
+            "module demo(input logic clk, input logic rst_n); endmodule\n",
+        )
+        .unwrap();
         let report = inspect_core(dir.path(), &manifest("demo")).unwrap();
         assert!(!report.has_errors());
     }
@@ -241,5 +434,41 @@ files = ["rtl/demo.sv"]
             .issues
             .iter()
             .any(|issue| issue.code == "AF_TOP_MISSING"));
+    }
+
+    #[test]
+    fn matches_ports_after_leading_comment_and_net_types() {
+        let dir = tempdir().unwrap();
+        fs::create_dir_all(dir.path().join("rtl")).unwrap();
+        fs::write(
+            dir.path().join("rtl/demo.v"),
+            r#"// SPDX-License-Identifier: Apache-2.0
+module demo (
+  input wire clk,
+  input wire enable,
+  output reg done
+);
+endmodule
+"#,
+        )
+        .unwrap();
+        let report = inspect_core(dir.path(), &manifest_with_ports("demo")).unwrap();
+        assert!(!report.has_errors(), "{:#?}", report.issues);
+    }
+
+    #[test]
+    fn reports_manifest_port_missing_from_header() {
+        let dir = tempdir().unwrap();
+        fs::create_dir_all(dir.path().join("rtl")).unwrap();
+        fs::write(
+            dir.path().join("rtl/demo.sv"),
+            "module demo(input logic clk); endmodule\n",
+        )
+        .unwrap();
+        let report = inspect_core(dir.path(), &manifest("demo")).unwrap();
+        assert!(report
+            .issues
+            .iter()
+            .any(|issue| issue.code == "AF_PORT_MISSING"));
     }
 }

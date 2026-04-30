@@ -4,6 +4,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Component, Path, PathBuf};
 use thiserror::Error;
+use toml::map::Map;
+use toml::Value;
 
 #[derive(Debug, Error)]
 pub enum ManifestError {
@@ -80,6 +82,8 @@ pub struct CoreManifest {
     #[serde(default)]
     pub category: Option<String>,
     #[serde(default)]
+    pub kind: Option<String>,
+    #[serde(default)]
     pub metadata: Metadata,
     pub rtl: Rtl,
     #[serde(default)]
@@ -94,6 +98,12 @@ pub struct CoreManifest {
     pub resets: Vec<Reset>,
     #[serde(default)]
     pub interfaces: Vec<Interface>,
+    #[serde(default)]
+    pub stream_interfaces: Vec<StreamInterface>,
+    #[serde(default)]
+    pub csr: Option<PresenceBlock>,
+    #[serde(default)]
+    pub interrupts: Option<PresenceBlock>,
     #[serde(default)]
     pub testbenches: Vec<Testbench>,
     #[serde(default)]
@@ -121,10 +131,18 @@ impl CoreManifest {
     }
 
     pub fn from_toml_str(raw: &str, origin: impl AsRef<Path>) -> Result<Self, ManifestError> {
-        let manifest: Self = toml::from_str(raw).map_err(|err| ManifestError::Parse {
+        let mut value: Value = toml::from_str(raw).map_err(|err| ManifestError::Parse {
             path: origin.as_ref().to_path_buf(),
             message: err.to_string(),
         })?;
+        normalize_manifest_value(&mut value);
+        let manifest: Self =
+            value
+                .try_into()
+                .map_err(|err: toml::de::Error| ManifestError::Parse {
+                    path: origin.as_ref().to_path_buf(),
+                    message: err.to_string(),
+                })?;
         let report = manifest.validate();
         if report.valid {
             Ok(manifest)
@@ -139,10 +157,17 @@ impl CoreManifest {
         raw: &str,
         origin: impl AsRef<Path>,
     ) -> Result<Self, ManifestError> {
-        toml::from_str(raw).map_err(|err| ManifestError::Parse {
+        let mut value: Value = toml::from_str(raw).map_err(|err| ManifestError::Parse {
             path: origin.as_ref().to_path_buf(),
             message: err.to_string(),
-        })
+        })?;
+        normalize_manifest_value(&mut value);
+        value
+            .try_into()
+            .map_err(|err: toml::de::Error| ManifestError::Parse {
+                path: origin.as_ref().to_path_buf(),
+                message: err.to_string(),
+            })
     }
 
     pub fn validate(&self) -> ManifestValidationReport {
@@ -154,6 +179,15 @@ impl CoreManifest {
                 format!("unsupported af_version `{}`", self.af_version),
                 "Use af_version = \"0.1\" or af_version = \"0.2\".",
             ));
+        }
+        if let Some(kind) = &self.kind {
+            if kind != "accelfury.core" {
+                issues.push(ValidationIssue::new(
+                    "AF_MANIFEST_KIND_INVALID",
+                    format!("unsupported manifest kind `{kind}`"),
+                    "Use kind = \"accelfury.core\" for core manifests.",
+                ));
+            }
         }
 
         require_ident("name", &self.name, &mut issues);
@@ -168,12 +202,12 @@ impl CoreManifest {
 
         if !matches!(
             self.rtl.language.as_str(),
-            "systemverilog" | "verilog" | "vhdl"
+            "systemverilog" | "verilog" | "verilog-2001" | "vhdl"
         ) {
             issues.push(ValidationIssue::new(
                 "AF_RTL_LANGUAGE_UNSUPPORTED",
                 format!("unsupported RTL language `{}`", self.rtl.language),
-                "Use one of: systemverilog, verilog, vhdl.",
+                "Use one of: systemverilog, verilog, verilog-2001, vhdl.",
             ));
         }
 
@@ -192,6 +226,41 @@ impl CoreManifest {
             .chain(self.sources.include_dirs.iter())
         {
             validate_manifest_path(path, &mut issues);
+        }
+        let source_files: BTreeSet<&str> = self.sources.files.iter().map(String::as_str).collect();
+        for (path, role) in &self.sources.roles {
+            if !source_files.contains(path.as_str()) {
+                issues.push(ValidationIssue::new(
+                    "AF_SOURCE_ROLE_ORPHANED",
+                    format!("source role is declared for unknown file `{path}`"),
+                    "Keep source roles aligned with source file paths.",
+                ));
+            }
+            if !matches!(
+                role.as_str(),
+                "rtl" | "generated" | "testbench" | "constraint"
+            ) {
+                issues.push(ValidationIssue::new(
+                    "AF_SOURCE_ROLE_INVALID",
+                    format!("source `{path}` has unsupported role `{role}`"),
+                    "Use role = \"rtl\" or role = \"generated\" for core RTL sources.",
+                ));
+            }
+        }
+        for source in &self.sources.files {
+            let role = self
+                .sources
+                .roles
+                .get(source)
+                .map(String::as_str)
+                .unwrap_or("rtl");
+            if looks_generated_path(source) && role != "generated" {
+                issues.push(ValidationIssue::new(
+                    "AF_GENERATED_SOURCE_ROLE_REQUIRED",
+                    format!("generated-looking source `{source}` is listed without role = \"generated\""),
+                    "Generated sources must be explicitly marked as generated; handwritten RTL remains the source of hardware logic.",
+                ));
+            }
         }
 
         for (variant, files) in &self.rtl.variants {
@@ -221,12 +290,26 @@ impl CoreManifest {
             for source in &testbench.sources {
                 validate_manifest_path(source, &mut issues);
             }
+            for source in &testbench.rtl_sources {
+                validate_manifest_path(source, &mut issues);
+            }
         }
 
         for vector in &self.vectors {
             require_ident("vectors.name", &vector.name, &mut issues);
             require_non_empty("vectors.format", &vector.format, &mut issues);
             validate_manifest_path(&vector.path, &mut issues);
+        }
+
+        for parameter in &self.parameters {
+            require_ident("parameters.name", &parameter.name, &mut issues);
+            if parameter.value.trim().is_empty() {
+                issues.push(ValidationIssue::new(
+                    "AF_PARAMETER_DEFAULT_EMPTY",
+                    format!("parameter `{}` has no default value", parameter.name),
+                    "Set value/default for each parameter so generated wrappers are deterministic.",
+                ));
+            }
         }
 
         let clocks: BTreeSet<&str> = self
@@ -239,28 +322,57 @@ impl CoreManifest {
             .iter()
             .map(|reset| reset.name.as_str())
             .collect();
+        let port_names: BTreeSet<&str> = self.ports.iter().map(|port| port.name.as_str()).collect();
+        let parameter_names: BTreeSet<&str> = self
+            .parameters
+            .iter()
+            .map(|parameter| parameter.name.as_str())
+            .collect();
+        let clock_ports: BTreeSet<&str> = self
+            .clocks
+            .iter()
+            .filter_map(|clock| clock.port.as_deref())
+            .collect();
+        let reset_ports: BTreeSet<&str> = self
+            .resets
+            .iter()
+            .filter_map(|reset| reset.port.as_deref())
+            .collect();
 
         if let Some(default_clock) = &self.rtl.default_clock {
-            if !clocks.contains(default_clock.as_str()) {
+            if !clocks.contains(default_clock.as_str())
+                && !clock_ports.contains(default_clock.as_str())
+            {
                 issues.push(ValidationIssue::new(
                     "AF_CLOCK_UNKNOWN",
-                    format!("rtl.default_clock references unknown clock `{default_clock}`"),
-                    "Add the clock to [[clocks]] or update rtl.default_clock.",
+                    format!("rtl.default_clock references unknown clock or clock port `{default_clock}`"),
+                    "Add the clock to [[clocks]], set clocks.port, or update rtl.default_clock.",
                 ));
             }
         }
         if let Some(default_reset) = &self.rtl.default_reset {
-            if !resets.contains(default_reset.as_str()) {
+            if !resets.contains(default_reset.as_str())
+                && !reset_ports.contains(default_reset.as_str())
+            {
                 issues.push(ValidationIssue::new(
                     "AF_RESET_UNKNOWN",
-                    format!("rtl.default_reset references unknown reset `{default_reset}`"),
-                    "Add the reset to [[resets]] or update rtl.default_reset.",
+                    format!("rtl.default_reset references unknown reset or reset port `{default_reset}`"),
+                    "Add the reset to [[resets]], set resets.port, or update rtl.default_reset.",
                 ));
             }
         }
 
         for clock in &self.clocks {
             require_ident("clocks.name", &clock.name, &mut issues);
+            if let Some(port) = &clock.port {
+                if !port_names.contains(port.as_str()) {
+                    issues.push(ValidationIssue::new(
+                        "AF_CLOCK_PORT_UNKNOWN",
+                        format!("clock `{}` references unknown port `{port}`", clock.name),
+                        "Add the clock port to [[ports]] or update clocks.port.",
+                    ));
+                }
+            }
             if matches!(clock.frequency_hz, Some(0)) {
                 issues.push(ValidationIssue::new(
                     "AF_CLOCK_FREQUENCY_INVALID",
@@ -272,6 +384,27 @@ impl CoreManifest {
 
         for reset in &self.resets {
             require_ident("resets.name", &reset.name, &mut issues);
+            if let Some(port) = &reset.port {
+                if !port_names.contains(port.as_str()) {
+                    issues.push(ValidationIssue::new(
+                        "AF_RESET_PORT_UNKNOWN",
+                        format!("reset `{}` references unknown port `{port}`", reset.name),
+                        "Add the reset port to [[ports]] or update resets.port.",
+                    ));
+                }
+            }
+            if let Some(clock_domain) = &reset.clock_domain {
+                if !clocks.contains(clock_domain.as_str()) {
+                    issues.push(ValidationIssue::new(
+                        "AF_CLOCK_DOMAIN_UNKNOWN",
+                        format!(
+                            "reset `{}` references unknown clock domain `{clock_domain}`",
+                            reset.name
+                        ),
+                        "Add the clock domain to [[clocks]] or update resets.clock_domain.",
+                    ));
+                }
+            }
             if let Some(active) = &reset.active {
                 if !matches!(active.as_str(), "high" | "low") {
                     issues.push(ValidationIssue::new(
@@ -295,12 +428,27 @@ impl CoreManifest {
                     "Use direction = \"input\", \"output\", or \"inout\".",
                 ));
             }
-            if matches!(port.width, Some(0)) {
-                issues.push(ValidationIssue::new(
-                    "AF_PORT_WIDTH_INVALID",
-                    format!("port `{}` has invalid zero width", port.name),
-                    "Use a positive integer width or omit width for scalar ports.",
-                ));
+            if let Some(width) = &port.width {
+                match width {
+                    PortWidth::Integer(0) => issues.push(ValidationIssue::new(
+                        "AF_PORT_WIDTH_INVALID",
+                        format!("port `{}` has invalid zero width", port.name),
+                        "Use a positive integer width or omit width for scalar ports.",
+                    )),
+                    PortWidth::Parameter(parameter) => {
+                        if !parameter_names.contains(parameter.as_str()) {
+                            issues.push(ValidationIssue::new(
+                                "AF_PORT_WIDTH_PARAMETER_UNKNOWN",
+                                format!(
+                                    "port `{}` width references unknown parameter `{parameter}`",
+                                    port.name
+                                ),
+                                "Add the parameter to [[parameters]] or use an integer width.",
+                            ));
+                        }
+                    }
+                    PortWidth::Integer(_) => {}
+                }
             }
             if let Some(clock) = &port.clock {
                 if !clocks.contains(clock.as_str()) {
@@ -308,6 +456,18 @@ impl CoreManifest {
                         "AF_CLOCK_UNKNOWN",
                         format!("port `{}` references unknown clock `{clock}`", port.name),
                         "Add the clock to [[clocks]] or update the port clock field.",
+                    ));
+                }
+            }
+            if let Some(clock_domain) = &port.clock_domain {
+                if !clocks.contains(clock_domain.as_str()) {
+                    issues.push(ValidationIssue::new(
+                        "AF_CLOCK_DOMAIN_UNKNOWN",
+                        format!(
+                            "port `{}` references unknown clock domain `{clock_domain}`",
+                            port.name
+                        ),
+                        "Add the clock domain to [[clocks]] or update the port clock_domain field.",
                     ));
                 }
             }
@@ -320,20 +480,23 @@ impl CoreManifest {
                     ));
                 }
             }
+            if let Some(kind) = &port.kind {
+                require_non_empty("ports.kind", kind, &mut issues);
+            }
         }
 
         for interface in &self.interfaces {
             require_ident("interfaces.name", &interface.name, &mut issues);
             require_non_empty("interfaces.kind", &interface.kind, &mut issues);
             if let Some(clock) = &interface.clock {
-                if !clocks.contains(clock.as_str()) {
+                if !clocks.contains(clock.as_str()) && !port_names.contains(clock.as_str()) {
                     issues.push(ValidationIssue::new(
                         "AF_CLOCK_UNKNOWN",
                         format!(
-                            "interface `{}` references unknown clock `{clock}`",
+                            "interface `{}` references unknown clock or port `{clock}`",
                             interface.name
                         ),
-                        "Add the clock to [[clocks]] or update the interface clock field.",
+                        "Add the clock to [[clocks]], add the port to [[ports]], or update the interface clock field.",
                     ));
                 }
             }
@@ -346,6 +509,48 @@ impl CoreManifest {
                             interface.name
                         ),
                         "Add the reset to [[resets]] or update the interface reset field.",
+                    ));
+                }
+            }
+        }
+        for interface in &self.stream_interfaces {
+            require_ident("stream_interfaces.name", &interface.name, &mut issues);
+            require_non_empty("stream_interfaces.kind", &interface.kind, &mut issues);
+            if !clocks.contains(interface.clock_domain.as_str()) {
+                issues.push(ValidationIssue::new(
+                    "AF_CLOCK_DOMAIN_UNKNOWN",
+                    format!(
+                        "stream interface `{}` references unknown clock domain `{}`",
+                        interface.name, interface.clock_domain
+                    ),
+                    "Add the clock domain to [[clocks]] or update stream_interfaces.clock_domain.",
+                ));
+            }
+            for (field, port) in [
+                ("data", &interface.data),
+                ("valid", &interface.valid),
+                ("ready", &interface.ready),
+            ] {
+                if !port_names.contains(port.as_str()) {
+                    issues.push(ValidationIssue::new(
+                        "AF_INTERFACE_PORT_UNKNOWN",
+                        format!(
+                            "stream interface `{}` {field} references unknown port `{port}`",
+                            interface.name
+                        ),
+                        "Add the referenced port to [[ports]] or update the stream interface.",
+                    ));
+                }
+            }
+            if let Some(width) = &interface.data_width {
+                if !parameter_names.contains(width.as_str()) && width.parse::<u32>().is_err() {
+                    issues.push(ValidationIssue::new(
+                        "AF_INTERFACE_WIDTH_INVALID",
+                        format!(
+                            "stream interface `{}` data_width `{width}` is not an integer or parameter",
+                            interface.name
+                        ),
+                        "Use an integer or a [[parameters]].name value.",
                     ));
                 }
             }
@@ -368,6 +573,8 @@ impl CoreManifest {
 #[derive(Clone, Debug, Default, Deserialize, JsonSchema, Serialize, PartialEq)]
 pub struct Metadata {
     #[serde(default)]
+    pub display_name: Option<String>,
+    #[serde(default)]
     pub license: Option<String>,
     #[serde(default)]
     pub authors: Vec<String>,
@@ -383,6 +590,8 @@ pub struct Rtl {
     #[serde(default = "default_language")]
     pub language: String,
     #[serde(default)]
+    pub systemverilog_subset: Option<bool>,
+    #[serde(default)]
     pub default_clock: Option<String>,
     #[serde(default)]
     pub default_reset: Option<String>,
@@ -396,12 +605,29 @@ pub struct SourceSet {
     pub files: Vec<String>,
     #[serde(default)]
     pub include_dirs: Vec<String>,
+    #[serde(default)]
+    pub roles: BTreeMap<String, String>,
+    #[serde(default)]
+    pub file_types: BTreeMap<String, String>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, JsonSchema, Serialize, PartialEq, Eq)]
+pub struct PresenceBlock {
+    #[serde(default)]
+    pub present: bool,
 }
 
 #[derive(Clone, Debug, Deserialize, JsonSchema, Serialize, PartialEq)]
 pub struct Parameter {
     pub name: String,
+    #[serde(default, alias = "default")]
     pub value: String,
+    #[serde(default)]
+    pub kind: Option<String>,
+    #[serde(default)]
+    pub min: Option<String>,
+    #[serde(default)]
+    pub allowed: Vec<String>,
     #[serde(default)]
     pub description: Option<String>,
 }
@@ -411,29 +637,56 @@ pub struct Port {
     pub name: String,
     pub direction: String,
     #[serde(default)]
-    pub width: Option<u32>,
+    pub width: Option<PortWidth>,
     #[serde(default)]
     pub clock: Option<String>,
     #[serde(default)]
+    pub clock_domain: Option<String>,
+    #[serde(default)]
     pub reset: Option<String>,
     #[serde(default)]
+    pub kind: Option<String>,
+    #[serde(default)]
+    pub active: Option<String>,
+    #[serde(default)]
+    pub reset_style: Option<String>,
+    #[serde(default)]
+    pub interface: Option<String>,
+    #[serde(default)]
     pub description: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, JsonSchema, Serialize, PartialEq, Eq)]
+#[serde(untagged)]
+pub enum PortWidth {
+    Integer(u32),
+    Parameter(String),
 }
 
 #[derive(Clone, Debug, Deserialize, JsonSchema, Serialize, PartialEq, Eq)]
 pub struct Clock {
     pub name: String,
     #[serde(default)]
+    pub port: Option<String>,
+    #[serde(default)]
     pub frequency_hz: Option<u64>,
+    #[serde(default)]
+    pub description: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, JsonSchema, Serialize, PartialEq, Eq)]
 pub struct Reset {
     pub name: String,
     #[serde(default)]
+    pub port: Option<String>,
+    #[serde(default)]
     pub active: Option<String>,
+    #[serde(default, alias = "reset_style")]
+    pub style: Option<String>,
     #[serde(default)]
     pub asynchronous: Option<bool>,
+    #[serde(default)]
+    pub clock_domain: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, JsonSchema, Serialize, PartialEq, Eq)]
@@ -447,11 +700,31 @@ pub struct Interface {
 }
 
 #[derive(Clone, Debug, Deserialize, JsonSchema, Serialize, PartialEq, Eq)]
+pub struct StreamInterface {
+    pub name: String,
+    pub kind: String,
+    pub clock_domain: String,
+    pub data: String,
+    pub valid: String,
+    pub ready: String,
+    #[serde(default)]
+    pub data_width: Option<String>,
+    #[serde(default)]
+    pub payload_semantics: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, JsonSchema, Serialize, PartialEq, Eq)]
 pub struct Testbench {
     pub name: String,
+    #[serde(default)]
+    pub backend: Option<String>,
     pub top: String,
     #[serde(default)]
     pub sources: Vec<String>,
+    #[serde(default)]
+    pub rtl_sources: Vec<String>,
+    #[serde(default)]
+    pub expected: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, JsonSchema, Serialize, PartialEq, Eq)]
@@ -478,9 +751,15 @@ pub struct Tooling {
 #[derive(Clone, Debug, Deserialize, JsonSchema, Serialize, PartialEq, Eq)]
 pub struct Formal {
     #[serde(default)]
+    pub name: Option<String>,
+    #[serde(default)]
+    pub backend: Option<String>,
+    #[serde(default)]
     pub enabled: bool,
     #[serde(default)]
     pub properties: Vec<String>,
+    #[serde(default)]
+    pub files: Vec<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, JsonSchema, Serialize, PartialEq, Eq)]
@@ -581,6 +860,210 @@ fn validate_manifest_path(path: &str, issues: &mut Vec<ValidationIssue>) {
     }
 }
 
+fn looks_generated_path(path: &str) -> bool {
+    path == "generated"
+        || path.starts_with("generated/")
+        || path.contains("/generated/")
+        || path.starts_with("build/")
+        || path.contains("/build/")
+}
+
+fn normalize_manifest_value(value: &mut Value) {
+    let Some(table) = value.as_table_mut() else {
+        return;
+    };
+
+    if !table.contains_key("af_version") {
+        if let Some(schema_version) = table.remove("schema_version") {
+            table.insert("af_version".to_string(), schema_version);
+        } else if let Some(manifest_version) = table.remove("manifest_version") {
+            table.insert("af_version".to_string(), manifest_version);
+        }
+    }
+
+    normalize_name_table(table);
+    normalize_sources(table);
+    normalize_formal(table);
+    normalize_boards(table);
+    normalize_backend_compatibility(table);
+    normalize_known_limitations(table);
+}
+
+fn normalize_name_table(table: &mut Map<String, Value>) {
+    let Some(Value::Table(name_table)) = table.get("name").cloned() else {
+        return;
+    };
+    for key in ["vendor", "library", "core", "version"] {
+        if let Some(value) = name_table.get(key).cloned() {
+            table.entry(key.to_string()).or_insert(value);
+        }
+    }
+    if !matches!(table.get("name"), Some(Value::String(_))) {
+        if let Some(core) = name_table.get("core").cloned() {
+            table.insert("name".to_string(), core);
+        }
+    }
+}
+
+fn normalize_sources(table: &mut Map<String, Value>) {
+    let mut files = Vec::new();
+    let mut roles = Map::new();
+    let mut file_types = Map::new();
+
+    if let Some(Value::Array(entries)) = table.get("sources").cloned() {
+        for entry in entries {
+            let Value::Table(entry) = entry else {
+                continue;
+            };
+            let Some(path) = entry.get("path").and_then(Value::as_str) else {
+                continue;
+            };
+            files.push(Value::String(path.to_string()));
+            if let Some(role) = entry.get("role").and_then(Value::as_str) {
+                roles.insert(path.to_string(), Value::String(role.to_string()));
+            }
+            if let Some(file_type) = entry.get("file_type").and_then(Value::as_str) {
+                file_types.insert(path.to_string(), Value::String(file_type.to_string()));
+            }
+        }
+        let mut source_table = Map::new();
+        source_table.insert("files".to_string(), Value::Array(files));
+        source_table.insert("include_dirs".to_string(), Value::Array(Vec::new()));
+        source_table.insert("roles".to_string(), Value::Table(roles));
+        source_table.insert("file_types".to_string(), Value::Table(file_types));
+        table.insert("sources".to_string(), Value::Table(source_table));
+    }
+
+    let include_dirs = table.remove("include_dirs");
+    let Some(Value::Array(include_dirs)) = include_dirs else {
+        return;
+    };
+    let source_table = table
+        .entry("sources".to_string())
+        .or_insert_with(|| Value::Table(Map::new()));
+    let Some(source_table) = source_table.as_table_mut() else {
+        return;
+    };
+    let dirs = include_dirs
+        .into_iter()
+        .filter_map(|entry| match entry {
+            Value::String(path) => Some(Value::String(path)),
+            Value::Table(table) => table
+                .get("path")
+                .and_then(Value::as_str)
+                .map(|path| Value::String(path.to_string())),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    source_table.insert("include_dirs".to_string(), Value::Array(dirs));
+}
+
+fn normalize_formal(table: &mut Map<String, Value>) {
+    let Some(Value::Array(entries)) = table.get("formal").cloned() else {
+        return;
+    };
+    let mut out = Map::new();
+    let mut files = Vec::new();
+    let mut enabled = false;
+    let mut name = None;
+    let mut backend = None;
+    for entry in entries {
+        let Value::Table(entry) = entry else {
+            continue;
+        };
+        enabled |= entry
+            .get("enabled")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        if name.is_none() {
+            name = entry
+                .get("name")
+                .and_then(Value::as_str)
+                .map(str::to_string);
+        }
+        if backend.is_none() {
+            backend = entry
+                .get("backend")
+                .and_then(Value::as_str)
+                .map(str::to_string);
+        }
+        if let Some(Value::Array(entry_files)) = entry.get("files") {
+            files.extend(
+                entry_files
+                    .iter()
+                    .filter_map(Value::as_str)
+                    .map(|path| Value::String(path.to_string())),
+            );
+        }
+    }
+    out.insert("enabled".to_string(), Value::Boolean(enabled));
+    out.insert("files".to_string(), Value::Array(files));
+    if let Some(name) = name {
+        out.insert("name".to_string(), Value::String(name));
+    }
+    if let Some(backend) = backend {
+        out.insert("backend".to_string(), Value::String(backend));
+    }
+    table.insert("formal".to_string(), Value::Table(out));
+}
+
+fn normalize_boards(table: &mut Map<String, Value>) {
+    let Some(Value::Array(entries)) = table.get("boards").cloned() else {
+        return;
+    };
+    let boards = entries
+        .into_iter()
+        .filter_map(|entry| match entry {
+            Value::String(name) => Some(Value::String(name)),
+            Value::Table(table) => table
+                .get("name")
+                .and_then(Value::as_str)
+                .map(|name| Value::String(name.to_string())),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    table.insert("boards".to_string(), Value::Array(boards));
+}
+
+fn normalize_backend_compatibility(table: &mut Map<String, Value>) {
+    let Some(Value::Array(entries)) = table.get("backend_compatibility").cloned() else {
+        return;
+    };
+    let mut out = Map::new();
+    for entry in entries {
+        let Value::Table(entry) = entry else {
+            continue;
+        };
+        let Some(backend) = entry.get("backend").and_then(Value::as_str) else {
+            continue;
+        };
+        let supported = matches!(
+            entry.get("status").and_then(Value::as_str),
+            Some("supported") | Some("planned")
+        );
+        out.insert(backend.to_string(), Value::Boolean(supported));
+    }
+    table.insert("backend_compatibility".to_string(), Value::Table(out));
+}
+
+fn normalize_known_limitations(table: &mut Map<String, Value>) {
+    let Some(Value::Array(entries)) = table.get("known_limitations").cloned() else {
+        return;
+    };
+    let limitations = entries
+        .into_iter()
+        .filter_map(|entry| match entry {
+            Value::String(text) => Some(Value::String(text)),
+            Value::Table(table) => table
+                .get("text")
+                .and_then(Value::as_str)
+                .map(|text| Value::String(text.to_string())),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    table.insert("known_limitations".to_string(), Value::Array(limitations));
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -663,6 +1146,116 @@ sources = ["tb/tb_example_core.sv"]
         let err = CoreManifest::from_toml_str(&raw, "af-core.toml").unwrap_err();
         let issues = validation_issues(err);
         assert!(issues.iter().any(|issue| issue.code == "AF_PATH_TRAVERSAL"));
+    }
+
+    #[test]
+    fn parses_expanded_v01_manifest_shape() {
+        let manifest = CoreManifest::from_toml_str(
+            r#"
+schema_version = "0.1"
+kind = "accelfury.core"
+
+[name]
+vendor = "accelfury"
+library = "audio"
+core = "af-pdm-rx"
+version = "0.1.0"
+
+[metadata]
+license = "Apache-2.0"
+display_name = "AccelFury PDM RX"
+
+[rtl]
+top = "af_pdm_rx"
+language = "verilog-2001"
+default_clock = "clk"
+default_reset = "rst_n"
+
+[[sources]]
+path = "rtl/af_pdm_rx.v"
+file_type = "verilogSource"
+role = "rtl"
+
+[[include_dirs]]
+path = "rtl/include"
+
+[[parameters]]
+name = "WORD_BITS"
+kind = "integer"
+default = "32"
+
+[[ports]]
+name = "clk"
+direction = "input"
+width = 1
+kind = "clock"
+clock_domain = "sys"
+
+[[ports]]
+name = "rst_n"
+direction = "input"
+width = 1
+kind = "reset"
+clock_domain = "sys"
+
+[[ports]]
+name = "sample_word_o"
+direction = "output"
+width = "WORD_BITS"
+kind = "data"
+clock_domain = "sys"
+
+[[ports]]
+name = "sample_valid_o"
+direction = "output"
+width = 1
+clock_domain = "sys"
+
+[[ports]]
+name = "sample_ready_i"
+direction = "input"
+width = 1
+clock_domain = "sys"
+
+[[clocks]]
+name = "sys"
+port = "clk"
+frequency_hz = 27000000
+
+[[resets]]
+name = "sys_rst_n"
+port = "rst_n"
+active = "low"
+style = "async"
+clock_domain = "sys"
+
+[[stream_interfaces]]
+name = "raw_stream"
+kind = "valid_ready"
+clock_domain = "sys"
+data = "sample_word_o"
+valid = "sample_valid_o"
+ready = "sample_ready_i"
+data_width = "WORD_BITS"
+
+[[backend_compatibility]]
+backend = "verilator"
+status = "supported"
+
+[[known_limitations]]
+id = "LIM-001"
+text = "Raw PDM only."
+"#,
+            "af-core.toml",
+        )
+        .unwrap();
+        assert_eq!(manifest.af_version, "0.1");
+        assert_eq!(manifest.kind.as_deref(), Some("accelfury.core"));
+        assert_eq!(manifest.vlnv(), "accelfury:audio:af-pdm-rx:0.1.0");
+        assert_eq!(manifest.sources.files, vec!["rtl/af_pdm_rx.v"]);
+        assert_eq!(manifest.sources.include_dirs, vec!["rtl/include"]);
+        assert_eq!(manifest.known_limitations, vec!["Raw PDM only."]);
+        assert_eq!(manifest.stream_interfaces[0].data, "sample_word_o");
     }
 
     fn validation_issues(err: ManifestError) -> Vec<ValidationIssue> {

@@ -3,7 +3,12 @@ resolver = "2"
 members = [
   "crates/af-backend",
   "crates/af-backend-fusesoc",
+  "crates/af-backend-flash",
+  "crates/af-backend-litex",
+  "crates/af-backend-sby",
+  "crates/af-backend-vendor",
   "crates/af-backend-verilator",
+  "crates/af-backend-yosys",
   "crates/af-board-db",
   "crates/af-ci",
   "crates/af-cli",
@@ -27,7 +32,12 @@ authors = ["AccelFury contributors"]
 [workspace.dependencies]
 af-backend = { path = "crates/af-backend" }
 af-backend-fusesoc = { path = "crates/af-backend-fusesoc" }
+af-backend-flash = { path = "crates/af-backend-flash" }
+af-backend-litex = { path = "crates/af-backend-litex" }
+af-backend-sby = { path = "crates/af-backend-sby" }
+af-backend-vendor = { path = "crates/af-backend-vendor" }
 af-backend-verilator = { path = "crates/af-backend-verilator" }
+af-backend-yosys = { path = "crates/af-backend-yosys" }
 af-board-db = { path = "crates/af-board-db" }
 af-ci = { path = "crates/af-ci" }
 af-core = { path = "crates/af-core" }

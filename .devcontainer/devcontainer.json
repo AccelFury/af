@@ -1,0 +1,17 @@
+{
+  "name": "AccelFury af open-source flow",
+  "image": "mcr.microsoft.com/devcontainers/rust:1",
+  "features": {},
+  "postCreateCommand": "cargo --version && rustc --version",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "rust-lang.rust-analyzer",
+        "tamasfe.even-better-toml"
+      ]
+    }
+  },
+  "remoteEnv": {
+    "AF_OFFLINE": "true"
+  }
+}

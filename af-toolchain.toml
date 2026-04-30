@@ -1,0 +1,44 @@
+schema_version = "0.1"
+kind = "accelfury.toolchain"
+
+[policy]
+offline = true
+allow_network = false
+allow_untrusted_scripts = false
+allow_shell = false
+
+[tools.verilator]
+required = true
+command = "verilator"
+min_version = "5.040"
+
+[tools.fusesoc]
+required = true
+command = "fusesoc"
+
+[tools.litex]
+required = false
+python_module = "litex"
+
+[tools.yosys]
+required = false
+command = "yosys"
+
+[tools.sby]
+required = false
+command = "sby"
+
+[tools.openfpgaloader]
+required = false
+command = "openFPGALoader"
+
+[tools.gowin]
+required = false
+gw_sh = "gw_sh"
+programmer_cli = "programmer_cli"
+
+[artifacts]
+root = ".af-build"
+keep_logs = true
+write_json = true
+write_markdown = true

@@ -28,6 +28,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "af-backend-flash"
+version = "0.1.0"
+dependencies = [
+ "af-backend",
+ "af-manifest",
+]
+
+[[package]]
 name = "af-backend-fusesoc"
 version = "0.1.0"
 dependencies = [
@@ -39,6 +47,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "af-backend-litex"
+version = "0.1.0"
+dependencies = [
+ "af-backend",
+ "af-manifest",
+]
+
+[[package]]
+name = "af-backend-sby"
+version = "0.1.0"
+dependencies = [
+ "af-backend",
+ "af-manifest",
+]
+
+[[package]]
+name = "af-backend-vendor"
+version = "0.1.0"
+dependencies = [
+ "af-backend",
+ "af-manifest",
+]
+
+[[package]]
 name = "af-backend-verilator"
 version = "0.1.0"
 dependencies = [
@@ -47,6 +79,14 @@ dependencies = [
  "af-security",
  "serde",
  "thiserror",
+]
+
+[[package]]
+name = "af-backend-yosys"
+version = "0.1.0"
+dependencies = [
+ "af-backend",
+ "af-manifest",
 ]
 
 [[package]]
@@ -72,8 +112,13 @@ name = "af-cli"
 version = "0.1.0"
 dependencies = [
  "af-backend",
+ "af-backend-flash",
  "af-backend-fusesoc",
+ "af-backend-litex",
+ "af-backend-sby",
+ "af-backend-vendor",
  "af-backend-verilator",
+ "af-backend-yosys",
  "af-board-db",
  "af-ci",
  "af-core",
@@ -89,6 +134,7 @@ dependencies = [
  "serde_json",
  "tempfile",
  "thiserror",
+ "toml",
  "tracing",
  "tracing-subscriber",
 ]
@@ -159,6 +205,7 @@ version = "0.1.0"
 dependencies = [
  "serde",
  "thiserror",
+ "toml",
 ]
 
 [[package]]
@@ -176,7 +223,9 @@ name = "af-wrapper-gen"
 version = "0.1.0"
 dependencies = [
  "af-backend-fusesoc",
+ "af-backend-litex",
  "af-core",
+ "af-security",
  "serde",
  "thiserror",
 ]

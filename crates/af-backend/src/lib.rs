@@ -3,8 +3,82 @@ pub use af_security::{CommandOutput, CommandRunner, CommandSpec, ProcessCommandR
 
 use af_manifest::CoreManifest;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use thiserror::Error;
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
+pub struct BackendId(pub String);
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+pub enum DiagnosticSeverity {
+    Info,
+    Warning,
+    Error,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+pub struct BackendDiagnostic {
+    pub code: String,
+    pub severity: DiagnosticSeverity,
+    pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hint: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+pub struct ToolInfo {
+    pub backend_id: BackendId,
+    pub tool_name: String,
+    pub executable: PathBuf,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub version: Option<String>,
+    pub available: bool,
+    #[serde(default)]
+    pub diagnostics: Vec<BackendDiagnostic>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+pub struct BackendCapability {
+    pub name: String,
+    pub supported: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub detail: Option<String>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
+pub enum BackendTarget {
+    #[default]
+    Lint,
+    Simulate,
+    Package,
+    GenerateWrapper,
+    Synthesize,
+    BuildBitstream,
+    Flash,
+    Formal,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+pub struct PreparedRun {
+    pub backend_id: BackendId,
+    pub working_dir: PathBuf,
+    #[serde(default)]
+    pub commands: Vec<CommandSpec>,
+    #[serde(default)]
+    pub expected_artifacts: Vec<PathBuf>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+pub struct ExecutedCommand {
+    pub program: String,
+    pub args: Vec<String>,
+    pub cwd: PathBuf,
+    pub exit_code: Option<i32>,
+    pub stdout_log: PathBuf,
+    pub stderr_log: PathBuf,
+    pub duration_ms: u64,
+}
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub enum BackendStatus {
@@ -52,6 +126,12 @@ pub struct CommandRecord {
     pub exit_code: Option<i32>,
     pub stdout: String,
     pub stderr: String,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub env: BTreeMap<String, String>,
+    #[serde(default)]
+    pub allow_network: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub timeout_seconds: Option<u64>,
 }
 
 impl From<CommandOutput> for CommandRecord {
@@ -63,12 +143,29 @@ impl From<CommandOutput> for CommandRecord {
             exit_code: output.exit_code,
             stdout: output.stdout,
             stderr: output.stderr,
+            env: output.spec.env,
+            allow_network: output.spec.allow_network,
+            timeout_seconds: output.spec.timeout_seconds,
         }
     }
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
 pub struct BuildPlan {
+    #[serde(default)]
+    pub core_root: PathBuf,
+    #[serde(default)]
+    pub build_root: PathBuf,
+    #[serde(default)]
+    pub core_ref: String,
+    #[serde(default)]
+    pub board_id: Option<String>,
+    #[serde(default)]
+    pub target: BackendTarget,
+    #[serde(default)]
+    pub env: BTreeMap<String, String>,
+    #[serde(default)]
+    pub options: BTreeMap<String, String>,
     #[serde(default)]
     pub commands: Vec<CommandSpec>,
     #[serde(default)]
@@ -80,29 +177,44 @@ pub struct BuildPlan {
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct BackendReport {
     pub backend: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub backend_id: Option<BackendId>,
     pub status: BackendStatus,
     #[serde(default)]
     pub tool_versions: Vec<ToolVersion>,
     #[serde(default)]
+    pub tool_info: Vec<ToolInfo>,
+    #[serde(default)]
     pub commands: Vec<CommandRecord>,
+    #[serde(default)]
+    pub commands_executed: Vec<ExecutedCommand>,
     #[serde(default)]
     pub artifacts: Vec<PathBuf>,
     #[serde(default)]
     pub warnings: Vec<String>,
     #[serde(default)]
     pub limitations: Vec<String>,
+    #[serde(default)]
+    pub diagnostics: Vec<BackendDiagnostic>,
+    #[serde(default)]
+    pub metrics: BTreeMap<String, String>,
 }
 
 impl BackendReport {
     pub fn new(backend: impl Into<String>, status: BackendStatus) -> Self {
         Self {
             backend: backend.into(),
+            backend_id: None,
             status,
             tool_versions: Vec::new(),
+            tool_info: Vec::new(),
             commands: Vec::new(),
+            commands_executed: Vec::new(),
             artifacts: Vec::new(),
             warnings: Vec::new(),
             limitations: Vec::new(),
+            diagnostics: Vec::new(),
+            metrics: BTreeMap::new(),
         }
     }
 
@@ -168,6 +280,31 @@ impl BackendError {
 
 pub trait AfBackend {
     fn name(&self) -> &'static str;
+    fn id(&self) -> BackendId {
+        BackendId(self.name().to_string())
+    }
+    fn capabilities(&self) -> Vec<BackendCapability> {
+        Vec::new()
+    }
+    fn probe(&self, _plan: &BuildPlan) -> Result<ToolInfo, BackendError> {
+        Err(BackendError::Unsupported {
+            backend: self.name().to_string(),
+        })
+    }
+    fn prepare(&self, _plan: &BuildPlan) -> Result<PreparedRun, BackendError> {
+        Err(BackendError::Unsupported {
+            backend: self.name().to_string(),
+        })
+    }
+    fn run(
+        &self,
+        _prepared: &PreparedRun,
+        _runner: &dyn CommandRunner,
+    ) -> Result<BackendReport, BackendError> {
+        Err(BackendError::Unsupported {
+            backend: self.name().to_string(),
+        })
+    }
     fn doctor(&self) -> Result<BackendReport, BackendError>;
     fn lint(
         &self,

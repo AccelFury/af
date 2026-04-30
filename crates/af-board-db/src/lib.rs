@@ -4,6 +4,7 @@ use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 use thiserror::Error;
+use toml::{map::Map, Value};
 
 #[derive(Debug, Error)]
 pub enum BoardDbError {
@@ -48,6 +49,10 @@ pub struct BoardIssue {
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct BoardProfile {
+    #[serde(default)]
+    pub schema_version: Option<String>,
+    #[serde(default)]
+    pub kind: Option<String>,
     pub id: String,
     pub name: String,
     pub vendor: String,
@@ -56,6 +61,10 @@ pub struct BoardProfile {
     pub notes: Vec<String>,
     #[serde(default)]
     pub pins: Vec<BoardPin>,
+    #[serde(default)]
+    pub resources: Vec<BoardResource>,
+    #[serde(default)]
+    pub caveats: Vec<BoardCaveat>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -69,6 +78,21 @@ pub struct BoardPin {
     pub verified: Option<bool>,
     #[serde(default)]
     pub source: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+pub struct BoardResource {
+    pub name: String,
+    #[serde(default)]
+    pub count: Option<u32>,
+    #[serde(default)]
+    pub verified: Option<bool>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+pub struct BoardCaveat {
+    pub id: String,
+    pub text: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -173,10 +197,18 @@ impl BoardProfile {
             path: path.to_path_buf(),
             message: err.to_string(),
         })?;
-        let profile: Self = toml::from_str(&raw).map_err(|err| BoardDbError::Parse {
+        let mut value: Value = toml::from_str(&raw).map_err(|err| BoardDbError::Parse {
             path: path.to_path_buf(),
             message: err.to_string(),
         })?;
+        normalize_board_value(&mut value);
+        let profile: Self =
+            value
+                .try_into()
+                .map_err(|err: toml::de::Error| BoardDbError::Parse {
+                    path: path.to_path_buf(),
+                    message: err.to_string(),
+                })?;
         let issues = profile.validate();
         if issues.is_empty() {
             Ok(profile)
@@ -187,6 +219,15 @@ impl BoardProfile {
 
     pub fn validate(&self) -> Vec<BoardIssue> {
         let mut issues = Vec::new();
+        if let Some(kind) = &self.kind {
+            if kind != "accelfury.board" {
+                issues.push(issue(
+                    "AF_BOARD_KIND_INVALID",
+                    format!("unsupported board kind `{kind}`"),
+                    "Use kind = \"accelfury.board\" for board manifests.",
+                ));
+            }
+        }
         for pin in &self.pins {
             if pin.location.is_some() && pin.verified.is_none() {
                 issues.push(BoardIssue {
@@ -200,8 +241,25 @@ impl BoardProfile {
                 });
             }
         }
+        for resource in &self.resources {
+            if resource.verified.is_none() {
+                issues.push(issue(
+                    "AF_BOARD_RESOURCE_VERIFICATION_MISSING",
+                    format!("resource `{}` lacks explicit verified flag", resource.name),
+                    "Set verified = true with evidence, or verified = false for unconfirmed resources.",
+                ));
+            }
+        }
         issues
     }
+}
+
+pub fn list_boards(root: impl AsRef<Path>) -> Result<Vec<BoardEntry>, BoardDbError> {
+    load_registry_boards(root.as_ref().join("registries/boards.registry.json"))
+}
+
+pub fn check_board_profile(path: impl AsRef<Path>) -> Result<BoardProfile, BoardDbError> {
+    BoardProfile::from_path(path)
 }
 
 pub fn load_registry_boards(path: impl AsRef<Path>) -> Result<Vec<BoardEntry>, BoardDbError> {
@@ -404,6 +462,70 @@ fn issue(code: &str, message: impl Into<String>, hint: impl Into<String>) -> Boa
     }
 }
 
+fn normalize_board_value(value: &mut Value) {
+    let Some(table) = value.as_table_mut() else {
+        return;
+    };
+    if let Some(Value::String(schema_version)) = table.get("schema_version").cloned() {
+        table
+            .entry("schema_version".to_string())
+            .or_insert(Value::String(schema_version));
+    }
+    if let Some(Value::Table(name)) = table.get("name").cloned() {
+        if let Some(id) = name.get("id").cloned() {
+            table.entry("id".to_string()).or_insert(id);
+        }
+        if let Some(display_name) = name.get("display_name").cloned() {
+            if !matches!(table.get("name"), Some(Value::String(_))) {
+                table.insert("name".to_string(), display_name);
+            }
+        }
+    }
+    if let Some(Value::Table(fpga)) = table.get("fpga").cloned() {
+        if let Some(vendor) = fpga.get("vendor").cloned() {
+            table.entry("vendor".to_string()).or_insert(vendor);
+        }
+        let family = fpga
+            .get("family")
+            .and_then(Value::as_str)
+            .unwrap_or("unknown");
+        let part = fpga.get("part").and_then(Value::as_str).unwrap_or(family);
+        if !matches!(table.get("fpga"), Some(Value::String(_))) {
+            table.insert(
+                "fpga".to_string(),
+                Value::String(format!("{family} {part}")),
+            );
+        }
+    }
+    normalize_clock_resource(table);
+}
+
+fn normalize_clock_resource(table: &mut Map<String, Value>) {
+    let Some(Value::Table(clock)) = table.get("clock").cloned() else {
+        return;
+    };
+    let Some(Value::Table(default)) = clock.get("default").cloned() else {
+        return;
+    };
+    let Some(name) = default.get("name").and_then(Value::as_str) else {
+        return;
+    };
+    let verified = default
+        .get("verified")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let mut resource = Map::new();
+    resource.insert("name".to_string(), Value::String(name.to_string()));
+    resource.insert("count".to_string(), Value::Integer(1));
+    resource.insert("verified".to_string(), Value::Boolean(verified));
+    let resources = table
+        .entry("resources".to_string())
+        .or_insert_with(|| Value::Array(Vec::new()));
+    if let Value::Array(resources) = resources {
+        resources.push(Value::Table(resource));
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -411,6 +533,8 @@ mod tests {
     #[test]
     fn requires_pin_verification_flag() {
         let profile = BoardProfile {
+            schema_version: None,
+            kind: None,
             id: "demo".to_string(),
             name: "Demo".to_string(),
             vendor: "Demo".to_string(),
@@ -423,6 +547,8 @@ mod tests {
                 verified: None,
                 source: None,
             }],
+            resources: Vec::new(),
+            caveats: Vec::new(),
         };
         let issues = profile.validate();
         assert_eq!(issues[0].code, "AF_BOARD_PIN_VERIFICATION_MISSING");

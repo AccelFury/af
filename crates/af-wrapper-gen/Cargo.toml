@@ -8,6 +8,8 @@ repository.workspace = true
 
 [dependencies]
 af-backend-fusesoc.workspace = true
+af-backend-litex.workspace = true
 af-core.workspace = true
+af-security.workspace = true
 serde.workspace = true
 thiserror.workspace = true

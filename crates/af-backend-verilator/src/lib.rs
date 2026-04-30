@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 use af_backend::{
-    AfBackend, BackendError, BackendReport, BackendStatus, CommandRecord, CommandRunner,
-    CommandSpec, ProcessCommandRunner, ToolVersion,
+    AfBackend, BackendCapability, BackendError, BackendId, BackendReport, BackendStatus,
+    CommandRecord, CommandRunner, CommandSpec, ProcessCommandRunner, ToolInfo, ToolVersion,
 };
 use af_manifest::CoreManifest;
 use af_security::SecurityError;
@@ -64,6 +64,36 @@ where
 {
     fn name(&self) -> &'static str {
         "verilator"
+    }
+
+    fn capabilities(&self) -> Vec<BackendCapability> {
+        vec![
+            BackendCapability {
+                name: "lint".to_string(),
+                supported: true,
+                detail: Some("Runs verilator --lint-only over declared RTL sources.".to_string()),
+            },
+            BackendCapability {
+                name: "smoke-sim".to_string(),
+                supported: true,
+                detail: Some(
+                    "MVP smoke path validates declared testbench sources with Verilator."
+                        .to_string(),
+                ),
+            },
+        ]
+    }
+
+    fn probe(&self, _plan: &af_backend::BuildPlan) -> Result<ToolInfo, BackendError> {
+        let (version, _) = self.probe_version();
+        Ok(ToolInfo {
+            backend_id: BackendId(self.name().to_string()),
+            tool_name: "verilator".to_string(),
+            executable: "verilator".into(),
+            version: version.version,
+            available: version.available,
+            diagnostics: Vec::new(),
+        })
     }
 
     fn doctor(&self) -> Result<BackendReport, BackendError> {
@@ -204,7 +234,24 @@ pub fn verilator_smoke_command(manifest: &CoreManifest, core_dir: &Path) -> Comm
         .map(|tb| tb.top.clone())
         .unwrap_or_else(|| manifest.rtl.top.clone());
 
-    let mut args = vec!["--lint-only".to_string(), "--top-module".to_string(), top];
+    let has_cpp_testbench = manifest
+        .testbenches
+        .iter()
+        .flat_map(|tb| tb.sources.iter())
+        .any(|source| {
+            source.ends_with(".cpp") || source.ends_with(".cc") || source.ends_with(".cxx")
+        });
+    let mut args = if has_cpp_testbench {
+        vec![
+            "--cc".to_string(),
+            "--exe".to_string(),
+            "--build".to_string(),
+            "--top-module".to_string(),
+            top,
+        ]
+    } else {
+        vec!["--lint-only".to_string(), "--top-module".to_string(), top]
+    };
     for include_dir in &manifest.sources.include_dirs {
         args.push(format!("-I{include_dir}"));
     }

@@ -1,15 +1,44 @@
-id = "tang-primer-20k"
-name = "Tang Primer 20K"
-vendor = "Sipeed"
-fpga = "Gowin GW2A-LV18PG256C8/I7"
-notes = [
-  "MVP compatibility profile; canonical monorepo board assets live under boards/gowin/sipeed_tang_primer_20k_core.",
-  "Any physical pin entries below are marked verified=false until checked against board schematics."
-]
+schema_version = "0.1"
+kind = "accelfury.board"
 
-[[pins]]
-name = "user-led-example"
-location = "UNKNOWN"
-function = "example-led"
+[name]
+id = "tang-primer-20k"
+display_name = "Sipeed Tang Primer 20K"
+
+[fpga]
+vendor = "gowin"
+family = "GW2A"
+part = "GW2A-LV18PG256C8/I7"
+package = "PG256"
+speed_grade = "C8/I7"
+
+[clock.default]
+name = "clk"
+frequency_hz = 27000000
+resource = "dock_or_core_clock"
 verified = false
-source = "Placeholder only; do not use for constraints."
+source = "board_documentation_or_constraints"
+
+[programming]
+default_backend = "openfpgaloader"
+openfpgaloader_board = "tangprimer20k"
+flash_supported = true
+sram_supported = true
+
+[constraints]
+format = "cst"
+default_file = "boards/tang-primer-20k/default.cst"
+
+[[resources]]
+name = "dock_expansion"
+count = 1
+verified = false
+
+[[resources]]
+name = "user_led"
+count = 1
+verified = false
+
+[[caveats]]
+id = "TP20K-CAVEAT-001"
+text = "Tang Primer 20K profile is experimental; exact Dock/Lite expansion resources and pins must be bench-validated."
