@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 use af_backend_fusesoc::{write_core, FuseSocError};
 use af_core::{check_core, CoreError};
 use serde::{Deserialize, Serialize};

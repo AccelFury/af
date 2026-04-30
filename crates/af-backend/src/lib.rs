@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 pub use af_security::{CommandOutput, CommandRunner, CommandSpec, ProcessCommandRunner};
 
 use af_manifest::CoreManifest;

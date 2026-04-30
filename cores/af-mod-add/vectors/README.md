@@ -7,5 +7,5 @@ Generated vectors are stored under this directory:
 Generation is handled by:
 
 ```bash
-cargo xtask vectors
+cargo run -p af-cli --bin af -- vectors generate
 ```

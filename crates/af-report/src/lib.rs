@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 use af_backend::{BackendReport, CommandRecord, ToolVersion};
 use af_manifest::CoreManifest;
 use serde::{Deserialize, Serialize};

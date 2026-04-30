@@ -19,7 +19,7 @@ focused library crates.
 - `af-board-db`: board profile schema and validation.
 - `af-field-ref`: finite-field reference arithmetic used by vector generation.
 - `af-vectors`: deterministic vector generation for imported arithmetic cores.
-- `af-host`: host-side bringup stub kept as an AGPL-licensed imported tool.
+- `af-host`: host-side bringup command shell kept as an AGPL-licensed imported tool.
 - `af-ci`: CI workflow generation.
 
 ## Data Flow

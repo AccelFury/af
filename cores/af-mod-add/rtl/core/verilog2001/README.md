@@ -19,8 +19,6 @@ Rules:
 Use:
 
 ```bash
-cargo xtask lint-rtl --language verilog-2001
-cargo xtask sim-verilator --language verilog-2001
-cargo xtask lint-rtl --language verilog-2005
-cargo xtask sim-verilator --language verilog-2005
+cargo run -p af-cli --bin af -- core check cores/af-mod-add
+cargo run -p af-cli --bin af -- core lint cores/af-mod-add --backend verilator
 ```

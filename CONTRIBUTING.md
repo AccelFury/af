@@ -6,10 +6,11 @@ Contributors must:
 - keep core RTL vendor-agnostic
 - add/update docs for new IPs
 - run checks before PR:
-  - `cargo xtask vectors`
-  - `cargo xtask lint-rtl`
-  - `cargo xtask sim-verilator`
+  - `cargo run -p af-cli --bin af -- vectors generate`
+  - `cargo run -p af-cli --bin af -- core check cores/af-mod-add`
+  - `cargo run -p af-cli --bin af -- registry check`
+  - `cargo clippy --locked --workspace --all-targets -- -D warnings`
+  - `cargo test --locked --workspace --no-fail-fast`
   - `deno task audit:repo`
-  - `cargo xtask check-spdx`
 
 Please keep code without placeholder language.

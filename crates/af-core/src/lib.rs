@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 use af_manifest::{CoreManifest, ManifestError};
 use af_rtl_inspector::{inspect_core, RtlInspectionReport, RtlInspectorError};
 use serde::{Deserialize, Serialize};

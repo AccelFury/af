@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};

@@ -15,14 +15,12 @@ This directory contains simulation entry points used by the Rust runner.
 
 ## Supported Command Path
 
-The simulation command path is driven from Cargo xtask:
+The simulation command path is driven through the unified `af` CLI:
 
 1. Generate vectors:
-   - `cargo xtask vectors`
+   - `cargo run -p af-cli --bin af -- vectors generate`
 2. Run simulation:
-   - `cargo xtask sim-verilator`
-   - `cargo xtask sim-verilator --language verilog-2001`
-   - `cargo xtask sim-verilator --language verilog-2005`
+   - `cargo run -p af-cli --bin af -- core sim examples/af-pdm-rx --backend verilator`
 
 The runner invokes `verilator --binary` with the files from `filelist.f` and
 captures:

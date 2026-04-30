@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 use af_manifest::CoreManifest;
 use af_security::{safe_join, SecurityError};
 use serde::{Deserialize, Serialize};
