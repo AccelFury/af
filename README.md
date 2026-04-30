@@ -38,6 +38,22 @@ cargo run -p af-cli --bin af -- build examples/af-pdm-rx --board tang-nano-20k -
 
 `af core lint examples/af-pdm-rx --backend verilator` runs `verilator --lint-only` if Verilator is installed. If it is not installed, the command returns a structured `AF_BACKEND_UNAVAILABLE` error.
 
+## Docker Open-Source Flow
+
+Use Docker when the host does not have Verilator, FuseSoC, LiteX or Yosys in
+`PATH`:
+
+```bash
+docker build -t accelfury-af:oss .
+docker run --rm -v "$PWD:/work" -w /work \
+  -e AF_BUILD_ROOT=/work/.af-build/docker-smoke \
+  accelfury-af:oss scripts/docker-smoke.sh
+```
+
+The smoke script validates doctor output, manifest migration, core checks,
+Verilator lint/sim, FuseSoC packaging, LiteX skeleton generation, Yosys checks,
+and report generation inside the same toolchain image used by CI.
+
 ## Generated Outputs
 
 By default, generated files are written under `.af-build/`:
@@ -64,6 +80,7 @@ belongs in [TODO.md](TODO.md) or in a direct `af` code change.
 - [Core Author Guide](docs/core-author-guide.md)
 - [Board Author Guide](docs/board-author-guide.md)
 - [Security Model](docs/security-model.md)
+- [Docker Runtime](docs/docker-runtime.md)
 - [Testing Strategy](docs/testing-strategy.md)
 - [Release Process](docs/release-process.md)
 - [Known Limitations](docs/known-limitations.md)

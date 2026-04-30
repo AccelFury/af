@@ -1,8 +1,12 @@
 {
   "name": "AccelFury af open-source flow",
-  "image": "mcr.microsoft.com/devcontainers/rust:1",
-  "features": {},
-  "postCreateCommand": "cargo --version && rustc --version",
+  "build": {
+    "dockerfile": "../Dockerfile",
+    "context": ".."
+  },
+  "workspaceFolder": "/work",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/work,type=bind,consistency=cached",
+  "postCreateCommand": "cargo --version && rustc --version && verilator --version && fusesoc --version && yosys -V",
   "customizations": {
     "vscode": {
       "extensions": [
@@ -12,6 +16,7 @@
     }
   },
   "remoteEnv": {
-    "AF_OFFLINE": "true"
+    "AF_OFFLINE": "true",
+    "AF_BUILD_ROOT": "/work/.af-build/devcontainer"
   }
 }

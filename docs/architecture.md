@@ -14,6 +14,11 @@ focused library crates.
 - `af-backend`: backend traits, command records, build plans, and reports.
 - `af-backend-verilator`: Verilator availability, lint argv, and smoke checks.
 - `af-backend-fusesoc`: FuseSoC `.core` export.
+- `af-backend-litex`: staged LiteX backend capability plus generated wrapper skeleton path.
+- `af-backend-yosys`: Yosys syntax/synthesis smoke backend.
+- `af-backend-sby`: staged SymbiYosys capability.
+- `af-backend-flash`: staged openFPGALoader capability.
+- `af-backend-vendor`: staged vendor tool orchestration boundary.
 - `af-report`: JSON/Markdown report rendering.
 - `af-wrapper-gen`: wrapper target orchestration.
 - `af-board-db`: board profile schema and validation.
@@ -30,6 +35,8 @@ focused library crates.
 4. Registry commands validate imported board/toolchain metadata under `registries/`.
 5. Backend commands are constructed as argv arrays and executed by `af-security`.
 6. Reports collect tool versions, commands, artifacts, warnings, and limitations.
+7. Docker/devcontainer/CI jobs provide a repeatable open-source runtime for
+   Verilator, FuseSoC, LiteX and Yosys.
 
 ## MVP Boundaries
 
@@ -40,6 +47,10 @@ The MVP is manifest-first. It avoids:
 - vendor bitstream generation;
 - package publishing behavior;
 - automatic generation of critical hardware logic.
+
+Generated files are limited to wrappers, manifest/package exports, build
+scripts, CI files and reports. Handwritten RTL remains the source of hardware
+logic.
 
 ## Imported Template Assets
 

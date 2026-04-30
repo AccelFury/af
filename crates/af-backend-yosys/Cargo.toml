@@ -9,3 +9,4 @@ repository.workspace = true
 [dependencies]
 af-backend.workspace = true
 af-manifest.workspace = true
+af-security.workspace = true

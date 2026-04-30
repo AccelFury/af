@@ -38,6 +38,11 @@ fn core_check_af_pdm_rx_passes() {
 
     assert!(build.path().join("reports/core-check.json").is_file());
     assert!(build.path().join("reports/core-check.md").is_file());
+    assert!(build
+        .path()
+        .join("reports/core_check_report.json")
+        .is_file());
+    assert!(build.path().join("reports/core_check_report.md").is_file());
 }
 
 #[test]
@@ -98,7 +103,8 @@ fn board_check_and_backend_list_work() {
         .args(["backend", "list", "--json"])
         .assert()
         .success()
-        .stdout(contains("litex-wrapper-skeleton"));
+        .stdout(contains("litex-wrapper-skeleton"))
+        .stdout(contains("yosys-syntax-smoke"));
 }
 
 #[test]

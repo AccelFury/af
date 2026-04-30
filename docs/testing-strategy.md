@@ -12,3 +12,8 @@ Required test layers:
 
 Default CI must pass without Verilator, FuseSoC, LiteX, Yosys, SBY, or vendor
 tools installed.
+
+The Docker CI job is the canonical open-source toolchain check. It installs
+Verilator, FuseSoC, LiteX and Yosys, then runs `scripts/docker-smoke.sh` to
+exercise simulation, packaging, LiteX wrapper generation, Yosys checks,
+manifest migration and report generation.

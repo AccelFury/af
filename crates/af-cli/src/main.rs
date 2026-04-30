@@ -4,10 +4,11 @@ use af_backend::{
     ProcessCommandRunner, ToolVersion,
 };
 use af_backend_verilator::VerilatorBackend;
+use af_backend_yosys::YosysBackend;
 use af_board_db::BoardDbError;
 use af_core::{check_core, CoreError};
 use af_manifest::{CoreManifest, ManifestError, ManifestValidationReport};
-use af_report::{write_reports, AfReport, ReportError};
+use af_report::{write_reports, AfReport, ReportError, WrittenReports};
 use af_vectors::{generate_mod_add_vectors, GenerateConfig};
 use af_wrapper_gen::{generate_wrapper, WrapperGenError, WrapperTarget};
 use clap::{ArgAction, Parser, Subcommand};
@@ -484,14 +485,32 @@ fn doctor() -> Result<CliOutput, CliError> {
     let verilator = VerilatorBackend::process()
         .doctor()
         .expect("doctor is infallible");
-    let (fusesoc_version, fusesoc_commands) = probe_tool(&runner, "fusesoc", &["--version"]);
+    let yosys = YosysBackend::process()
+        .doctor()
+        .expect("doctor is infallible");
+
+    let tool_probes = [
+        ("fusesoc", vec!["--version"]),
+        ("python3", vec!["--version"]),
+        ("sby", vec!["--version"]),
+        ("openFPGALoader", vec!["--help"]),
+        ("gw_sh", vec!["--version"]),
+        ("programmer_cli", vec!["--version"]),
+    ];
 
     let mut report = AfReport::new("passed");
     report.merge_backend(&verilator);
-    report.tool_versions.push(fusesoc_version.clone());
-    report.commands.extend(fusesoc_commands);
+    report.merge_backend(&yosys);
+    for (program, args) in tool_probes {
+        let (tool_version, commands) = probe_tool(&runner, program, &args);
+        report.tool_versions.push(tool_version);
+        report.commands.extend(commands);
+    }
+    let (litex_version, litex_commands) = probe_python_module(&runner, "litex");
+    report.tool_versions.push(litex_version);
+    report.commands.extend(litex_commands);
     report.limitations.push(
-        "MVP doctor checks tool visibility only; it does not validate vendor bitstream flows."
+        "MVP doctor checks tool visibility only; it does not validate vendor bitstream flows or EULA status."
             .to_string(),
     );
 
@@ -1014,7 +1033,12 @@ fn core_check(core_dir: &Path, build_root: &Path) -> Result<CliOutput, CliError>
             .map(|path| path.display().to_string()),
     );
     af_report.warnings.extend(report.warnings.clone());
-    let written = write_reports(build_root.join("reports"), "core-check", &af_report)?;
+    let written = write_reports_with_aliases(
+        build_root.join("reports"),
+        "core-check",
+        &["core_check_report"],
+        &af_report,
+    )?;
 
     Ok(CliOutput {
         human: format!(
@@ -1035,6 +1059,7 @@ fn core_lint(core_dir: &Path, build_root: &Path, backend: &str) -> Result<CliOut
     let checked = check_core(core_dir)?;
     let backend_report = match backend {
         "verilator" => VerilatorBackend::process().lint(&checked.manifest, core_dir, build_root),
+        "yosys" => YosysBackend::process().lint(&checked.manifest, core_dir, build_root),
         other => Err(af_backend::BackendError::Unsupported {
             backend: other.to_string(),
         }),
@@ -1043,7 +1068,12 @@ fn core_lint(core_dir: &Path, build_root: &Path, backend: &str) -> Result<CliOut
 
     let mut af_report = AfReport::for_core(status_text(&backend_report.status), &checked.manifest);
     af_report.merge_backend(&backend_report);
-    let written = write_reports(build_root.join("reports"), "core-lint", &af_report)?;
+    let written = write_reports_with_aliases(
+        build_root.join("reports"),
+        "core-lint",
+        &["lint_report"],
+        &af_report,
+    )?;
 
     let status = backend_report.status.clone();
     match status {
@@ -1096,7 +1126,12 @@ fn core_sim(core_dir: &Path, build_root: &Path, backend: &str) -> Result<CliOutp
 
     let mut af_report = AfReport::for_core(status_text(&backend_report.status), &checked.manifest);
     af_report.merge_backend(&backend_report);
-    let written = write_reports(build_root.join("reports"), "core-sim", &af_report)?;
+    let written = write_reports_with_aliases(
+        build_root.join("reports"),
+        "core-sim",
+        &["simulation_report"],
+        &af_report,
+    )?;
 
     match backend_report.status {
         BackendStatus::Passed => Ok(CliOutput {
@@ -1150,7 +1185,12 @@ fn core_formal(core_dir: &Path, build_root: &Path, backend: &str) -> Result<CliO
         "SymbiYosys formal checks are staged after the Verilator/FuseSoC/LiteX baseline."
             .to_string(),
     );
-    let written = write_reports(build_root.join("reports"), "core-formal", &report)?;
+    let written = write_reports_with_aliases(
+        build_root.join("reports"),
+        "core-formal",
+        &["formal_report"],
+        &report,
+    )?;
     Err(CliError::new(
         "AF_FORMAL_UNAVAILABLE",
         format!("core formal backend `{backend}` is unavailable"),
@@ -1201,7 +1241,12 @@ fn core_package(core_dir: &Path, build_root: &Path, format: &str) -> Result<CliO
         "MVP package command writes a package manifest descriptor; archive signing/SBOM are future work."
             .to_string(),
     );
-    let written = write_reports(build_root.join("reports"), "core-package", &report)?;
+    let written = write_reports_with_aliases(
+        build_root.join("reports"),
+        "core-package",
+        &["package_report"],
+        &report,
+    )?;
     Ok(CliOutput {
         human: format!(
             "core package descriptor written: {}",
@@ -1246,7 +1291,12 @@ fn core_report(input: &Path, build_root: &Path) -> Result<CliOutput, CliError> {
             .warnings
             .push("No artifacts were discovered for the report input.".to_string());
     }
-    let written = write_reports(build_root.join("reports"), "core-report", &report)?;
+    let written = write_reports_with_aliases(
+        build_root.join("reports"),
+        "core-report",
+        &["core_report"],
+        &report,
+    )?;
     Ok(CliOutput {
         human: format!(
             "core report written: {}, {}",
@@ -1310,7 +1360,12 @@ fn build(
                 "LiteX build is a reference dry-run skeleton; no vendor timing or bitstream is produced."
                     .to_string(),
             );
-            let written = write_reports(build_root.join("reports"), "build-report", &report)?;
+            let written = write_reports_with_aliases(
+                build_root.join("reports"),
+                "build-report",
+                &["build_report"],
+                &report,
+            )?;
             Ok(CliOutput {
                 human: format!("build dry-run passed with litex for board `{board}`"),
                 json: json!({
@@ -1322,10 +1377,63 @@ fn build(
                 }),
             })
         }
+        "yosys" => {
+            let checked = check_core(core_dir)?;
+            let backend_report = YosysBackend::process()
+                .lint(&checked.manifest, core_dir, build_root)
+                .map_err(|err| {
+                    CliError::new(err.code(), err.to_string(), err.hint(), err.exit_code())
+                })?;
+            let mut report =
+                AfReport::for_core(status_text(&backend_report.status), &checked.manifest);
+            report.merge_backend(&backend_report);
+            report.limitations.push(
+                "Yosys build mode is a syntax/synthesis smoke check; it does not produce a bitstream."
+                    .to_string(),
+            );
+            let written = write_reports_with_aliases(
+                build_root.join("reports"),
+                "build-report",
+                &["build_report"],
+                &report,
+            )?;
+            match backend_report.status {
+                BackendStatus::Passed => Ok(CliOutput {
+                    human: format!("build smoke passed with yosys for board `{board}`"),
+                    json: json!({
+                        "status": "passed",
+                        "backend": backend,
+                        "board": board,
+                        "backend_report": backend_report,
+                        "reports": written,
+                    }),
+                }),
+                BackendStatus::Unavailable => Err(CliError::new(
+                    "AF_BACKEND_UNAVAILABLE",
+                    "build backend `yosys` is unavailable",
+                    "Use the Docker runtime or install yosys in PATH.",
+                    4,
+                )
+                .with_details(&json!({
+                    "backend_report": backend_report,
+                    "reports": written,
+                }))),
+                BackendStatus::Failed => Err(CliError::new(
+                    "AF_BUILD_FAILED",
+                    "Yosys build smoke failed",
+                    "Inspect backend command details in the report.",
+                    9,
+                )
+                .with_details(&json!({
+                    "backend_report": backend_report,
+                    "reports": written,
+                }))),
+            }
+        }
         other => Err(CliError::new(
             "AF_BUILD_BACKEND_UNAVAILABLE",
             format!("build backend `{other}` is unavailable"),
-            "Use --backend litex for the MVP dry-run path; vendor production backends are planned later.",
+            "Use --backend litex or --backend yosys for MVP open-source dry-run paths; vendor production backends are planned later.",
             9,
         )),
     }
@@ -1441,6 +1549,10 @@ fn backend_run(
             let core_dir = required_backend_core(core_dir, "verilator sim")?;
             core_sim(core_dir, build_root, backend)
         }
+        ("yosys", "lint") | ("yosys", "syntax") | ("yosys", "synth") => {
+            let core_dir = required_backend_core(core_dir, "yosys lint")?;
+            core_lint(core_dir, build_root, backend)
+        }
         ("litex", "generate-wrapper") => {
             let core_dir = required_backend_core(core_dir, "litex generate-wrapper")?;
             wrapper_generate(core_dir, build_root, "litex", None)
@@ -1490,6 +1602,22 @@ fn status_text(status: &BackendStatus) -> &'static str {
     }
 }
 
+fn write_reports_with_aliases(
+    output_dir: impl AsRef<Path>,
+    base_name: &str,
+    aliases: &[&str],
+    report: &AfReport,
+) -> Result<WrittenReports, ReportError> {
+    let output_dir = output_dir.as_ref();
+    let written = write_reports(output_dir, base_name, report)?;
+    for alias in aliases {
+        if *alias != base_name {
+            write_reports(output_dir, alias, report)?;
+        }
+    }
+    Ok(written)
+}
+
 fn probe_tool(
     runner: &impl CommandRunner,
     program: &str,
@@ -1506,13 +1634,51 @@ fn probe_tool(
                 .find(|line| !line.is_empty())
                 .unwrap_or("version output was empty")
                 .to_string();
-            (
-                ToolVersion::available(program, text),
-                vec![CommandRecord::from(output)],
-            )
+            let version = if output.exit_code == Some(0) {
+                ToolVersion::available(program, text)
+            } else {
+                ToolVersion::unavailable(
+                    program,
+                    format!("command exited with {:?}: {text}", output.exit_code),
+                )
+            };
+            (version, vec![CommandRecord::from(output)])
         }
         Err(err) => (
             ToolVersion::unavailable(program, err.to_string()),
+            Vec::new(),
+        ),
+    }
+}
+
+fn probe_python_module(
+    runner: &impl CommandRunner,
+    module: &str,
+) -> (ToolVersion, Vec<CommandRecord>) {
+    let code = format!("import {module}; print(getattr({module}, '__version__', 'import ok'))");
+    let spec = CommandSpec::new("python3").args(["-c".to_string(), code]);
+    match runner.run(&spec) {
+        Ok(output) => {
+            let text = output
+                .stdout
+                .lines()
+                .chain(output.stderr.lines())
+                .map(str::trim)
+                .find(|line| !line.is_empty())
+                .unwrap_or("python module probe output was empty")
+                .to_string();
+            let version = if output.exit_code == Some(0) {
+                ToolVersion::available(module, text)
+            } else {
+                ToolVersion::unavailable(
+                    module,
+                    format!("python import exited with {:?}: {text}", output.exit_code),
+                )
+            };
+            (version, vec![CommandRecord::from(output)])
+        }
+        Err(err) => (
+            ToolVersion::unavailable(module, err.to_string()),
             Vec::new(),
         ),
     }

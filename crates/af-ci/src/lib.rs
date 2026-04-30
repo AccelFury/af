@@ -103,6 +103,8 @@ jobs:
         run: |
           cargo run -p af-cli --bin af -- doctor --json
           cargo run -p af-cli --bin af -- core check examples/af-pdm-rx --json
+          cargo run -p af-cli --bin af -- core check cores/af-mod-add --json
+          cargo run -p af-cli --bin af -- registry check --json
           cargo run -p af-cli --bin af -- board check boards/tang-nano-20k/af-board.toml --json
           cargo run -p af-cli --bin af -- backend list --json
           cargo run -p af-cli --bin af -- wrapper generate examples/af-pdm-rx --target fusesoc --json
@@ -119,6 +121,19 @@ jobs:
         with:
           name: accelfury-reports
           path: .af-build/**
+  docker-open-source-flow:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Docker runtime
+        run: docker build -t accelfury-af:ci .
+      - name: Docker smoke
+        run: docker run --rm -v "$PWD:/work" -w /work -e AF_BUILD_ROOT=/work/.af-build/docker-smoke accelfury-af:ci scripts/docker-smoke.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: accelfury-docker-reports
+          path: .af-build/docker-smoke/**
 "#
     )
 }
