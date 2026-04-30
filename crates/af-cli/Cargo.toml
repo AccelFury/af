@@ -1,0 +1,35 @@
+[package]
+name = "af-cli"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "af"
+path = "src/main.rs"
+
+[dependencies]
+af-backend.workspace = true
+af-backend-fusesoc.workspace = true
+af-backend-verilator.workspace = true
+af-board-db.workspace = true
+af-ci.workspace = true
+af-core.workspace = true
+af-manifest.workspace = true
+af-report.workspace = true
+af-vectors.workspace = true
+af-wrapper-gen.workspace = true
+clap.workspace = true
+miette.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+[dev-dependencies]
+assert_cmd.workspace = true
+predicates.workspace = true
+tempfile.workspace = true

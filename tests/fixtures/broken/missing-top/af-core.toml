@@ -1,0 +1,12 @@
+af_version = "0.1"
+name = "missing-top"
+vendor = "accelfury"
+library = "tests"
+core = "missing_top"
+version = "0.1.0"
+
+[rtl]
+top = "missing_top"
+
+[sources]
+files = ["rtl/wrong_top.sv"]

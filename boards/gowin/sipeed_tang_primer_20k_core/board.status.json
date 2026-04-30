@@ -1,0 +1,21 @@
+{
+  "board": "sipeed_tang_primer_20k_core",
+  "constraint_formats": [
+    "cst"
+  ],
+  "family": "gowin_gw2a",
+  "status": {
+    "hardware_bringup": "not_tested",
+    "pnr": "not_measured",
+    "sim": "not_applicable",
+    "synthesis": "not_measured",
+    "template": true
+  },
+  "toolchains": [
+    "gowin_eda"
+  ],
+  "vendor": "gowin",
+  "warnings": [
+    "Draft only. Verify every pin against the official schematic and board revision before programming hardware."
+  ]
+}

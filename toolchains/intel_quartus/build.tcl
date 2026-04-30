@@ -1,0 +1,2 @@
+project_new af_mod_add_quartus -overwrite
+project_close

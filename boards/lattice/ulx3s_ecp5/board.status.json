@@ -1,0 +1,21 @@
+{
+  "board": "ulx3s_ecp5",
+  "constraint_formats": [
+    "lpf"
+  ],
+  "family": "lattice_ecp5",
+  "status": {
+    "hardware_bringup": "not_tested",
+    "pnr": "not_measured",
+    "sim": "not_applicable",
+    "synthesis": "not_measured",
+    "template": true
+  },
+  "toolchains": [
+    "lattice_oss_yosys_nextpnr_ecp5"
+  ],
+  "vendor": "lattice",
+  "warnings": [
+    "Draft only. Verify every pin against the official schematic and board revision before programming hardware."
+  ]
+}

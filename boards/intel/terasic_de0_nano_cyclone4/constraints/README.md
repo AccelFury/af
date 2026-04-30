@@ -1,0 +1,4 @@
+# Constraints placeholder for terasic_de0_nano_cyclone4
+
+Draft only. Verify every pin against the official schematic and board revision
+before programming hardware.

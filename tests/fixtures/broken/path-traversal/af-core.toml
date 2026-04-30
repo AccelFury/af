@@ -1,0 +1,12 @@
+af_version = "0.1"
+name = "path-traversal"
+vendor = "accelfury"
+library = "tests"
+core = "path_traversal"
+version = "0.1.0"
+
+[rtl]
+top = "path_traversal"
+
+[sources]
+files = ["../secret.sv"]

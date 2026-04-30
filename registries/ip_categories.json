@@ -1,0 +1,22 @@
+{
+  "categories": [
+    "field_arithmetic",
+    "ntt_fft",
+    "hash",
+    "merkle",
+    "plonk",
+    "stark",
+    "r1cs",
+    "msm_toy",
+    "ecc_toy",
+    "stream_infra",
+    "memory_infra",
+    "board_debug",
+    "dsp",
+    "signal_processing",
+    "image_video",
+    "audio",
+    "ai_tinyml",
+    "softcore_peripheral"
+  ]
+}

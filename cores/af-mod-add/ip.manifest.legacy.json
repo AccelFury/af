@@ -1,0 +1,138 @@
+{
+  "schema_version": "0.1.0",
+  "ip": {
+    "name": "af_mod_add",
+    "vendor": "accelfury",
+    "category": "field_arithmetic",
+    "description": "Parametric modular addition IP core for ZK-friendly finite fields",
+    "license": "CERN-OHL-S-2.0",
+    "rtl_languages": [
+      "verilog-2001",
+      "verilog-2005",
+      "systemverilog"
+    ],
+    "rtl_language": "systemverilog",
+    "default_field": "goldilocks",
+    "default_modulus_hex": "0xFFFFFFFF00000001"
+  },
+  "interfaces": [
+    {
+      "name": "stream_in",
+      "type": "ready_valid",
+      "payload_bits": 64,
+      "signals": [
+        "i_clk",
+        "i_rst_n",
+        "i_valid",
+        "o_ready",
+        "i_a",
+        "i_b"
+      ]
+    },
+    {
+      "name": "stream_out",
+      "type": "ready_valid",
+      "payload_bits": 64,
+      "signals": [
+        "o_valid",
+        "i_ready",
+        "o_result"
+      ]
+    }
+  ],
+  "parameters": [
+    {
+      "name": "FIELD_BITS",
+      "type": "int",
+      "default": 64,
+      "description": "Field width in bits"
+    },
+    {
+      "name": "MODULUS",
+      "type": "logic_vector",
+      "default": "64'hFFFF_FFFF_0000_0001",
+      "description": "Modulo prime"
+    }
+  ],
+  "source_files": {
+    "core": [
+      "rtl/core/af_core_pkg.sv",
+      "rtl/core/af_mod_add.sv",
+      "rtl/core/af_mod_add_top.sv"
+    ],
+    "common": [
+      "rtl/common/af_stream_if.sv",
+      "rtl/common/af_skid_buffer.sv",
+      "rtl/common/af_fifo_sync.sv",
+      "rtl/common/af_ram_tdp.sv",
+      "rtl/common/af_reset_sync.sv"
+    ],
+    "vendor": [
+      "rtl/vendor/gowin/af_gowin_ram_tdp.sv",
+      "rtl/vendor/intel/af_intel_ram_tdp.sv"
+    ]
+  },
+  "rtl_language_files": {
+    "systemverilog": [
+      "rtl/core/af_core_pkg.sv",
+      "rtl/core/af_mod_add.sv",
+      "rtl/core/af_mod_add_top.sv"
+    ],
+    "verilog-2001": [
+      "rtl/core/verilog2001/af_mod_add.v",
+      "rtl/core/verilog2001/af_mod_add_top.v"
+    ],
+    "verilog-2005": [
+      "rtl/core/verilog2001/af_mod_add.v",
+      "rtl/core/verilog2001/af_mod_add_top.v"
+    ]
+  },
+  "testbenches": [
+    "tb/sv/tb_pkg.sv",
+    "tb/sv/tb_af_mod_add.sv"
+  ],
+  "vectors": [
+    "vectors/af_mod_add_basic.json",
+    "vectors/af_mod_add_random.json",
+    "vectors/af_mod_add_random.svh"
+  ],
+  "boards": [
+    "sipeed_tang_nano_1k",
+    "sipeed_tang_nano_4k",
+    "sipeed_tang_nano_9k",
+    "sipeed_tang_nano_20k",
+    "sipeed_tang_primer_20k_core",
+    "sipeed_tang_primer_20k_dock",
+    "sipeed_tang_primer_20k_lite",
+    "sipeed_tang_primer_25k",
+    "sipeed_tang_mega_138k",
+    "sipeed_tang_mega_138k_pro",
+    "icebreaker_ice40up5k",
+    "tinyfpga_bx_ice40lp8k",
+    "icestick_ice40hx1k",
+    "ulx3s_ecp5",
+    "orangecrab_ecp5",
+    "colorlight_5a_75b_ecp5",
+    "terasic_de0_nano_cyclone4",
+    "terasic_de10_lite_max10",
+    "terasic_de10_nano_cyclonev_soc",
+    "qmtech_cyclone4_core",
+    "digilent_basys3_artix7",
+    "digilent_arty_a7",
+    "digilent_cmod_a7",
+    "qmtech_artix7",
+    "ebaz4205_zynq7010",
+    "trion_t8",
+    "trion_t20",
+    "titanium_ti60",
+    "polarfire_splash_template",
+    "igloo2_template"
+  ],
+  "tooling": {
+    "rust": true,
+    "typescript_deno": true,
+    "python": false,
+    "cocotb": false,
+    "fusesoc_required": false
+  }
+}

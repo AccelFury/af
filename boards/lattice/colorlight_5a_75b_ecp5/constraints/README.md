@@ -1,0 +1,4 @@
+# Constraints placeholder for colorlight_5a_75b_ecp5
+
+Draft only. Verify every pin against the official schematic and board revision
+before programming hardware.

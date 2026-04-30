@@ -1,0 +1,12 @@
+af_version = "0.1"
+name = "missing-source"
+vendor = "accelfury"
+library = "tests"
+core = "missing_source"
+version = "0.1.0"
+
+[rtl]
+top = "missing_source"
+
+[sources]
+files = ["rtl/does_not_exist.sv"]

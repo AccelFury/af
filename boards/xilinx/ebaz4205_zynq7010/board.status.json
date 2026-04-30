@@ -1,0 +1,21 @@
+{
+  "board": "ebaz4205_zynq7010",
+  "constraint_formats": [
+    "xdc"
+  ],
+  "family": "xilinx_zynq7000",
+  "status": {
+    "hardware_bringup": "not_tested",
+    "pnr": "not_measured",
+    "sim": "not_applicable",
+    "synthesis": "not_measured",
+    "template": true
+  },
+  "toolchains": [
+    "xilinx_vivado"
+  ],
+  "vendor": "xilinx",
+  "warnings": [
+    "Draft only. Verify every pin against the official schematic and board revision before programming hardware."
+  ]
+}

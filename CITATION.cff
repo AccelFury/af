@@ -1,0 +1,9 @@
+cff-version: 1.2.0
+title: "AccelFury IP Template"
+message: "Please cite this repository when you use this template for your FPGA ZK IP project."
+type: software
+authors:
+  - family-names: "AccelFury"
+    given-names: "Community"
+    orcid: "https://orcid.org/0000-0000-0000-0000"
+date-released: 2026-04-27

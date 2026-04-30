@@ -1,0 +1,19 @@
+name: license
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  license:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: setup rust
+        uses: dtolnay/rust-toolchain@stable
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: check license
+        run: deno task check:license

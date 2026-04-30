@@ -1,0 +1,20 @@
+name: rtl-lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  rtl:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: setup rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: install verilator
+        run: sudo apt-get update && sudo apt-get install -y verilator
+      - name: lint af-mod-add
+        run: cargo run -p af-cli --bin af -- core lint cores/af-mod-add --backend verilator
+      - name: lint af-pdm-rx
+        run: cargo run -p af-cli --bin af -- core lint examples/af-pdm-rx --backend verilator

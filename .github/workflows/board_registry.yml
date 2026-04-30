@@ -1,0 +1,23 @@
+name: board-registry
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  board_registry:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: setup rust
+        uses: dtolnay/rust-toolchain@stable
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: check boards
+        run: deno task check:boards
+      - name: check toolchains
+        run: deno task check:toolchains
+      - name: refresh board matrix
+        run: cargo run -p af-cli --bin af -- board matrix --output docs/board_matrix.md

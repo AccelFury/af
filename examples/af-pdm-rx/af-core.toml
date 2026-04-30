@@ -1,0 +1,105 @@
+af_version = "0.1"
+name = "af-pdm-rx"
+vendor = "accelfury"
+library = "ip"
+core = "af_pdm_rx"
+version = "0.1.0"
+boards = ["sipeed_tang_nano_20k", "sipeed_tang_primer_20k_core"]
+known_limitations = [
+  "This MVP core captures and qualifies a PDM bitstream only; PDM-to-PCM conversion is explicitly outside the boundary.",
+  "No CDC/RDC/timing signoff is performed by the MVP toolchain.",
+  "No vendor bitstream flow is generated or executed."
+]
+
+[metadata]
+license = "Apache-2.0"
+authors = ["AccelFury contributors"]
+repository = "https://example.invalid/accelfury/af"
+description = "Minimal PDM input receiver example for AccelFury IP Toolchain MVP."
+
+[rtl]
+top = "af_pdm_rx"
+language = "systemverilog"
+default_clock = "clk"
+default_reset = "rst_n"
+
+[sources]
+files = ["rtl/af_pdm_rx.sv"]
+include_dirs = []
+
+[[parameters]]
+name = "OVERSAMPLE"
+value = "64"
+description = "PDM clock divider/sample qualifier used by the example logic."
+
+[[clocks]]
+name = "clk"
+frequency_hz = 50_000_000
+
+[[resets]]
+name = "rst_n"
+active = "low"
+asynchronous = true
+
+[[ports]]
+name = "clk"
+direction = "input"
+width = 1
+clock = "clk"
+description = "Core clock."
+
+[[ports]]
+name = "rst_n"
+direction = "input"
+width = 1
+reset = "rst_n"
+description = "Active-low reset."
+
+[[ports]]
+name = "pdm_data"
+direction = "input"
+width = 1
+clock = "clk"
+description = "Raw PDM input bitstream."
+
+[[ports]]
+name = "pdm_clk"
+direction = "output"
+width = 1
+clock = "clk"
+description = "Forwarded PDM clock for simple examples."
+
+[[ports]]
+name = "sample_valid"
+direction = "output"
+width = 1
+clock = "clk"
+reset = "rst_n"
+description = "Pulse indicating sample_bit was updated."
+
+[[ports]]
+name = "sample_bit"
+direction = "output"
+width = 1
+clock = "clk"
+reset = "rst_n"
+description = "Latest captured PDM bit."
+
+[[interfaces]]
+name = "pdm"
+kind = "raw-pdm"
+clock = "clk"
+reset = "rst_n"
+
+[[testbenches]]
+name = "smoke"
+top = "tb_af_pdm_rx"
+sources = ["tb/tb_af_pdm_rx.sv"]
+
+[formal]
+enabled = false
+properties = []
+
+[backend_compatibility]
+verilator = true
+fusesoc = true

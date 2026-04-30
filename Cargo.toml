@@ -1,0 +1,56 @@
+[workspace]
+resolver = "2"
+members = [
+  "crates/af-backend",
+  "crates/af-backend-fusesoc",
+  "crates/af-backend-verilator",
+  "crates/af-board-db",
+  "crates/af-ci",
+  "crates/af-cli",
+  "crates/af-core",
+  "crates/af-field-ref",
+  "crates/af-host",
+  "crates/af-manifest",
+  "crates/af-report",
+  "crates/af-rtl-inspector",
+  "crates/af-security",
+  "crates/af-vectors",
+  "crates/af-wrapper-gen",
+]
+
+[workspace.package]
+edition = "2021"
+license = "Apache-2.0"
+repository = "https://example.invalid/accelfury/af"
+authors = ["AccelFury contributors"]
+
+[workspace.dependencies]
+af-backend = { path = "crates/af-backend" }
+af-backend-fusesoc = { path = "crates/af-backend-fusesoc" }
+af-backend-verilator = { path = "crates/af-backend-verilator" }
+af-board-db = { path = "crates/af-board-db" }
+af-ci = { path = "crates/af-ci" }
+af-core = { path = "crates/af-core" }
+af-field-ref = { path = "crates/af-field-ref" }
+af-host = { path = "crates/af-host" }
+af-manifest = { path = "crates/af-manifest" }
+af-report = { path = "crates/af-report" }
+af-rtl-inspector = { path = "crates/af-rtl-inspector" }
+af-security = { path = "crates/af-security" }
+af-vectors = { path = "crates/af-vectors" }
+af-wrapper-gen = { path = "crates/af-wrapper-gen" }
+
+assert_cmd = "2.0"
+clap = { version = "4.5", features = ["derive"] }
+insta = { version = "1.43", features = ["json"] }
+miette = { version = "7.4", features = ["fancy"] }
+predicates = "3.1"
+schemars = { version = "0.8", features = ["derive"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tempfile = "3.15"
+tera = "1.20"
+thiserror = "2.0"
+toml = "0.8"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }

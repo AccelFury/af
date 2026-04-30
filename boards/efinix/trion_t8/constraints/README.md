@@ -1,0 +1,4 @@
+# Constraints placeholder for trion_t8
+
+Draft only. Verify every pin against the official schematic and board revision
+before programming hardware.

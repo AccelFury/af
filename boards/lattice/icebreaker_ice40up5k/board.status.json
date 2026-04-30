@@ -1,0 +1,21 @@
+{
+  "board": "icebreaker_ice40up5k",
+  "constraint_formats": [
+    "pcf"
+  ],
+  "family": "lattice_ice40",
+  "status": {
+    "hardware_bringup": "not_tested",
+    "pnr": "not_measured",
+    "sim": "not_applicable",
+    "synthesis": "not_measured",
+    "template": true
+  },
+  "toolchains": [
+    "lattice_oss_yosys_nextpnr_ice40"
+  ],
+  "vendor": "lattice",
+  "warnings": [
+    "Draft only. Verify every pin against the official schematic and board revision before programming hardware."
+  ]
+}

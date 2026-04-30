@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AccelFury af-core.toml v0.1/v0.2",
+  "type": "object",
+  "required": ["name", "vendor", "library", "core", "version", "rtl", "sources"],
+  "properties": {
+    "af_version": { "type": "string", "enum": ["0.1", "0.2"] },
+    "name": { "type": "string" },
+    "vendor": { "type": "string" },
+    "library": { "type": "string" },
+    "core": { "type": "string" },
+    "version": { "type": "string" },
+    "category": { "type": "string" },
+    "metadata": { "type": "object" },
+    "rtl": {
+      "type": "object",
+      "required": ["top"],
+      "properties": {
+        "top": { "type": "string" },
+        "language": { "enum": ["systemverilog", "verilog", "vhdl"] },
+        "default_clock": { "type": "string" },
+        "default_reset": { "type": "string" },
+        "variants": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      }
+    },
+    "sources": {
+      "type": "object",
+      "required": ["files"],
+      "properties": {
+        "files": { "type": "array", "items": { "type": "string" } },
+        "include_dirs": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "vectors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "format", "path"],
+        "properties": {
+          "name": { "type": "string" },
+          "format": { "type": "string" },
+          "path": { "type": "string" }
+        }
+      }
+    },
+    "tooling": {
+      "type": "object",
+      "properties": {
+        "rust": { "type": "boolean" },
+        "typescript_deno": { "type": "boolean" },
+        "python": { "type": "boolean" },
+        "cocotb": { "type": "boolean" },
+        "fusesoc_required": { "type": "boolean" }
+      }
+    },
+    "known_limitations": { "type": "array", "items": { "type": "string" } }
+  }
+}

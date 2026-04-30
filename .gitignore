@@ -1,0 +1,4 @@
+/target/
+/.af-build/
+/.codex
+*.tmp
