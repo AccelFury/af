@@ -20,7 +20,11 @@ echo "== AccelFury Docker smoke: tool visibility =="
 verilator --version
 fusesoc --version
 python3 --version
-python3 -c "import litex; print('litex import ok')"
+if python3 -c "import litex; print('litex import ok')"; then
+  :
+else
+  echo "LiteX Python package is optional for MVP skeleton generation."
+fi
 yosys -V
 
 echo "== AccelFury Docker smoke: Rust build =="
