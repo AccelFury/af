@@ -77,6 +77,7 @@ belongs in [TODO.md](TODO.md) or in a direct `af` code change.
 - [CLI Reference](docs/cli-reference.md)
 - [Backend Author Guide](docs/backend-author-guide.md)
 - [Core Author Guide](docs/core-author-guide.md)
+- [Russian Start Guide for af-i2s-rx](docs/af-i2s-rx-start-guide.ru.md)
 - [Board Author Guide](docs/board-author-guide.md)
 - [Security Model](docs/security-model.md)
 - [Docker Runtime](docs/docker-runtime.md)
