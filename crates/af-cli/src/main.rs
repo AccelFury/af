@@ -99,6 +99,8 @@ enum InitCommand {
         name: String,
         #[arg(long, default_value = "stream-ip")]
         template: String,
+        #[arg(long, default_value = "stream-ip")]
+        profile: String,
         #[arg(long, default_value = ".")]
         root: PathBuf,
         #[arg(long, default_value = "ip")]
@@ -137,6 +139,8 @@ enum CoreCommand {
         library: String,
         #[arg(long, default_value = "systemverilog")]
         language: String,
+        #[arg(long, default_value = "stream-ip")]
+        profile: String,
     },
     Lint {
         core_dir: PathBuf,
@@ -392,10 +396,11 @@ fn execute(cli: &Cli) -> Result<CliOutput, CliError> {
             InitCommand::Core {
                 name,
                 template,
+                profile,
                 root,
                 library,
                 language,
-            } => init_core(root, name, template, library, language),
+            } => init_core(root, name, template, profile, library, language),
         },
         Commands::Doctor => doctor(),
         Commands::Manifest { command } => match command {
@@ -414,7 +419,8 @@ fn execute(cli: &Cli) -> Result<CliOutput, CliError> {
                 name,
                 library,
                 language,
-            } => core_new(core_dir, name, library, language),
+                profile,
+            } => core_new(core_dir, name, library, language, profile),
             CoreCommand::Lint { core_dir, backend } => {
                 core_lint(core_dir, &cli.build_root, backend)
             }
@@ -547,18 +553,27 @@ fn init_core(
     root: &Path,
     name: &str,
     template: &str,
+    profile: &str,
     library: &str,
     language: &str,
 ) -> Result<CliOutput, CliError> {
-    if template != "stream-ip" {
+    let selected_profile = if profile == "stream-ip" {
+        template
+    } else {
+        profile
+    };
+    if !matches!(
+        selected_profile,
+        "stream-ip" | "reset-sync" | "atomic-reset-sync"
+    ) {
         return Err(CliError::new(
             "AF_INIT_TEMPLATE_UNSUPPORTED",
             format!("init core template `{template}` is unsupported"),
-            "Use --template stream-ip for the MVP scaffold.",
+            "Use --template stream-ip or --template reset-sync for the built-in scaffolds.",
             2,
         ));
     }
-    core_new(&root.join(name), name, library, language)
+    core_new(&root.join(name), name, library, language, selected_profile)
 }
 
 fn manifest_migrate(path: &Path, from: &str, to: &str, write: bool) -> Result<CliOutput, CliError> {
@@ -627,17 +642,39 @@ fn core_new(
     name: &str,
     library: &str,
     language: &str,
+    profile: &str,
 ) -> Result<CliOutput, CliError> {
-    if !matches!(language, "systemverilog" | "verilog") {
+    if !matches!(language, "systemverilog" | "verilog" | "verilog-2001") {
         return Err(CliError::new(
             "AF_CORE_NEW_LANGUAGE_UNSUPPORTED",
             format!("core new language `{language}` is unsupported"),
-            "Use --language systemverilog or --language verilog for the built-in scaffold.",
+            "Use --language systemverilog, --language verilog, or --language verilog-2001 for the built-in scaffold.",
             2,
         ));
     }
+    if !matches!(profile, "stream-ip" | "reset-sync" | "atomic-reset-sync") {
+        return Err(CliError::new(
+            "AF_CORE_NEW_PROFILE_UNSUPPORTED",
+            format!("core new profile `{profile}` is unsupported"),
+            "Use --profile stream-ip or --profile reset-sync for the built-in scaffold.",
+            2,
+        ));
+    }
+    if matches!(profile, "reset-sync" | "atomic-reset-sync") {
+        return core_new_reset_sync(core_dir, name, library, language);
+    }
+    core_new_stream_ip(core_dir, name, library, language)
+}
+
+fn core_new_stream_ip(
+    core_dir: &Path,
+    name: &str,
+    library: &str,
+    language: &str,
+) -> Result<CliOutput, CliError> {
     let module = to_module_ident(name)?;
-    let extension = if language == "verilog" { "v" } else { "sv" };
+    let verilog = matches!(language, "verilog" | "verilog-2001");
+    let extension = if verilog { "v" } else { "sv" };
     let source_file = format!("rtl/{module}.{extension}");
     let rtl_dir = core_dir.join("rtl");
     fs::create_dir_all(&rtl_dir).map_err(|err| {
@@ -711,9 +748,11 @@ verilator = true
 fusesoc = true
 "#
     );
-    let rtl = if language == "verilog" {
+    let rtl = if verilog {
         format!(
             r#"// SPDX-License-Identifier: Apache-2.0
+`default_nettype none
+
 module {module} (
   input wire clk,
   input wire rst_n,
@@ -728,6 +767,8 @@ module {module} (
     end
   end
 endmodule
+
+`default_nettype wire
 "#
         )
     } else {
@@ -761,6 +802,203 @@ endmodule
         json: json!({
             "status": "passed",
             "core_dir": core_dir,
+            "profile": "stream-ip",
+            "manifest": manifest,
+        }),
+    })
+}
+
+fn core_new_reset_sync(
+    core_dir: &Path,
+    name: &str,
+    library: &str,
+    language: &str,
+) -> Result<CliOutput, CliError> {
+    if !matches!(language, "verilog" | "verilog-2001") {
+        return Err(CliError::new(
+            "AF_CORE_NEW_PROFILE_LANGUAGE_UNSUPPORTED",
+            "reset-sync profile only supports portable Verilog-2001",
+            "Use --language verilog or --language verilog-2001 with --profile reset-sync.",
+            2,
+        ));
+    }
+    let module = to_module_ident(name)?;
+    let wrapper = format!("{module}_n");
+    let top_file = format!("rtl/{module}.v");
+    let wrapper_file = format!("rtl/{wrapper}.v");
+    let rtl_dir = core_dir.join("rtl");
+    fs::create_dir_all(&rtl_dir).map_err(|err| {
+        CliError::new(
+            "AF_CORE_NEW_CREATE_DIR_FAILED",
+            format!("failed to create `{}`: {err}", rtl_dir.display()),
+            "Check filesystem permissions and choose a writable core directory.",
+            5,
+        )
+    })?;
+
+    let manifest = format!(
+        r#"af_version = "0.2"
+name = "{name}"
+vendor = "accelfury"
+library = "{library}"
+core = "{module}"
+version = "0.1.0"
+known_limitations = [
+  "Reset input must be glitch-free at system level.",
+  "One synchronizer instance is valid for one clock domain only.",
+  "Generated reset-sync scaffold has no timing, board, vendor synthesis, or hardware validation claims."
+]
+
+[metadata]
+license = "Apache-2.0"
+authors = ["AccelFury contributors"]
+description = "Portable Verilog-2001 reset synchronizer scaffold."
+
+[rtl]
+top = "{module}"
+language = "verilog-2001"
+default_clock = "clk"
+default_reset = "arst"
+
+[sources]
+files = ["{top_file}", "{wrapper_file}"]
+include_dirs = []
+
+[[parameters]]
+name = "STAGES"
+kind = "integer"
+value = "3"
+min = "2"
+description = "Number of reset release synchronizer stages."
+
+[[clocks]]
+name = "clk"
+port = "clk"
+description = "Target clock domain for reset release."
+
+[[resets]]
+name = "arst"
+port = "arst"
+active = "high"
+asynchronous = true
+
+[[ports]]
+name = "clk"
+direction = "input"
+width = 1
+clock = "clk"
+
+[[ports]]
+name = "arst"
+direction = "input"
+width = 1
+reset = "arst"
+active = "high"
+reset_style = "asynchronous"
+
+[[ports]]
+name = "rst"
+direction = "output"
+width = 1
+clock = "clk"
+reset = "arst"
+active = "high"
+reset_style = "async-assert-sync-deassert"
+
+[backend_compatibility]
+verilator = true
+fusesoc = true
+"#
+    );
+    let rtl = format!(
+        r#"// SPDX-License-Identifier: Apache-2.0
+`default_nettype none
+
+module {module}
+#(
+    parameter STAGES = 3
+)
+(
+    input  wire clk,
+    input  wire arst,
+    output wire rst
+);
+
+generate
+    if (STAGES < 2) begin : g_invalid
+        assign rst = 1'b1;
+`ifndef SYNTHESIS
+        initial begin
+            $display("ERROR: {module} STAGES must be >= 2");
+            $finish;
+        end
+`endif
+    end else begin : g_valid
+        reg [STAGES-1:0] sync_pipe;
+
+        always @(posedge clk or posedge arst) begin
+            if (arst) begin
+                sync_pipe <= {{STAGES{{1'b1}}}};
+            end else begin
+                sync_pipe <= {{sync_pipe[STAGES-2:0], 1'b0}};
+            end
+        end
+
+        assign rst = sync_pipe[STAGES-1];
+    end
+endgenerate
+
+endmodule
+
+`default_nettype wire
+"#
+    );
+    let wrapper_rtl = format!(
+        r#"// SPDX-License-Identifier: Apache-2.0
+`default_nettype none
+
+module {wrapper}
+#(
+    parameter STAGES = 3
+)
+(
+    input  wire clk,
+    input  wire arst_n,
+    output wire rst
+);
+
+wire arst;
+
+assign arst = ~arst_n;
+
+{module}
+#(
+    .STAGES(STAGES)
+)
+u_{module} (
+    .clk  (clk),
+    .arst (arst),
+    .rst  (rst)
+);
+
+endmodule
+
+`default_nettype wire
+"#
+    );
+    write_new_file(&core_dir.join("af-core.toml"), manifest.as_bytes())?;
+    write_new_file(&rtl_dir.join(format!("{module}.v")), rtl.as_bytes())?;
+    write_new_file(
+        &rtl_dir.join(format!("{wrapper}.v")),
+        wrapper_rtl.as_bytes(),
+    )?;
+    let manifest = CoreManifest::from_path(core_dir.join("af-core.toml"))?;
+    Ok(CliOutput {
+        human: format!("core scaffold written: {}", core_dir.display()),
+        json: json!({
+            "status": "passed",
+            "core_dir": core_dir,
+            "profile": "reset-sync",
             "manifest": manifest,
         }),
     })

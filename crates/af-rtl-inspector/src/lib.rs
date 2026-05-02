@@ -187,9 +187,86 @@ pub fn inspect_core(
             check_manifest_ports_in_header(&mut report, manifest, header);
             check_clock_reset_bindings(&mut report, manifest);
         }
+        check_portable_verilog_policy(&mut report, manifest, &source_text);
     }
 
     Ok(report)
+}
+
+fn check_portable_verilog_policy(
+    report: &mut RtlInspectionReport,
+    manifest: &CoreManifest,
+    source_text: &str,
+) {
+    if !matches!(manifest.rtl.language.as_str(), "verilog" | "verilog-2001") {
+        report
+            .checks
+            .insert("portable_verilog_policy".to_string(), "skip".to_string());
+        return;
+    }
+
+    let stripped = strip_comments(source_text);
+    let mut failed = false;
+
+    if !stripped.contains("`default_nettype none") {
+        failed = true;
+        report.issues.push(RtlIssue::error(
+            "AF_PORTABLE_DEFAULT_NETTYPE_MISSING",
+            "Verilog source does not declare `default_nettype none`",
+            "Add `default_nettype none` around portable Verilog RTL to prevent implicit nets.",
+        ));
+    }
+
+    for keyword in ["logic", "interface", "package", "always_ff", "always_comb"] {
+        if contains_identifier(&stripped, keyword) {
+            failed = true;
+            report.issues.push(RtlIssue::error(
+                "AF_PORTABLE_SYSTEMVERILOG_CONSTRUCT",
+                format!("portable Verilog source contains SystemVerilog construct `{keyword}`"),
+                "Move SystemVerilog constructs to wrappers or rewrite the base RTL as Verilog-2001.",
+            ));
+        }
+    }
+
+    let lower = stripped.to_ascii_lowercase();
+    for marker in [
+        "xpm_",
+        "ramb",
+        "fifo18",
+        "fifo36",
+        "altsyncram",
+        "scfifo",
+        "lpm_",
+        "altpll",
+        "mmcm",
+        "pll",
+        "clkdiv",
+        "bufg",
+        "gowin_",
+    ] {
+        if lower.contains(marker) {
+            failed = true;
+            report.issues.push(RtlIssue::error(
+                "AF_PORTABLE_VENDOR_OR_CLOCK_MARKER",
+                format!("portable Verilog source contains forbidden marker `{marker}`"),
+                "Keep vendor primitives, hard macros, PLLs, clock dividers, and board-specific adaptation outside the generic core.",
+            ));
+        }
+    }
+
+    if contains_identifier(&lower, "axi") {
+        failed = true;
+        report.issues.push(RtlIssue::error(
+            "AF_PORTABLE_AXI_ONLY_MARKER",
+            "portable Verilog source contains AXI-specific marker `axi`",
+            "Keep AXI adaptation in an optional wrapper around portable core ports.",
+        ));
+    }
+
+    report.checks.insert(
+        "portable_verilog_policy".to_string(),
+        if failed { "fail" } else { "pass" }.to_string(),
+    );
 }
 
 fn top_declaration_header(source_text: &str, manifest: &CoreManifest) -> Option<String> {
@@ -294,6 +371,29 @@ fn strip_line_comments(source_text: &str) -> String {
         .map(|line| line.split_once("//").map(|(code, _)| code).unwrap_or(line))
         .collect::<Vec<_>>()
         .join("\n")
+}
+
+fn strip_comments(source_text: &str) -> String {
+    let line_stripped = strip_line_comments(source_text);
+    let mut out = String::with_capacity(line_stripped.len());
+    let mut chars = line_stripped.chars().peekable();
+    let mut in_block = false;
+    while let Some(ch) = chars.next() {
+        if in_block {
+            if ch == '*' && chars.peek() == Some(&'/') {
+                chars.next();
+                in_block = false;
+            }
+            continue;
+        }
+        if ch == '/' && chars.peek() == Some(&'*') {
+            chars.next();
+            in_block = true;
+            continue;
+        }
+        out.push(ch);
+    }
+    out
 }
 
 fn contains_identifier(source_text: &str, ident: &str) -> bool {
@@ -443,17 +543,63 @@ width = 1
         fs::write(
             dir.path().join("rtl/demo.v"),
             r#"// SPDX-License-Identifier: Apache-2.0
+`default_nettype none
+
 module demo (
   input wire clk,
   input wire enable,
   output reg done
 );
 endmodule
+
+`default_nettype wire
 "#,
         )
         .unwrap();
         let report = inspect_core(dir.path(), &manifest_with_ports("demo")).unwrap();
         assert!(!report.has_errors(), "{:#?}", report.issues);
+    }
+
+    #[test]
+    fn verilog_policy_requires_default_nettype_none() {
+        let dir = tempdir().unwrap();
+        fs::create_dir_all(dir.path().join("rtl")).unwrap();
+        fs::write(
+            dir.path().join("rtl/demo.v"),
+            "module demo(input wire clk, input wire enable, output wire done); endmodule\n",
+        )
+        .unwrap();
+        let report = inspect_core(dir.path(), &manifest_with_ports("demo")).unwrap();
+        assert!(report
+            .issues
+            .iter()
+            .any(|issue| issue.code == "AF_PORTABLE_DEFAULT_NETTYPE_MISSING"));
+    }
+
+    #[test]
+    fn verilog_policy_rejects_systemverilog_constructs() {
+        let dir = tempdir().unwrap();
+        fs::create_dir_all(dir.path().join("rtl")).unwrap();
+        fs::write(
+            dir.path().join("rtl/demo.v"),
+            r#"`default_nettype none
+module demo (
+  input logic clk,
+  input logic enable,
+  output logic done
+);
+  always_ff @(posedge clk) begin
+  end
+endmodule
+`default_nettype wire
+"#,
+        )
+        .unwrap();
+        let report = inspect_core(dir.path(), &manifest_with_ports("demo")).unwrap();
+        assert!(report.issues.iter().any(|issue| {
+            issue.code == "AF_PORTABLE_SYSTEMVERILOG_CONSTRUCT"
+                && issue.message.contains("always_ff")
+        }));
     }
 
     #[test]

@@ -13,7 +13,7 @@ Commands:
 af doctor
 af manifest validate <path>
 af core check <core_dir>
-af core new <core_dir> --name <name> [--language systemverilog|verilog]
+af core new <core_dir> --name <name> [--language systemverilog|verilog|verilog-2001] [--profile stream-ip|reset-sync]
 af core lint <core_dir> --backend verilator
 af core lint <core_dir> --backend yosys
 af core sim <core_dir> --backend verilator
@@ -61,9 +61,15 @@ Every CLI error has:
 - `hint`
 - `exit_code`
 
-`af core new` defaults to SystemVerilog and can also emit a Verilog-2001
-starter. Use the Verilog starter when a buyer-facing core must remain portable
-across older FPGA flows before vendor wrappers are added.
+`af core new` defaults to SystemVerilog and `--profile stream-ip`. Use
+`--language verilog --profile reset-sync` for an atomic reset synchronizer
+scaffold with `clk`, `arst`, `rst`, `STAGES`, an active-low wrapper, and
+portable Verilog policy checks.
+
+`af core check` enforces additional portable Verilog checks for manifests with
+`rtl.language = "verilog"` or `"verilog-2001"`: `default_nettype none` is
+required and SystemVerilog constructs, common vendor macro markers, hidden PLL
+markers, and AXI-only markers are rejected in base RTL sources.
 
 Use the Docker runtime when host tools are missing:
 

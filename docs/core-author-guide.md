@@ -15,6 +15,11 @@ Use `af core new <dir> --name <name> --language verilog` when the core must
 start as a Verilog-2001 portable IP block. Use SystemVerilog when the target
 integration and lint/sim backends already allow it.
 
+Use `af core new <dir> --name <name> --language verilog --profile reset-sync`
+for an atomic reset synchronizer starter. That profile emits a portable
+`clk`/`arst`/`rst` core, `STAGES` parameter metadata, and an active-low wrapper
+without bus, FIFO, RAM, DSP, PLL, or board-pin logic.
+
 Recommended workflow:
 
 ```bash
@@ -24,6 +29,11 @@ af core lint my-core --backend verilator
 af wrapper generate my-core --target fusesoc
 af core report my-core
 ```
+
+For `verilog` and `verilog-2001` manifests, `af core check` also applies a
+portable base-core policy: `default_nettype none` is required, while
+SystemVerilog constructs, common vendor macro markers, hidden PLL markers, and
+AXI-only markers are rejected in base RTL.
 
 Keep `known_limitations` explicit. Reports include these limitations so downstream users do not confuse MVP checks with signoff.
 

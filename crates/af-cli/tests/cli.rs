@@ -139,6 +139,54 @@ fn core_new_supports_verilog_2001_scaffold() {
 }
 
 #[test]
+fn core_new_reset_sync_profile_generates_atomic_verilog_core() {
+    let dir = tempdir().unwrap();
+    let core_dir = dir.path().join("af-reset-sync");
+    let build = tempdir().unwrap();
+
+    let mut cmd = Command::cargo_bin("af").unwrap();
+    cmd.arg("--build-root")
+        .arg(build.path())
+        .args(["core", "new"])
+        .arg(&core_dir)
+        .args([
+            "--name",
+            "af-reset-sync",
+            "--language",
+            "verilog",
+            "--profile",
+            "reset-sync",
+            "--json",
+        ])
+        .assert()
+        .success()
+        .stdout(contains("\"profile\": \"reset-sync\""))
+        .stdout(contains("af_reset_sync_n.v"));
+
+    let rtl = core_dir.join("rtl/af_reset_sync.v");
+    let wrapper = core_dir.join("rtl/af_reset_sync_n.v");
+    assert!(core_dir.join("af-core.toml").is_file());
+    assert!(rtl.is_file());
+    assert!(wrapper.is_file());
+    let content = std::fs::read_to_string(rtl).unwrap();
+    assert!(content.contains("`default_nettype none"));
+    assert!(content.contains("always @(posedge clk or posedge arst)"));
+    assert!(!content.contains("always_ff"));
+    assert!(!content.contains("logic"));
+
+    let mut check = Command::cargo_bin("af").unwrap();
+    check
+        .arg("--build-root")
+        .arg(build.path())
+        .args(["core", "check"])
+        .arg(&core_dir)
+        .arg("--json")
+        .assert()
+        .success()
+        .stdout(contains("\"portable_verilog_policy\": \"pass\""));
+}
+
+#[test]
 fn broken_fixtures_fail_without_panics() {
     let root = repo_root();
     let fixtures = [
