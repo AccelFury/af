@@ -74,14 +74,14 @@ make smoke
 
 ## Шаг 2. Сгенерировать scaffold
 
-Создайте core через `af init core`. Эта команда использует MVP-шаблон
-`stream-ip` и создает валидный `af_version = "0.2"` scaffold.
+Создайте core через `af core new`. Это единая команда для новых базовых ядер;
+по умолчанию она использует portable Verilog-2001 профиль `stream-ip` и создает
+валидный `af_version = "0.2"` scaffold.
 
 ```bash
-cargo run -p af-cli --bin af -- init core af-i2s-rx \
-  --root examples \
-  --library audio \
-  --language systemverilog
+cargo run -p af-cli --bin af -- core new examples/af-i2s-rx \
+  --name af-i2s-rx \
+  --library audio
 ```
 
 Ожидаемая структура:
@@ -90,7 +90,7 @@ cargo run -p af-cli --bin af -- init core af-i2s-rx \
 examples/af-i2s-rx/
   af-core.toml
   rtl/
-    af_i2s_rx.sv
+    af_i2s_rx.v
 ```
 
 Имя директории и package name остаются `af-i2s-rx`, а имя RTL-модуля становится
@@ -112,19 +112,21 @@ cargo run -p af-cli --bin af -- core check examples/af-i2s-rx
 После генерации scaffold замените порты `enable/done` на I2S RX интерфейс и
 valid-ready stream. Для первой версии удобно начать с packed stereo frame:
 
-```systemverilog
-module af_i2s_rx #(
-  parameter int unsigned SAMPLE_BITS = 24,
-  parameter int unsigned FRAME_BITS  = 48
-) (
-  input  logic                  clk,
-  input  logic                  rst_n,
-  input  logic                  i2s_sck_i,
-  input  logic                  i2s_ws_i,
-  input  logic                  i2s_sd_i,
-  output logic [FRAME_BITS-1:0] sample_data_o,
-  output logic                  sample_valid_o,
-  input  logic                  sample_ready_i
+```verilog
+module af_i2s_rx
+#(
+  parameter SAMPLE_BITS = 24,
+  parameter FRAME_BITS  = 48
+)
+(
+  input wire                   clk,
+  input wire                   rst_n,
+  input wire                   i2s_sck_i,
+  input wire                   i2s_ws_i,
+  input wire                   i2s_sd_i,
+  output reg [FRAME_BITS-1:0]  sample_data_o,
+  output reg                   sample_valid_o,
+  input wire                   sample_ready_i
 );
 ```
 
@@ -175,13 +177,12 @@ description = "I2S receiver core that converts serial Philips I2S input into a p
 
 [rtl]
 top = "af_i2s_rx"
-language = "systemverilog"
-systemverilog_subset = true
+language = "verilog-2001"
 default_clock = "clk"
 default_reset = "rst_n"
 
 [sources]
-files = ["rtl/af_i2s_rx.sv"]
+files = ["rtl/af_i2s_rx.v"]
 include_dirs = []
 
 [[parameters]]
@@ -292,7 +293,7 @@ name = "verilator_smoke"
 backend = "verilator"
 top = "tb_af_i2s_rx"
 sources = ["tb/tb_af_i2s_rx.sv"]
-rtl_sources = ["rtl/af_i2s_rx.sv"]
+rtl_sources = ["rtl/af_i2s_rx.v"]
 expected = "pass"
 
 [formal]

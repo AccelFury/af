@@ -15,6 +15,7 @@ af-backend.workspace = true
 af-backend-flash.workspace = true
 af-backend-fusesoc.workspace = true
 af-backend-litex.workspace = true
+af-backend-native.workspace = true
 af-backend-sby.workspace = true
 af-backend-vendor.workspace = true
 af-backend-verilator.workspace = true

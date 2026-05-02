@@ -3,10 +3,11 @@ use af_backend::{
     AfBackend, BackendCapability, BackendStatus, CommandRecord, CommandRunner, CommandSpec,
     ProcessCommandRunner, ToolVersion,
 };
+use af_backend_native::NativeBackend;
 use af_backend_verilator::VerilatorBackend;
 use af_backend_yosys::YosysBackend;
 use af_board_db::BoardDbError;
-use af_core::{check_core, CoreError};
+use af_core::{check_core, load_manifest_from_core_dir, CoreError};
 use af_manifest::{CoreManifest, ManifestError, ManifestValidationReport};
 use af_report::{write_reports, AfReport, ReportError, WrittenReports};
 use af_vectors::{generate_mod_add_vectors, GenerateConfig};
@@ -35,10 +36,6 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    Init {
-        #[command(subcommand)]
-        command: InitCommand,
-    },
     Doctor,
     Manifest {
         #[command(subcommand)]
@@ -94,23 +91,6 @@ enum Commands {
 }
 
 #[derive(Subcommand, Debug)]
-enum InitCommand {
-    Core {
-        name: String,
-        #[arg(long, default_value = "stream-ip")]
-        template: String,
-        #[arg(long, default_value = "stream-ip")]
-        profile: String,
-        #[arg(long, default_value = ".")]
-        root: PathBuf,
-        #[arg(long, default_value = "ip")]
-        library: String,
-        #[arg(long, default_value = "systemverilog")]
-        language: String,
-    },
-}
-
-#[derive(Subcommand, Debug)]
 enum ManifestCommand {
     Validate {
         path: PathBuf,
@@ -137,7 +117,7 @@ enum CoreCommand {
         name: String,
         #[arg(long, default_value = "examples")]
         library: String,
-        #[arg(long, default_value = "systemverilog")]
+        #[arg(long, default_value = "verilog-2001")]
         language: String,
         #[arg(long, default_value = "stream-ip")]
         profile: String,
@@ -392,16 +372,6 @@ fn init_tracing(verbose: u8, quiet: bool) {
 
 fn execute(cli: &Cli) -> Result<CliOutput, CliError> {
     match &cli.command {
-        Commands::Init { command } => match command {
-            InitCommand::Core {
-                name,
-                template,
-                profile,
-                root,
-                library,
-                language,
-            } => init_core(root, name, template, profile, library, language),
-        },
         Commands::Doctor => doctor(),
         Commands::Manifest { command } => match command {
             ManifestCommand::Validate { path } => manifest_validate(path),
@@ -494,6 +464,7 @@ fn doctor() -> Result<CliOutput, CliError> {
     let yosys = YosysBackend::process()
         .doctor()
         .expect("doctor is infallible");
+    let native = NativeBackend.doctor().expect("doctor is infallible");
 
     let tool_probes = [
         ("fusesoc", vec!["--version"]),
@@ -505,6 +476,7 @@ fn doctor() -> Result<CliOutput, CliError> {
     ];
 
     let mut report = AfReport::new("passed");
+    report.merge_backend(&native);
     report.merge_backend(&verilator);
     report.merge_backend(&yosys);
     for (program, args) in tool_probes {
@@ -547,33 +519,6 @@ fn manifest_validate(path: &Path) -> Result<CliOutput, CliError> {
             "validation": report,
         }),
     })
-}
-
-fn init_core(
-    root: &Path,
-    name: &str,
-    template: &str,
-    profile: &str,
-    library: &str,
-    language: &str,
-) -> Result<CliOutput, CliError> {
-    let selected_profile = if profile == "stream-ip" {
-        template
-    } else {
-        profile
-    };
-    if !matches!(
-        selected_profile,
-        "stream-ip" | "reset-sync" | "atomic-reset-sync"
-    ) {
-        return Err(CliError::new(
-            "AF_INIT_TEMPLATE_UNSUPPORTED",
-            format!("init core template `{template}` is unsupported"),
-            "Use --template stream-ip or --template reset-sync for the built-in scaffolds.",
-            2,
-        ));
-    }
-    core_new(&root.join(name), name, library, language, selected_profile)
 }
 
 fn manifest_migrate(path: &Path, from: &str, to: &str, write: bool) -> Result<CliOutput, CliError> {
@@ -644,26 +589,55 @@ fn core_new(
     language: &str,
     profile: &str,
 ) -> Result<CliOutput, CliError> {
-    if !matches!(language, "systemverilog" | "verilog" | "verilog-2001") {
-        return Err(CliError::new(
+    let language = normalize_core_language(language)?;
+    let profile = normalize_core_profile(profile)?;
+    if profile == "reset-sync" {
+        return core_new_reset_sync(core_dir, name, library, language);
+    }
+    core_new_stream_ip(core_dir, name, library, language)
+}
+
+fn normalize_core_language(language: &str) -> Result<&'static str, CliError> {
+    match language {
+        "verilog" | "verilog-2001" => Ok("verilog-2001"),
+        "systemverilog" => Err(CliError::new(
+            "AF_CORE_NEW_LANGUAGE_UNSUPPORTED",
+            "core new only scaffolds portable Verilog-2001 base cores",
+            "Use --language verilog-2001 for generic cores; keep SystemVerilog, vendor primitives, AXI adapters, and PLL logic in optional wrappers outside the base core.",
+            2,
+        )),
+        _ => Err(CliError::new(
             "AF_CORE_NEW_LANGUAGE_UNSUPPORTED",
             format!("core new language `{language}` is unsupported"),
-            "Use --language systemverilog, --language verilog, or --language verilog-2001 for the built-in scaffold.",
+            "Use --language verilog-2001 for the built-in portable scaffold.",
             2,
-        ));
+        )),
     }
-    if !matches!(profile, "stream-ip" | "reset-sync" | "atomic-reset-sync") {
-        return Err(CliError::new(
+}
+
+fn normalize_core_profile(profile: &str) -> Result<&'static str, CliError> {
+    match profile {
+        "stream-ip" => Ok("stream-ip"),
+        "reset-sync" | "atomic-reset-sync" => Ok("reset-sync"),
+        _ => Err(CliError::new(
             "AF_CORE_NEW_PROFILE_UNSUPPORTED",
             format!("core new profile `{profile}` is unsupported"),
             "Use --profile stream-ip or --profile reset-sync for the built-in scaffold.",
             2,
+        )),
+    }
+}
+
+fn ensure_portable_core_language(language: &str, profile: &str) -> Result<(), CliError> {
+    if language != "verilog-2001" {
+        return Err(CliError::new(
+            "AF_CORE_NEW_LANGUAGE_UNSUPPORTED",
+            format!("core new language `{language}` is unsupported"),
+            format!("Use --language verilog-2001 with --profile {profile}."),
+            2,
         ));
     }
-    if matches!(profile, "reset-sync" | "atomic-reset-sync") {
-        return core_new_reset_sync(core_dir, name, library, language);
-    }
-    core_new_stream_ip(core_dir, name, library, language)
+    Ok(())
 }
 
 fn core_new_stream_ip(
@@ -672,9 +646,9 @@ fn core_new_stream_ip(
     library: &str,
     language: &str,
 ) -> Result<CliOutput, CliError> {
+    ensure_portable_core_language(language, "stream-ip")?;
     let module = to_module_ident(name)?;
-    let verilog = matches!(language, "verilog" | "verilog-2001");
-    let extension = if verilog { "v" } else { "sv" };
+    let extension = "v";
     let source_file = format!("rtl/{module}.{extension}");
     let rtl_dir = core_dir.join("rtl");
     fs::create_dir_all(&rtl_dir).map_err(|err| {
@@ -748,9 +722,8 @@ verilator = true
 fusesoc = true
 "#
     );
-    let rtl = if verilog {
-        format!(
-            r#"// SPDX-License-Identifier: Apache-2.0
+    let rtl = format!(
+        r#"// SPDX-License-Identifier: Apache-2.0
 `default_nettype none
 
 module {module} (
@@ -770,27 +743,7 @@ endmodule
 
 `default_nettype wire
 "#
-        )
-    } else {
-        format!(
-            r#"// SPDX-License-Identifier: Apache-2.0
-module {module} (
-  input  logic clk,
-  input  logic rst_n,
-  input  logic enable,
-  output logic done
-);
-  always_ff @(posedge clk or negedge rst_n) begin
-    if (!rst_n) begin
-      done <= 1'b0;
-    end else begin
-      done <= enable;
-    end
-  end
-endmodule
-"#
-        )
-    };
+    );
     write_new_file(&core_dir.join("af-core.toml"), manifest.as_bytes())?;
     write_new_file(
         &rtl_dir.join(format!("{module}.{extension}")),
@@ -814,14 +767,7 @@ fn core_new_reset_sync(
     library: &str,
     language: &str,
 ) -> Result<CliOutput, CliError> {
-    if !matches!(language, "verilog" | "verilog-2001") {
-        return Err(CliError::new(
-            "AF_CORE_NEW_PROFILE_LANGUAGE_UNSUPPORTED",
-            "reset-sync profile only supports portable Verilog-2001",
-            "Use --language verilog or --language verilog-2001 with --profile reset-sync.",
-            2,
-        ));
-    }
+    ensure_portable_core_language(language, "reset-sync")?;
     let module = to_module_ident(name)?;
     let wrapper = format!("{module}_n");
     let top_file = format!("rtl/{module}.v");
@@ -1294,6 +1240,10 @@ fn core_check(core_dir: &Path, build_root: &Path) -> Result<CliOutput, CliError>
 }
 
 fn core_lint(core_dir: &Path, build_root: &Path, backend: &str) -> Result<CliOutput, CliError> {
+    if matches!(backend, "native" | "af-native") {
+        return core_lint_native(core_dir, build_root);
+    }
+
     let checked = check_core(core_dir)?;
     let backend_report = match backend {
         "verilator" => VerilatorBackend::process().lint(&checked.manifest, core_dir, build_root),
@@ -1349,6 +1299,57 @@ fn core_lint(core_dir: &Path, build_root: &Path, backend: &str) -> Result<CliOut
             )
             .with_details(&detail))
         }
+    }
+}
+
+fn core_lint_native(core_dir: &Path, build_root: &Path) -> Result<CliOutput, CliError> {
+    let manifest = load_manifest_from_core_dir(core_dir)?;
+    let backend_report = NativeBackend
+        .lint(&manifest, core_dir, build_root)
+        .map_err(|err| CliError::new(err.code(), err.to_string(), err.hint(), err.exit_code()))?;
+
+    let mut af_report = AfReport::for_core(status_text(&backend_report.status), &manifest);
+    af_report.merge_backend(&backend_report);
+    let written = write_reports_with_aliases(
+        build_root.join("reports"),
+        "core-lint",
+        &["lint_report"],
+        &af_report,
+    )?;
+
+    match backend_report.status {
+        BackendStatus::Passed => Ok(CliOutput {
+            human: format!(
+                "core lint passed with native (reports: {}, {})",
+                written.json.display(),
+                written.markdown.display()
+            ),
+            json: json!({
+                "status": "passed",
+                "backend_report": backend_report,
+                "reports": written,
+            }),
+        }),
+        BackendStatus::Unavailable => Err(CliError::new(
+            "AF_BACKEND_UNAVAILABLE",
+            "core lint backend `native` is unavailable",
+            "Inspect backend diagnostics in the report.",
+            4,
+        )
+        .with_details(&json!({
+            "backend_report": backend_report,
+            "reports": written,
+        }))),
+        BackendStatus::Failed => Err(CliError::new(
+            "AF_LINT_FAILED",
+            "native portable-core lint failed",
+            "Fix the listed portable Verilog-2001 diagnostics.",
+            7,
+        )
+        .with_details(&json!({
+            "backend_report": backend_report,
+            "reports": written,
+        }))),
     }
 }
 
@@ -1731,6 +1732,7 @@ fn clean(build_root: &Path, yes: bool) -> Result<CliOutput, CliError> {
 
 fn backend_list() -> Result<CliOutput, CliError> {
     let mut capabilities: Vec<BackendCapability> = Vec::new();
+    capabilities.extend(af_backend_native::capabilities());
     capabilities.extend(VerilatorBackend::process().capabilities());
     capabilities.push(BackendCapability {
         name: "fusesoc-package-export".to_string(),
@@ -1779,6 +1781,10 @@ fn backend_run(
     build_root: &Path,
 ) -> Result<CliOutput, CliError> {
     match (backend, target) {
+        ("native" | "af-native", "check" | "lint" | "portable-check") => {
+            let core_dir = required_backend_core(core_dir, "native portable-check")?;
+            core_lint(core_dir, build_root, "native")
+        }
         ("verilator", "lint") => {
             let core_dir = required_backend_core(core_dir, "verilator lint")?;
             core_lint(core_dir, build_root, backend)

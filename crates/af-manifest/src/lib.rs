@@ -784,7 +784,7 @@ fn default_manifest_version() -> String {
 }
 
 fn default_language() -> String {
-    "systemverilog".to_string()
+    "verilog-2001".to_string()
 }
 
 fn require_non_empty(field: &str, value: &str, issues: &mut Vec<ValidationIssue>) {

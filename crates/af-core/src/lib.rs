@@ -136,9 +136,20 @@ known_limitations = ["test limitation"]
 
 [rtl]
 top = "demo"
+language = "verilog-2001"
 
 [sources]
-files = ["rtl/demo.sv"]
+files = ["rtl/demo.v"]
+
+[[ports]]
+name = "clk"
+direction = "input"
+width = 1
+
+[[ports]]
+name = "done"
+direction = "output"
+width = 1
 "#,
         )
         .unwrap();
@@ -148,7 +159,21 @@ files = ["rtl/demo.sv"]
     fn passes_valid_core() {
         let dir = tempdir().unwrap();
         fs::create_dir_all(dir.path().join("rtl")).unwrap();
-        fs::write(dir.path().join("rtl/demo.sv"), "module demo; endmodule\n").unwrap();
+        fs::write(
+            dir.path().join("rtl/demo.v"),
+            r#"`default_nettype none
+module demo (
+  input wire clk,
+  output reg done
+);
+  always @(posedge clk) begin
+    done <= 1'b1;
+  end
+endmodule
+`default_nettype wire
+"#,
+        )
+        .unwrap();
         write_manifest(dir.path());
 
         let report = check_core(dir.path()).unwrap();
@@ -160,7 +185,18 @@ files = ["rtl/demo.sv"]
     fn fails_missing_top() {
         let dir = tempdir().unwrap();
         fs::create_dir_all(dir.path().join("rtl")).unwrap();
-        fs::write(dir.path().join("rtl/demo.sv"), "module other; endmodule\n").unwrap();
+        fs::write(
+            dir.path().join("rtl/demo.v"),
+            r#"`default_nettype none
+module other (
+  input wire clk,
+  output reg done
+);
+endmodule
+`default_nettype wire
+"#,
+        )
+        .unwrap();
         write_manifest(dir.path());
 
         let err = check_core(dir.path()).unwrap_err();

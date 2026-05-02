@@ -103,6 +103,7 @@ fn board_check_and_backend_list_work() {
         .args(["backend", "list", "--json"])
         .assert()
         .success()
+        .stdout(contains("native-portable-core-check"))
         .stdout(contains("litex-wrapper-skeleton"))
         .stdout(contains("yosys-syntax-smoke"));
 }
@@ -121,7 +122,7 @@ fn core_new_supports_verilog_2001_scaffold() {
         .args(["--name", "verilog-demo", "--language", "verilog", "--json"])
         .assert()
         .success()
-        .stdout(contains("\"language\": \"verilog\""));
+        .stdout(contains("\"language\": \"verilog-2001\""));
 
     assert!(core_dir.join("af-core.toml").is_file());
     assert!(core_dir.join("rtl/verilog_demo.v").is_file());
@@ -136,6 +137,115 @@ fn core_new_supports_verilog_2001_scaffold() {
         .assert()
         .success()
         .stdout(contains("\"status\": \"passed\""));
+}
+
+#[test]
+fn core_new_rejects_systemverilog_base_scaffold() {
+    let dir = tempdir().unwrap();
+    let core_dir = dir.path().join("sv-demo");
+
+    let mut cmd = Command::cargo_bin("af").unwrap();
+    cmd.args(["core", "new"])
+        .arg(&core_dir)
+        .args(["--name", "sv-demo", "--language", "systemverilog", "--json"])
+        .assert()
+        .failure()
+        .stdout(contains("\"code\": \"AF_CORE_NEW_LANGUAGE_UNSUPPORTED\""))
+        .stdout(contains("portable Verilog-2001"));
+}
+
+#[test]
+fn native_backend_lints_generated_portable_core_without_external_tools() {
+    let dir = tempdir().unwrap();
+    let core_dir = dir.path().join("native-demo");
+    let build = tempdir().unwrap();
+
+    let mut create = Command::cargo_bin("af").unwrap();
+    create
+        .arg("--build-root")
+        .arg(build.path())
+        .args(["core", "new"])
+        .arg(&core_dir)
+        .args(["--name", "native-demo", "--json"])
+        .assert()
+        .success();
+
+    let mut lint = Command::cargo_bin("af").unwrap();
+    lint.arg("--build-root")
+        .arg(build.path())
+        .args(["core", "lint"])
+        .arg(&core_dir)
+        .args(["--backend", "native", "--json"])
+        .assert()
+        .success()
+        .stdout(contains("\"backend\": \"native\""))
+        .stdout(contains("\"portable_verilog_policy\": \"pass\""));
+
+    let mut run = Command::cargo_bin("af").unwrap();
+    run.arg("--build-root")
+        .arg(build.path())
+        .args(["backend", "run", "native", "--target", "portable-check"])
+        .arg("--core-dir")
+        .arg(&core_dir)
+        .arg("--json")
+        .assert()
+        .success()
+        .stdout(contains("\"backend\": \"native\""));
+}
+
+#[test]
+fn native_backend_reports_portable_core_diagnostics() {
+    let dir = tempdir().unwrap();
+    let core_dir = dir.path().join("bad-native-demo");
+    let rtl_dir = core_dir.join("rtl");
+    let build = tempdir().unwrap();
+    std::fs::create_dir_all(&rtl_dir).unwrap();
+    std::fs::write(
+        core_dir.join("af-core.toml"),
+        r#"
+af_version = "0.2"
+name = "bad-native-demo"
+vendor = "accelfury"
+library = "ip"
+core = "bad_native_demo"
+version = "0.1.0"
+
+[rtl]
+top = "bad_native_demo"
+language = "verilog-2001"
+
+[sources]
+files = ["rtl/bad_native_demo.v"]
+
+[[ports]]
+name = "clk"
+direction = "input"
+width = 1
+"#,
+    )
+    .unwrap();
+    std::fs::write(
+        rtl_dir.join("bad_native_demo.v"),
+        r#"`default_nettype none
+module bad_native_demo (
+  input logic clk
+);
+endmodule
+`default_nettype wire
+"#,
+    )
+    .unwrap();
+
+    let mut lint = Command::cargo_bin("af").unwrap();
+    lint.arg("--build-root")
+        .arg(build.path())
+        .args(["core", "lint"])
+        .arg(&core_dir)
+        .args(["--backend", "native", "--json"])
+        .assert()
+        .failure()
+        .stdout(contains("\"code\": \"AF_LINT_FAILED\""))
+        .stdout(contains("AF_PORTABLE_SYSTEMVERILOG_CONSTRUCT"));
 }
 
 #[test]

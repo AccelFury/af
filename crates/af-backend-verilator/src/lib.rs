@@ -321,6 +321,7 @@ version = "0.1.0"
 
 [rtl]
 top = "demo"
+language = "systemverilog"
 
 [sources]
 files = ["rtl/demo.sv"]

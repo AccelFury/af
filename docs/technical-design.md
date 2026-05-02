@@ -12,6 +12,8 @@ Core contracts:
   extraction, not a full HDL parser.
 - `af-backend`: backend IDs, capabilities, build plans, command specs, tool
   info, diagnostics, and reports.
+- `af-backend-native`: built-in portable Verilog-2001 core checks that execute
+  no external tools and provide the first-party backend path for generic cores.
 - `af-security`: path normalization, no-shell command execution, command
   policy fields, toolchain manifest parsing, and redaction helpers.
 - `af-wrapper-gen`: target-specific generated wrapper artifacts.

@@ -5,6 +5,7 @@ members = [
   "crates/af-backend-fusesoc",
   "crates/af-backend-flash",
   "crates/af-backend-litex",
+  "crates/af-backend-native",
   "crates/af-backend-sby",
   "crates/af-backend-vendor",
   "crates/af-backend-verilator",
@@ -34,6 +35,7 @@ af-backend = { path = "crates/af-backend" }
 af-backend-fusesoc = { path = "crates/af-backend-fusesoc" }
 af-backend-flash = { path = "crates/af-backend-flash" }
 af-backend-litex = { path = "crates/af-backend-litex" }
+af-backend-native = { path = "crates/af-backend-native" }
 af-backend-sby = { path = "crates/af-backend-sby" }
 af-backend-vendor = { path = "crates/af-backend-vendor" }
 af-backend-verilator = { path = "crates/af-backend-verilator" }

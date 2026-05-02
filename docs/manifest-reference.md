@@ -2,6 +2,8 @@
 
 `af-core.toml` v0.1/v0.2 describes one IP core.
 
+If `[rtl].language` is omitted, the parser defaults to `verilog-2001`.
+
 Required root fields:
 
 - `af_version = "0.1"` or `af_version = "0.2"`
@@ -16,12 +18,12 @@ Required tables:
 ```toml
 [rtl]
 top = "my_core"
-language = "systemverilog"
+language = "verilog-2001"
 default_clock = "clk"
 default_reset = "rst_n"
 
 [sources]
-files = ["rtl/my_core.sv"]
+files = ["rtl/my_core.v"]
 include_dirs = []
 ```
 
@@ -67,5 +69,5 @@ Validation rules:
 - all manifest paths must be relative and must not contain `..`;
 - port widths must be positive integers;
 - port/interface clock and reset references must be declared;
-- RTL language must be `systemverilog`, `verilog`, or `vhdl`;
+- RTL language must be `systemverilog`, `verilog`, `verilog-2001`, or `vhdl`;
 - `sources.files` must not be empty.

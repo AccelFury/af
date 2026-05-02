@@ -55,6 +55,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "af-backend-native"
+version = "0.1.0"
+dependencies = [
+ "af-backend",
+ "af-core",
+ "af-manifest",
+ "af-rtl-inspector",
+ "tempfile",
+]
+
+[[package]]
 name = "af-backend-sby"
 version = "0.1.0"
 dependencies = [
@@ -116,6 +127,7 @@ dependencies = [
  "af-backend-flash",
  "af-backend-fusesoc",
  "af-backend-litex",
+ "af-backend-native",
  "af-backend-sby",
  "af-backend-vendor",
  "af-backend-verilator",

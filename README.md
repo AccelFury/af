@@ -8,9 +8,10 @@ Current scope:
 
 - parse and validate `af-core.toml`;
 - validate core structure and declared RTL files;
-- scaffold SystemVerilog or Verilog-2001 starter cores, including an atomic
+- scaffold portable Verilog-2001 starter cores, including an atomic
   reset synchronizer profile;
 - run Verilator lint/smoke checks when Verilator is available;
+- run the built-in native portable-check backend without external tools;
 - export a FuseSoC `.core`;
 - export a LiteX reference wrapper skeleton;
 - write JSON and Markdown reports;
@@ -26,9 +27,9 @@ cargo run -p af-cli --bin af -- doctor --json
 cargo run -p af-cli --bin af -- manifest validate examples/af-pdm-rx/af-core.toml
 cargo run -p af-cli --bin af -- manifest validate cores/af-mod-add/af-core.toml
 cargo run -p af-cli --bin af -- core check examples/af-pdm-rx
-cargo run -p af-cli --bin af -- core new /tmp/af-demo --name af-demo --language verilog
-cargo run -p af-cli --bin af -- core new /tmp/af-reset-sync --name af-reset-sync --language verilog --profile reset-sync
-cargo run -p af-cli --bin af -- init core af-demo --root /tmp
+cargo run -p af-cli --bin af -- core new /tmp/af-demo --name af-demo
+cargo run -p af-cli --bin af -- core new /tmp/af-reset-sync --name af-reset-sync --profile reset-sync
+cargo run -p af-cli --bin af -- core lint /tmp/af-demo --backend native
 cargo run -p af-cli --bin af -- registry check
 cargo run -p af-cli --bin af -- board list
 cargo run -p af-cli --bin af -- board check boards/tang-nano-20k/af-board.toml

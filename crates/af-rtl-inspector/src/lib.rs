@@ -186,6 +186,7 @@ pub fn inspect_core(
         if let Some(header) = top_header.as_deref() {
             check_manifest_ports_in_header(&mut report, manifest, header);
             check_clock_reset_bindings(&mut report, manifest);
+            check_portable_port_style(&mut report, manifest, header);
         }
         check_portable_verilog_policy(&mut report, manifest, &source_text);
     }
@@ -198,7 +199,7 @@ fn check_portable_verilog_policy(
     manifest: &CoreManifest,
     source_text: &str,
 ) {
-    if !matches!(manifest.rtl.language.as_str(), "verilog" | "verilog-2001") {
+    if !is_portable_verilog_language(manifest) {
         report
             .checks
             .insert("portable_verilog_policy".to_string(), "skip".to_string());
@@ -217,7 +218,24 @@ fn check_portable_verilog_policy(
         ));
     }
 
-    for keyword in ["logic", "interface", "package", "always_ff", "always_comb"] {
+    for keyword in [
+        "logic",
+        "interface",
+        "modport",
+        "package",
+        "import",
+        "typedef",
+        "enum",
+        "struct",
+        "class",
+        "program",
+        "clocking",
+        "property",
+        "sequence",
+        "always_ff",
+        "always_comb",
+        "always_latch",
+    ] {
         if contains_identifier(&stripped, keyword) {
             failed = true;
             report.issues.push(RtlIssue::error(
@@ -232,19 +250,38 @@ fn check_portable_verilog_policy(
     for marker in [
         "xpm_",
         "ramb",
+        "fifo_generator",
         "fifo18",
         "fifo36",
+        "fdre",
+        "oddr",
+        "iddr",
         "altsyncram",
         "scfifo",
+        "dcfifo",
         "lpm_",
+        "altera_",
+        "intel_",
         "altpll",
         "mmcm",
-        "pll",
+        "dcm",
+        "clk_wiz",
+        "clock_wizard",
+        "_pll",
+        "pll_",
+        "rpll",
+        "epll",
+        "dpll",
         "clkdiv",
         "bufg",
+        "bufio",
         "gowin_",
+        "spx9",
+        "dpx9",
+        "sdpx9",
+        "ram16sdp",
     ] {
-        if lower.contains(marker) {
+        if contains_portability_marker(&lower, marker) {
             failed = true;
             report.issues.push(RtlIssue::error(
                 "AF_PORTABLE_VENDOR_OR_CLOCK_MARKER",
@@ -254,19 +291,81 @@ fn check_portable_verilog_policy(
         }
     }
 
-    if contains_identifier(&lower, "axi") {
-        failed = true;
-        report.issues.push(RtlIssue::error(
-            "AF_PORTABLE_AXI_ONLY_MARKER",
-            "portable Verilog source contains AXI-specific marker `axi`",
-            "Keep AXI adaptation in an optional wrapper around portable core ports.",
-        ));
+    for marker in [
+        "axi", "axi_", "_axi", "s_axi", "m_axi", "axis_", "awvalid", "awready", "awaddr", "wvalid",
+        "wready", "wdata", "wstrb", "bvalid", "bready", "arvalid", "arready", "araddr", "rvalid",
+        "rready", "rdata", "tvalid", "tready", "tdata", "tlast", "tkeep", "tstrb",
+    ] {
+        if contains_axi_marker(&lower, marker) {
+            failed = true;
+            report.issues.push(RtlIssue::error(
+                "AF_PORTABLE_AXI_ONLY_MARKER",
+                format!("portable Verilog source contains AXI-specific marker `{marker}`"),
+                "Keep AXI adaptation in an optional wrapper around portable core ports.",
+            ));
+        }
     }
 
     report.checks.insert(
         "portable_verilog_policy".to_string(),
         if failed { "fail" } else { "pass" }.to_string(),
     );
+}
+
+fn check_portable_port_style(
+    report: &mut RtlInspectionReport,
+    manifest: &CoreManifest,
+    header: &str,
+) {
+    if !is_portable_verilog_language(manifest) {
+        report
+            .checks
+            .insert("portable_port_style".to_string(), "skip".to_string());
+        return;
+    }
+
+    let Some(declarations) = module_port_declarations(header) else {
+        report
+            .checks
+            .insert("portable_port_style".to_string(), "fail".to_string());
+        report.issues.push(RtlIssue::error(
+            "AF_PORTABLE_PORT_STYLE",
+            "portable Verilog top module port list could not be parsed",
+            "Use a Verilog-2001 ANSI module header with one explicit direction and net type per port.",
+        ));
+        return;
+    };
+
+    let mut failed = false;
+    for port in &manifest.ports {
+        let Some(declaration) = declarations
+            .iter()
+            .find(|declaration| contains_identifier(declaration, &port.name))
+        else {
+            continue;
+        };
+
+        if !has_explicit_port_style(declaration, &port.direction) {
+            failed = true;
+            report.issues.push(RtlIssue::error(
+                "AF_PORTABLE_PORT_STYLE",
+                format!(
+                    "portable Verilog port `{}` must declare direction and wire/reg type explicitly",
+                    port.name
+                ),
+                "Use one declaration per port, for example `input wire clk` or `output reg done`.",
+            ));
+        }
+    }
+
+    report.checks.insert(
+        "portable_port_style".to_string(),
+        if failed { "fail" } else { "pass" }.to_string(),
+    );
+}
+
+fn is_portable_verilog_language(manifest: &CoreManifest) -> bool {
+    matches!(manifest.rtl.language.as_str(), "verilog" | "verilog-2001")
 }
 
 fn top_declaration_header(source_text: &str, manifest: &CoreManifest) -> Option<String> {
@@ -402,6 +501,45 @@ fn contains_identifier(source_text: &str, ident: &str) -> bool {
         .any(|token| token == ident)
 }
 
+fn contains_portability_marker(source_text: &str, marker: &str) -> bool {
+    source_text.contains(marker)
+}
+
+fn contains_axi_marker(source_text: &str, marker: &str) -> bool {
+    if marker.contains('_') {
+        source_text.contains(marker)
+    } else {
+        contains_identifier(source_text, marker)
+    }
+}
+
+fn module_port_declarations(header: &str) -> Option<Vec<String>> {
+    let end = header.rfind(");")?;
+    let before_end = &header[..end];
+    let start = before_end.rfind('(')?;
+    let declarations = before_end[start + 1..]
+        .split(',')
+        .map(str::trim)
+        .filter(|declaration| !declaration.is_empty())
+        .map(str::to_string)
+        .collect::<Vec<_>>();
+    Some(declarations)
+}
+
+fn has_explicit_port_style(declaration: &str, direction: &str) -> bool {
+    let declaration = declaration.to_ascii_lowercase();
+    let direction = direction.to_ascii_lowercase();
+    let has_direction = contains_identifier(&declaration, &direction);
+    let has_net_type = match direction.as_str() {
+        "input" | "inout" => contains_identifier(&declaration, "wire"),
+        "output" => {
+            contains_identifier(&declaration, "wire") || contains_identifier(&declaration, "reg")
+        }
+        _ => false,
+    };
+    has_direction && has_net_type
+}
+
 fn contains_token_sequence(source_text: &str, first: &str, second: &str) -> bool {
     let mut previous = "";
     for token in source_text
@@ -435,6 +573,7 @@ version = "0.1.0"
 
 [rtl]
 top = "{top}"
+language = "systemverilog"
 
 [sources]
 files = ["rtl/demo.sv"]
@@ -600,6 +739,99 @@ endmodule
             issue.code == "AF_PORTABLE_SYSTEMVERILOG_CONSTRUCT"
                 && issue.message.contains("always_ff")
         }));
+    }
+
+    #[test]
+    fn verilog_policy_rejects_vendor_axi_and_pll_markers() {
+        let dir = tempdir().unwrap();
+        fs::create_dir_all(dir.path().join("rtl")).unwrap();
+        fs::write(
+            dir.path().join("rtl/demo.v"),
+            r#"`default_nettype none
+module demo (
+  input wire clk,
+  input wire enable,
+  output wire done
+);
+  wire ramb18e1_data;
+  wire s_axi_awvalid;
+  wire u_pll_locked;
+  assign done = enable & ramb18e1_data & s_axi_awvalid & u_pll_locked;
+endmodule
+`default_nettype wire
+"#,
+        )
+        .unwrap();
+        let report = inspect_core(dir.path(), &manifest_with_ports("demo")).unwrap();
+        assert!(report
+            .issues
+            .iter()
+            .any(|issue| issue.code == "AF_PORTABLE_VENDOR_OR_CLOCK_MARKER"));
+        assert!(report
+            .issues
+            .iter()
+            .any(|issue| issue.code == "AF_PORTABLE_AXI_ONLY_MARKER"));
+    }
+
+    #[test]
+    fn verilog_policy_rejects_implicit_port_style() {
+        let dir = tempdir().unwrap();
+        fs::create_dir_all(dir.path().join("rtl")).unwrap();
+        fs::write(
+            dir.path().join("rtl/demo.v"),
+            r#"`default_nettype none
+module demo (
+  input clk,
+  input wire enable,
+  output done
+);
+endmodule
+`default_nettype wire
+"#,
+        )
+        .unwrap();
+        let report = inspect_core(dir.path(), &manifest_with_ports("demo")).unwrap();
+        assert!(report
+            .issues
+            .iter()
+            .any(|issue| issue.code == "AF_PORTABLE_PORT_STYLE"));
+    }
+
+    #[test]
+    fn verilog_policy_allows_parameter_generate_and_inferred_ram() {
+        let dir = tempdir().unwrap();
+        fs::create_dir_all(dir.path().join("rtl")).unwrap();
+        fs::write(
+            dir.path().join("rtl/demo.v"),
+            r#"`default_nettype none
+module demo
+#(
+  parameter WIDTH = 8,
+  parameter DEPTH = 16
+)
+(
+  input wire clk,
+  input wire enable,
+  output reg done
+);
+  reg [WIDTH-1:0] mem [0:DEPTH-1];
+
+  generate
+    if (DEPTH > 0) begin : g_has_storage
+      always @(posedge clk) begin
+        if (enable) begin
+          done <= mem[0][0];
+        end
+      end
+    end
+  endgenerate
+endmodule
+`default_nettype wire
+"#,
+        )
+        .unwrap();
+        let report = inspect_core(dir.path(), &manifest_with_ports("demo")).unwrap();
+        assert!(!report.has_errors(), "{:#?}", report.issues);
     }
 
     #[test]
