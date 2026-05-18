@@ -1,0 +1,15 @@
+id = "tang-nano-20k"
+name = "Tang Nano 20K"
+vendor = "Sipeed"
+fpga = "Gowin GW2AR-LV18QN88C8/I7"
+notes = [
+  "MVP profile intentionally avoids confirmed pinout claims.",
+  "Any physical pin entries below are marked verified=false until checked against board schematics."
+]
+
+[[pins]]
+name = "user-led-example"
+location = "UNKNOWN"
+function = "example-led"
+verified = false
+source = "Placeholder only; do not use for constraints."

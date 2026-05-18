@@ -1,0 +1,45 @@
+# --- Rust / Cargo ------------------------------------------------------------
+/target/
+
+# --- af build & tool runtime ------------------------------------------------
+/.af-build/
+**/.af-build/
+/.af-tools/
+
+# --- evidence / per-core scratch artefacts ---------------------------------
+**/artifacts/openfpga-ci/logs/*.txt
+**/artifacts/openfpga-ci/reports/*.json
+
+# --- general scratch --------------------------------------------------------
+*.tmp
+*.bak
+archive/
+
+# --- LLM / agent runtime (not part of the public surface) -------------------
+# `.claude/agents/*.md` and `.claude/skills/**` ARE tracked (they are
+# contributor tooling); local permissions and per-user runtime are not.
+.claude/settings.local.json
+.claude/local/
+.claude/memory/
+
+# Codex / Cursor / Aider / Continue / Windsurf runtime caches and prompts.
+/.codex
+/.codex/
+.cursor/
+.cursorrules
+.cursorignore
+.aider*
+.continue/
+.windsurf/
+
+# Agent memory dumps that some tools drop next to the working tree.
+MEMORY.md
+/memory/
+
+# --- OS / editor cruft ------------------------------------------------------
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*~

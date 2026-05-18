@@ -1,0 +1,419 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AccelFury af-core.toml v0.1/v0.2/v0.3",
+  "description": "Manifest for a single AccelFury core. Mirrors the CoreManifest struct in crates/af-manifest. New v0.3 fields portability_level/priority/maturity/verification_required are optional and parallel to complexity.class.",
+  "type": "object",
+  "required": ["name", "vendor", "library", "core", "version", "rtl", "sources"],
+  "properties": {
+    "af_version": { "type": "string", "enum": ["0.1", "0.2", "0.3"] },
+    "schema_version": { "type": "string", "enum": ["0.1", "0.2", "0.3"], "description": "Deprecated alias for af_version." },
+    "manifest_version": { "type": "string", "enum": ["0.1", "0.2", "0.3"], "description": "Deprecated alias for af_version." },
+    "kind": { "type": "string", "enum": ["accelfury.core"] },
+    "name": { "type": "string" },
+    "vendor": { "type": "string" },
+    "library": { "type": "string" },
+    "core": { "type": "string" },
+    "version": { "type": "string" },
+    "category": { "type": "string" },
+    "portability_level": {
+      "type": "string",
+      "enum": ["U0", "U1", "U2", "U3", "U4"],
+      "description": "Manifesto portability axis. U0=fully portable RTL; U1=portable via inference; U2=portable plus thin vendor wrappers; U3=single spec with vendor backend; U4=no portable replacement (abstraction/wrapper/mock only)."
+    },
+    "priority": {
+      "type": "string",
+      "enum": ["P0", "P1", "P2"],
+      "description": "Roadmap priority for the universal-core registry."
+    },
+    "maturity": {
+      "type": "string",
+      "enum": ["experimental", "preview", "beta", "stable", "deprecated"],
+      "description": "Core-level maturity. Distinct from backend_variants[].status (per-vendor) and boards[].status (per-board)."
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "display_name": { "type": "string" },
+        "license": { "type": "string" },
+        "authors": { "type": "array", "items": { "type": "string" } },
+        "repository": { "type": "string" },
+        "description": { "type": "string" }
+      }
+    },
+    "rtl": {
+      "type": "object",
+      "required": ["top"],
+      "properties": {
+        "top": { "type": "string" },
+        "language": { "enum": ["systemverilog", "verilog", "verilog-2001", "vhdl"] },
+        "systemverilog_subset": { "type": "boolean" },
+        "default_clock": { "type": "string" },
+        "default_reset": { "type": "string" },
+        "variants": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      }
+    },
+    "sources": {
+      "type": ["object", "array"],
+      "description": "Either a [sources] table with files/include_dirs (v0.2/v0.3) or a [[sources]] array of {path, file_type, role} (legacy v0.1).",
+      "properties": {
+        "files": { "type": "array", "items": { "type": "string" } },
+        "include_dirs": { "type": "array", "items": { "type": "string" } },
+        "roles": { "type": "object", "additionalProperties": { "type": "string", "enum": ["rtl", "generated", "testbench", "constraint"] } },
+        "file_types": { "type": "object", "additionalProperties": { "type": "string" } }
+      }
+    },
+    "include_dirs": {
+      "type": "array",
+      "description": "Legacy v0.1 form; normalized into sources.include_dirs.",
+      "items": {
+        "oneOf": [
+          { "type": "string" },
+          { "type": "object", "required": ["path"], "properties": { "path": { "type": "string" } } }
+        ]
+      }
+    },
+    "parameters": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string" },
+          "value": { "type": "string" },
+          "default": { "type": "string" },
+          "kind": { "type": "string" },
+          "min": { "type": "string" },
+          "allowed": { "type": "array", "items": { "type": "string" } },
+          "description": { "type": "string" }
+        }
+      }
+    },
+    "ports": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "direction"],
+        "properties": {
+          "name": { "type": "string" },
+          "direction": { "enum": ["input", "output", "inout"] },
+          "width": {
+            "oneOf": [
+              { "type": "integer", "minimum": 1 },
+              { "type": "string" }
+            ]
+          },
+          "clock": { "type": "string" },
+          "clock_domain": { "type": "string" },
+          "reset": { "type": "string" },
+          "kind": { "type": "string" },
+          "active": { "type": "string", "enum": ["high", "low"] },
+          "reset_style": { "type": "string" },
+          "interface": { "type": "string" },
+          "description": { "type": "string" }
+        }
+      }
+    },
+    "clocks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string" },
+          "port": { "type": "string" },
+          "frequency_hz": { "type": "integer", "minimum": 1 },
+          "description": { "type": "string" }
+        }
+      }
+    },
+    "resets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string" },
+          "port": { "type": "string" },
+          "active": { "type": "string", "enum": ["high", "low"] },
+          "style": { "type": "string" },
+          "reset_style": { "type": "string" },
+          "asynchronous": { "type": "boolean" },
+          "clock_domain": { "type": "string" }
+        }
+      }
+    },
+    "interfaces": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "kind"],
+        "properties": {
+          "name": { "type": "string" },
+          "kind": { "type": "string" },
+          "clock": { "type": "string" },
+          "reset": { "type": "string" }
+        }
+      }
+    },
+    "stream_interfaces": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "kind", "clock_domain", "data", "valid", "ready"],
+        "properties": {
+          "name": { "type": "string" },
+          "kind": { "type": "string" },
+          "clock_domain": { "type": "string" },
+          "data": { "type": "string" },
+          "valid": { "type": "string" },
+          "ready": { "type": "string" },
+          "data_width": { "type": "string" },
+          "payload_semantics": { "type": "string" }
+        }
+      }
+    },
+    "csr": { "type": "object", "properties": { "present": { "type": "boolean" } } },
+    "interrupts": { "type": "object", "properties": { "present": { "type": "boolean" } } },
+    "testbenches": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "top"],
+        "properties": {
+          "name": { "type": "string" },
+          "backend": { "type": "string" },
+          "top": { "type": "string" },
+          "sources": { "type": "array", "items": { "type": "string" } },
+          "rtl_sources": { "type": "array", "items": { "type": "string" } },
+          "expected": { "type": "string" }
+        }
+      }
+    },
+    "vectors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "format", "path"],
+        "properties": {
+          "name": { "type": "string" },
+          "format": { "type": "string" },
+          "path": { "type": "string" }
+        }
+      }
+    },
+    "tooling": {
+      "type": "object",
+      "properties": {
+        "rust": { "type": "boolean" },
+        "typescript_deno": { "type": "boolean" },
+        "python": { "type": "boolean" },
+        "cocotb": { "type": "boolean" },
+        "fusesoc_required": { "type": "boolean" }
+      }
+    },
+    "formal": {
+      "type": ["object", "array"],
+      "description": "Either a [formal] table or a [[formal]] array (normalized into a single object).",
+      "properties": {
+        "name": { "type": "string" },
+        "backend": { "type": "string" },
+        "enabled": { "type": "boolean" },
+        "properties": { "type": "array", "items": { "type": "string" } },
+        "files": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "boards": {
+      "type": "array",
+      "description": "List of board names or {name, status, ...} tables; normalized to plain strings.",
+      "items": {
+        "oneOf": [
+          { "type": "string" },
+          {
+            "type": "object",
+            "required": ["name"],
+            "properties": {
+              "name": { "type": "string" },
+              "status": { "type": "string" }
+            }
+          }
+        ]
+      }
+    },
+    "backend_compatibility": {
+      "type": ["object", "array"],
+      "description": "Either an object with boolean flags per backend, or a legacy array of {backend, status}.",
+      "properties": {
+        "verilator": { "type": "boolean" },
+        "fusesoc": { "type": "boolean" }
+      }
+    },
+    "complexity": {
+      "type": "object",
+      "required": ["class"],
+      "properties": {
+        "class": { "enum": ["simple-portable", "composite-portable", "complex-vendor-aware", "system-platform", "product-stack"] },
+        "score": { "type": "integer", "minimum": 0, "maximum": 20 },
+        "decision": { "type": "string" },
+        "triggers": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "architecture": {
+      "type": "object",
+      "properties": {
+        "style": { "type": "string" },
+        "reference_backend": { "type": "string" }
+      }
+    },
+    "reuse": {
+      "type": "object",
+      "properties": {
+        "prefer_existing_microcores": { "type": "boolean" }
+      }
+    },
+    "dependencies": {
+      "type": "object",
+      "properties": {
+        "cores": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "version", "role"],
+            "properties": {
+              "name": { "type": "string" },
+              "version": { "type": "string" },
+              "role": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "resources": {
+      "type": "object",
+      "properties": {
+        "memory": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "kind", "width", "depth"],
+            "properties": {
+              "name": { "type": "string" },
+              "kind": { "type": "string" },
+              "width": { "type": "integer", "minimum": 1 },
+              "depth": { "type": "integer", "minimum": 1 },
+              "latency_cycles": { "type": "integer", "minimum": 0 },
+              "backend_policy": { "enum": ["portable", "prefer_vendor", "require_vendor"] }
+            }
+          }
+        },
+        "dsp": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "count"],
+            "properties": {
+              "name": { "type": "string" },
+              "kind": { "type": "string" },
+              "count": { "type": "integer", "minimum": 1 },
+              "backend_policy": { "enum": ["portable", "prefer_vendor", "require_vendor"] }
+            }
+          }
+        }
+      }
+    },
+    "backend_variants": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "vendor", "status"],
+        "properties": {
+          "name": { "type": "string" },
+          "vendor": { "type": "string" },
+          "families": { "type": "array", "items": { "type": "string" } },
+          "status": { "enum": ["supported", "planned", "unsupported"] }
+        }
+      }
+    },
+    "constructor": {
+      "type": "object",
+      "properties": {
+        "export": { "type": "boolean" },
+        "category": { "type": "string" },
+        "compatibility_profile": { "type": "string" }
+      }
+    },
+    "known_limitations": {
+      "type": "array",
+      "description": "Plain strings or {id, text} objects; normalized to strings.",
+      "items": {
+        "oneOf": [
+          { "type": "string" },
+          { "type": "object", "required": ["text"], "properties": { "id": { "type": "string" }, "text": { "type": "string" } } }
+        ]
+      }
+    },
+    "verification_required": {
+      "type": "array",
+      "description": "Declared verification gates. Each gate has a kind and may point to an evidence file under the core directory.",
+      "items": {
+        "type": "object",
+        "required": ["kind"],
+        "properties": {
+          "kind": {
+            "enum": [
+              "simulation",
+              "formal-cdc-assumption",
+              "formal-occupancy",
+              "formal-equivalence",
+              "random-stress",
+              "board-demo",
+              "synthesis-report"
+            ]
+          },
+          "evidence": { "type": "string", "description": "Relative path under the core directory." },
+          "description": { "type": "string" }
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "description": "Declarative evidence block. Structured input — rows only flip to `supported` when declarations actually match current state.",
+      "properties": {
+        "docker_ci_cd": {
+          "type": "object",
+          "required": ["run_url", "commit_sha", "sha256sums", "conclusion"],
+          "properties": {
+            "run_url": { "type": "string" },
+            "commit_sha": { "type": "string" },
+            "sha256sums": { "type": "string" },
+            "conclusion": { "enum": ["success", "failure", "cancelled"] }
+          }
+        },
+        "vendor_tool": {
+          "type": "object",
+          "required": ["tool", "report_path", "conclusion"],
+          "properties": {
+            "tool": { "enum": ["vivado", "quartus", "gowin", "efinity", "libero", "radiant", "diamond"] },
+            "report_path": { "type": "string", "description": "Relative path under the core directory." },
+            "conclusion": { "type": "string" }
+          }
+        },
+        "board_hardware": {
+          "type": "object",
+          "required": ["board_id", "report_path", "date"],
+          "properties": {
+            "board_id": { "type": "string" },
+            "report_path": { "type": "string" },
+            "date": { "type": "string", "description": "ISO-8601 date." }
+          }
+        }
+      }
+    }
+  }
+}

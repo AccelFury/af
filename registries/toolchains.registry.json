@@ -1,0 +1,92 @@
+{
+  "toolchains": [
+    {
+      "id": "gowin_eda",
+      "name": "Gowin EDA",
+      "vendor": "gowin",
+      "command": "gowin_pack",
+      "constraint_formats": ["cst"],
+      "default": true
+    },
+    {
+      "id": "intel_quartus",
+      "name": "Intel Quartus",
+      "vendor": "intel",
+      "command": "quartus_sh",
+      "constraint_formats": ["qsf", "sdc"],
+      "default": true
+    },
+    {
+      "id": "xilinx_vivado",
+      "name": "Xilinx Vivado",
+      "vendor": "xilinx",
+      "command": "vivado",
+      "constraint_formats": ["xdc"],
+      "default": true
+    },
+    {
+      "id": "lattice_oss_yosys_nextpnr_ice40",
+      "name": "Yosys + nextpnr ICE40",
+      "vendor": "lattice",
+      "command": "yosys",
+      "constraint_formats": ["pcf"],
+      "default": true
+    },
+    {
+      "id": "lattice_oss_yosys_nextpnr_ecp5",
+      "name": "Yosys + nextpnr ECP5",
+      "vendor": "lattice",
+      "command": "yosys",
+      "constraint_formats": ["lpf"],
+      "default": true
+    },
+    {
+      "id": "lattice_radiant",
+      "name": "Lattice Radiant",
+      "vendor": "lattice",
+      "command": "radiant",
+      "constraint_formats": ["lpf", "sdc"],
+      "default": false
+    },
+    {
+      "id": "efinix_efinity",
+      "name": "Efinix Efinity",
+      "vendor": "efinix",
+      "command": "efinity",
+      "constraint_formats": ["lpf", "sdc"],
+      "default": false
+    },
+    {
+      "id": "microchip_libero",
+      "name": "Microchip Libero SoC",
+      "vendor": "microchip",
+      "command": "libero",
+      "constraint_formats": ["pdc", "sdc"],
+      "default": false
+    },
+    {
+      "id": "verilator",
+      "name": "Verilator",
+      "vendor": "opensource",
+      "command": "verilator",
+      "constraint_formats": ["sv", "json"],
+      "default": true
+    },
+    {
+      "id": "rust_cargo",
+      "name": "Rust Cargo",
+      "vendor": "generic",
+      "command": "cargo",
+      "constraint_formats": ["toml"],
+      "default": true
+    },
+    {
+      "id": "deno",
+      "name": "Deno",
+      "vendor": "generic",
+      "command": "deno",
+      "constraint_formats": ["ts", "md", "json"],
+      "default": true
+    }
+  ]
+}

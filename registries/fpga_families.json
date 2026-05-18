@@ -1,0 +1,514 @@
+{
+  "families": [
+    {
+      "vendor": "gowin",
+      "family": "gowin_gw1n",
+      "resources": {
+        "lut_kind": "LUT4",
+        "has_carry_chain": true,
+        "has_dsp": true,
+        "dsp_widths": [16, 18],
+        "bram_kbits": 8192,
+        "distributed_ram": true,
+        "has_hard_cpu": false,
+        "has_serdes": false,
+        "has_pcie": false,
+        "has_pll": true,
+        "has_external_memory_on_common_boards": true
+      },
+      "supported_constraint_formats": ["cst"],
+      "suggested_toolchains": ["gowin_eda"],
+      "portability_notes": {
+        "sv_support_level": "SystemVerilog subset (logic, generate, simple interfaces)",
+        "inferred_ram_behavior": "single-clock sync read/write supported, true dual-port fallback",
+        "inferred_dsp_behavior": "DSP inference for * operator and multipliers",
+        "reset_preference": "sync reset preferred, async deassert allowed",
+        "initial_block_synthesis": "avoid initial in RTL",
+        "bram_read_during_write": "write-first/read-first depends on map option",
+        "pll_wrapper_requirements": "board wrapper should own PLL config"
+      }
+    },
+    {
+      "vendor": "gowin",
+      "family": "gowin_gw1ns",
+      "resources": {
+        "lut_kind": "LUT4",
+        "has_carry_chain": true,
+        "has_dsp": true,
+        "dsp_widths": [18],
+        "bram_kbits": 10240,
+        "distributed_ram": true,
+        "has_hard_cpu": false,
+        "has_serdes": false,
+        "has_pcie": false,
+        "has_pll": true,
+        "has_external_memory_on_common_boards": true
+      },
+      "supported_constraint_formats": ["cst"],
+      "suggested_toolchains": ["gowin_eda"],
+      "portability_notes": {
+        "sv_support_level": "SystemVerilog subset",
+        "inferred_ram_behavior": "safe for inferred dp memory in non-reset designs",
+        "inferred_dsp_behavior": "multiplier inference available",
+        "reset_preference": "sync reset",
+        "initial_block_synthesis": "no functional initial",
+        "bram_read_during_write": "consult implementation guide",
+        "pll_wrapper_requirements": "external PLL wrapper at board level"
+      }
+    },
+    {
+      "vendor": "gowin",
+      "family": "gowin_gw2a",
+      "resources": {
+        "lut_kind": "LUT4",
+        "has_carry_chain": true,
+        "has_dsp": true,
+        "dsp_widths": [18, 25],
+        "bram_kbits": 16384,
+        "distributed_ram": true,
+        "has_hard_cpu": false,
+        "has_serdes": false,
+        "has_pcie": false,
+        "has_pll": true,
+        "has_external_memory_on_common_boards": true
+      },
+      "supported_constraint_formats": ["cst"],
+      "suggested_toolchains": ["gowin_eda"],
+      "portability_notes": {
+        "sv_support_level": "SystemVerilog subset",
+        "inferred_ram_behavior": "inferred true dual-port with one cycle latency in simulation and synthesis",
+        "inferred_dsp_behavior": "synthesis maps wide add/mul into DSP or LUT",
+        "reset_preference": "sync reset only in hardened wrappers",
+        "initial_block_synthesis": "no initial for logic state",
+        "bram_read_during_write": "implementation-specific mode",
+        "pll_wrapper_requirements": "board-level reset and PLL isolation"
+      }
+    },
+    {
+      "vendor": "gowin",
+      "family": "gowin_gw5a",
+      "resources": {
+        "lut_kind": "LUT4",
+        "has_carry_chain": true,
+        "has_dsp": true,
+        "dsp_widths": [18, 24],
+        "bram_kbits": 32768,
+        "distributed_ram": true,
+        "has_hard_cpu": false,
+        "has_serdes": false,
+        "has_pcie": false,
+        "has_pll": true,
+        "has_external_memory_on_common_boards": true
+      },
+      "supported_constraint_formats": ["cst"],
+      "suggested_toolchains": ["gowin_eda"],
+      "portability_notes": {
+        "sv_support_level": "SystemVerilog subset",
+        "inferred_ram_behavior": "supports inferred single and dual-port memory styles",
+        "inferred_dsp_behavior": "DSP for multiply with register pipeline",
+        "reset_preference": "sync reset",
+        "initial_block_synthesis": "initial not relied upon",
+        "bram_read_during_write": "mixed-mode supported by vendor",
+        "pll_wrapper_requirements": "do not instantiate PLLs in core"
+      }
+    },
+    {
+      "vendor": "gowin",
+      "family": "gowin_gw5ast",
+      "resources": {
+        "lut_kind": "LUT6",
+        "has_carry_chain": true,
+        "has_dsp": true,
+        "dsp_widths": [27],
+        "bram_kbits": 49152,
+        "distributed_ram": true,
+        "has_hard_cpu": false,
+        "has_serdes": false,
+        "has_pcie": false,
+        "has_pll": true,
+        "has_external_memory_on_common_boards": true
+      },
+      "supported_constraint_formats": ["cst"],
+      "suggested_toolchains": ["gowin_eda"],
+      "portability_notes": {
+        "sv_support_level": "SystemVerilog subset",
+        "inferred_ram_behavior": "check for write-first behavior",
+        "inferred_dsp_behavior": "multiplier and arithmetic inference usually straightforward",
+        "reset_preference": "sync reset, async assert optional",
+        "initial_block_synthesis": "no functional initial statements",
+        "bram_read_during_write": "depends on tool map",
+        "pll_wrapper_requirements": "board wrapper owns clock-tree primitives"
+      }
+    },
+    {
+      "vendor": "lattice",
+      "family": "lattice_ice40",
+      "resources": {
+        "lut_kind": "SB_LUT4",
+        "has_carry_chain": true,
+        "has_dsp": true,
+        "dsp_widths": [18],
+        "bram_kbits": 4096,
+        "distributed_ram": true,
+        "has_hard_cpu": false,
+        "has_serdes": false,
+        "has_pcie": false,
+        "has_pll": true,
+        "has_external_memory_on_common_boards": true
+      },
+      "supported_constraint_formats": ["pcf", "sdc"],
+      "suggested_toolchains": [
+        "lattice_oss_yosys_nextpnr_ice40",
+        "lattice_radiant"
+      ],
+      "portability_notes": {
+        "sv_support_level": "basic SystemVerilog (struct/parameterized interface limited)",
+        "inferred_ram_behavior": "SB_RAM40 primitives via inference",
+        "inferred_dsp_behavior": "SB_MAC16 available, may spill into logic",
+        "reset_preference": "sync reset preferred",
+        "initial_block_synthesis": "avoid initialized arrays",
+        "bram_read_during_write": "consult SB_RAM40 mode documentation",
+        "pll_wrapper_requirements": "keep PLL out of core"
+      }
+    },
+    {
+      "vendor": "lattice",
+      "family": "lattice_ecp5",
+      "resources": {
+        "lut_kind": "LUT4",
+        "has_carry_chain": true,
+        "has_dsp": true,
+        "dsp_widths": [18, 36],
+        "bram_kbits": 8192,
+        "distributed_ram": true,
+        "has_hard_cpu": false,
+        "has_serdes": true,
+        "has_pcie": false,
+        "has_pll": true,
+        "has_external_memory_on_common_boards": false
+      },
+      "supported_constraint_formats": ["lpf", "sdc", "pdc"],
+      "suggested_toolchains": [
+        "lattice_oss_yosys_nextpnr_ecp5",
+        "lattice_radiant"
+      ],
+      "portability_notes": {
+        "sv_support_level": "SystemVerilog subset for OSS flow",
+        "inferred_ram_behavior": "inferred memory maps to EBR",
+        "inferred_dsp_behavior": "DSP blocks for math-heavy blocks",
+        "reset_preference": "sync reset preferred",
+        "initial_block_synthesis": "avoid simulation-only init patterns",
+        "bram_read_during_write": "read-during-write mode needs explicit policy",
+        "pll_wrapper_requirements": "clock generation in board wrapper"
+      }
+    },
+    {
+      "vendor": "intel",
+      "family": "intel_cyclone4",
+      "resources": {
+        "lut_kind": "ALM",
+        "has_carry_chain": true,
+        "has_dsp": true,
+        "dsp_widths": [18],
+        "bram_kbits": 18432,
+        "distributed_ram": true,
+        "has_hard_cpu": true,
+        "has_serdes": true,
+        "has_pcie": false,
+        "has_pll": true,
+        "has_external_memory_on_common_boards": true
+      },
+      "supported_constraint_formats": ["qsf", "sdc"],
+      "suggested_toolchains": ["intel_quartus"],
+      "portability_notes": {
+        "sv_support_level": "good SV subset including interfaces limited",
+        "inferred_ram_behavior": "inferred RAM blocks depend on style",
+        "inferred_dsp_behavior": "M9K/M10K and DSP blocks usable",
+        "reset_preference": "sync reset with global network",
+        "initial_block_synthesis": "initial supported in limited testbench-only contexts only",
+        "bram_read_during_write": "mode configurable",
+        "pll_wrapper_requirements": "no ALTPLL in core"
+      }
+    },
+    {
+      "vendor": "intel",
+      "family": "intel_max10",
+      "resources": {
+        "lut_kind": "ALM",
+        "has_carry_chain": true,
+        "has_dsp": true,
+        "dsp_widths": [18],
+        "bram_kbits": 11264,
+        "distributed_ram": true,
+        "has_hard_cpu": false,
+        "has_serdes": false,
+        "has_pcie": false,
+        "has_pll": true,
+        "has_external_memory_on_common_boards": false
+      },
+      "supported_constraint_formats": ["qsf", "sdc"],
+      "suggested_toolchains": ["intel_quartus"],
+      "portability_notes": {
+        "sv_support_level": "SystemVerilog subset",
+        "inferred_ram_behavior": "inferred RAM style usually supported",
+        "inferred_dsp_behavior": "DSP mapping available for DSP blocks",
+        "reset_preference": "sync reset preferred",
+        "initial_block_synthesis": "avoid initial registers",
+        "bram_read_during_write": "check Quartus option",
+        "pll_wrapper_requirements": "board wrapper for PLL domain crossing"
+      }
+    },
+    {
+      "vendor": "intel",
+      "family": "intel_cyclonev_soc",
+      "resources": {
+        "lut_kind": "ALM",
+        "has_carry_chain": true,
+        "has_dsp": true,
+        "dsp_widths": [36],
+        "bram_kbits": 16384,
+        "distributed_ram": true,
+        "has_hard_cpu": true,
+        "has_serdes": true,
+        "has_pcie": true,
+        "has_pll": true,
+        "has_external_memory_on_common_boards": true
+      },
+      "supported_constraint_formats": ["qsf", "sdc"],
+      "suggested_toolchains": ["intel_quartus"],
+      "portability_notes": {
+        "sv_support_level": "good SV subset",
+        "inferred_ram_behavior": "inferred memory works for synthesis",
+        "inferred_dsp_behavior": "DSP blocks available",
+        "reset_preference": "sync reset",
+        "initial_block_synthesis": "avoid initial blocks for state",
+        "bram_read_during_write": "document mode in final constraints",
+        "pll_wrapper_requirements": "board-level clock hierarchy only"
+      }
+    },
+    {
+      "vendor": "xilinx",
+      "family": "xilinx_spartan7",
+      "resources": {
+        "lut_kind": "LUT6",
+        "has_carry_chain": true,
+        "has_dsp": true,
+        "dsp_widths": [25, 48],
+        "bram_kbits": 2048,
+        "distributed_ram": true,
+        "has_hard_cpu": true,
+        "has_serdes": false,
+        "has_pcie": false,
+        "has_pll": true,
+        "has_external_memory_on_common_boards": false
+      },
+      "supported_constraint_formats": ["xdc", "sdc"],
+      "suggested_toolchains": ["xilinx_vivado"],
+      "portability_notes": {
+        "sv_support_level": "good SystemVerilog subset, interfaces limited in some Vivado versions",
+        "inferred_ram_behavior": "inferred BRAM with vendor-specific style",
+        "inferred_dsp_behavior": "DSP48-like inference",
+        "reset_preference": "sync reset for CDC-safe design",
+        "initial_block_synthesis": "initials for constants accepted, avoid state init",
+        "bram_read_during_write": "explicit mode in synthesis options",
+        "pll_wrapper_requirements": "do not hardcode MMCM/PLL in core"
+      }
+    },
+    {
+      "vendor": "xilinx",
+      "family": "xilinx_artix7",
+      "resources": {
+        "lut_kind": "LUT6",
+        "has_carry_chain": true,
+        "has_dsp": true,
+        "dsp_widths": [25, 48],
+        "bram_kbits": 3328,
+        "distributed_ram": true,
+        "has_hard_cpu": false,
+        "has_serdes": true,
+        "has_pcie": false,
+        "has_pll": true,
+        "has_external_memory_on_common_boards": false
+      },
+      "supported_constraint_formats": ["xdc", "sdc"],
+      "suggested_toolchains": ["xilinx_vivado"],
+      "portability_notes": {
+        "sv_support_level": "good, with interface support in synthesis",
+        "inferred_ram_behavior": "inferred BRAM and shift RAM as expected",
+        "inferred_dsp_behavior": "DSP48 inlining for multiply/add",
+        "reset_preference": "sync reset",
+        "initial_block_synthesis": "avoid simulation-only initial",
+        "bram_read_during_write": "use vendor docs",
+        "pll_wrapper_requirements": "board wrapper owns PLL/clocking"
+      }
+    },
+    {
+      "vendor": "xilinx",
+      "family": "xilinx_zynq7000",
+      "resources": {
+        "lut_kind": "LUT6",
+        "has_carry_chain": true,
+        "has_dsp": true,
+        "dsp_widths": [48],
+        "bram_kbits": 4320,
+        "distributed_ram": true,
+        "has_hard_cpu": true,
+        "has_serdes": true,
+        "has_pcie": true,
+        "has_pll": true,
+        "has_external_memory_on_common_boards": true
+      },
+      "supported_constraint_formats": ["xdc", "sdc"],
+      "suggested_toolchains": ["xilinx_vivado"],
+      "portability_notes": {
+        "sv_support_level": "good",
+        "inferred_ram_behavior": "inference of BRAM and distributed RAM",
+        "inferred_dsp_behavior": "DSP48 supported",
+        "reset_preference": "sync reset and clean reset domains",
+        "initial_block_synthesis": "avoid initial for storage",
+        "bram_read_during_write": "verify by timing run",
+        "pll_wrapper_requirements": "do not instantiate processing-system clocks in core"
+      }
+    },
+    {
+      "vendor": "efinix",
+      "family": "efinix_trion",
+      "resources": {
+        "lut_kind": "LUT6",
+        "has_carry_chain": true,
+        "has_dsp": true,
+        "dsp_widths": [18, 36],
+        "bram_kbits": 8192,
+        "distributed_ram": true,
+        "has_hard_cpu": false,
+        "has_serdes": false,
+        "has_pcie": false,
+        "has_pll": true,
+        "has_external_memory_on_common_boards": false
+      },
+      "supported_constraint_formats": ["lpf", "sdc"],
+      "suggested_toolchains": ["efinix_efinity"],
+      "portability_notes": {
+        "sv_support_level": "basic SystemVerilog",
+        "inferred_ram_behavior": "verify read-during-write setting",
+        "inferred_dsp_behavior": "DSP blocks with optional multiplier chaining",
+        "reset_preference": "sync reset recommended",
+        "initial_block_synthesis": "no initial for storage",
+        "bram_read_during_write": "check by simulation and synthesis options",
+        "pll_wrapper_requirements": "wrapper-level PLL wrapper"
+      }
+    },
+    {
+      "vendor": "efinix",
+      "family": "efinix_titanium",
+      "resources": {
+        "lut_kind": "LUT6",
+        "has_carry_chain": true,
+        "has_dsp": true,
+        "dsp_widths": [18, 27],
+        "bram_kbits": 12288,
+        "distributed_ram": true,
+        "has_hard_cpu": false,
+        "has_serdes": true,
+        "has_pcie": false,
+        "has_pll": true,
+        "has_external_memory_on_common_boards": false
+      },
+      "supported_constraint_formats": ["lpf", "sdc"],
+      "suggested_toolchains": ["efinix_efinity"],
+      "portability_notes": {
+        "sv_support_level": "basic SystemVerilog",
+        "inferred_ram_behavior": "inferred memory available",
+        "inferred_dsp_behavior": "dedicated DSP blocks as in OSS flow",
+        "reset_preference": "sync reset",
+        "initial_block_synthesis": "avoid initial logic",
+        "bram_read_during_write": "explicit mode for verification",
+        "pll_wrapper_requirements": "board wrapper for generated clocks"
+      }
+    },
+    {
+      "vendor": "microchip",
+      "family": "microchip_igloo2",
+      "resources": {
+        "lut_kind": "LUT4",
+        "has_carry_chain": true,
+        "has_dsp": true,
+        "dsp_widths": [18],
+        "bram_kbits": 8192,
+        "distributed_ram": true,
+        "has_hard_cpu": false,
+        "has_serdes": false,
+        "has_pcie": false,
+        "has_pll": true,
+        "has_external_memory_on_common_boards": false
+      },
+      "supported_constraint_formats": ["pdc", "sdc"],
+      "suggested_toolchains": ["microchip_libero"],
+      "portability_notes": {
+        "sv_support_level": "SystemVerilog 2005 subset",
+        "inferred_ram_behavior": "single-cycle inferred RAM if style compliant",
+        "inferred_dsp_behavior": "synthesizes into math blocks when supported",
+        "reset_preference": "sync reset, avoid global async fanout",
+        "initial_block_synthesis": "avoid initial",
+        "bram_read_during_write": "documented by board flow",
+        "pll_wrapper_requirements": "board-level power-on resets and clocks"
+      }
+    },
+    {
+      "vendor": "microchip",
+      "family": "microchip_polarfire",
+      "resources": {
+        "lut_kind": "LUT4",
+        "has_carry_chain": true,
+        "has_dsp": true,
+        "dsp_widths": [18, 36],
+        "bram_kbits": 16384,
+        "distributed_ram": true,
+        "has_hard_cpu": true,
+        "has_serdes": false,
+        "has_pcie": false,
+        "has_pll": true,
+        "has_external_memory_on_common_boards": true
+      },
+      "supported_constraint_formats": ["pdc", "sdc"],
+      "suggested_toolchains": ["microchip_libero"],
+      "portability_notes": {
+        "sv_support_level": "SystemVerilog subset",
+        "inferred_ram_behavior": "inference often safer for soft-core usage",
+        "inferred_dsp_behavior": "synth for arithmetic blocks",
+        "reset_preference": "sync reset preferred",
+        "initial_block_synthesis": "avoid init semantics",
+        "bram_read_during_write": "synthesize with explicit assumptions",
+        "pll_wrapper_requirements": "wrapper-level clocking"
+      }
+    },
+    {
+      "vendor": "generic_asic_like",
+      "family": "generic_asic_like",
+      "resources": {
+        "lut_kind": "macro-cell",
+        "has_carry_chain": true,
+        "has_dsp": true,
+        "dsp_widths": [1],
+        "bram_kbits": 0,
+        "distributed_ram": false,
+        "has_hard_cpu": false,
+        "has_serdes": false,
+        "has_pcie": false,
+        "has_pll": true,
+        "has_external_memory_on_common_boards": false
+      },
+      "supported_constraint_formats": ["sdc", "tcl"],
+      "suggested_toolchains": [],
+      "portability_notes": {
+        "sv_support_level": "synthesize-friendly SystemVerilog subset",
+        "inferred_ram_behavior": "no inferred RAM assumptions; map to ASIC SRAM blocks manually",
+        "inferred_dsp_behavior": "no direct DSP inference required",
+        "reset_preference": "synchronous reset is mandatory",
+        "initial_block_synthesis": "only for simulation, avoid in synthesizable paths",
+        "bram_read_during_write": "handled via technology wrapper",
+        "pll_wrapper_requirements": "clock generation is outside RTL core"
+      }
+    }
+  ]
+}

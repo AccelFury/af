@@ -1,0 +1,21 @@
+{
+  "board": "polarfire_splash_template",
+  "constraint_formats": [
+    "pdc"
+  ],
+  "family": "microchip_polarfire",
+  "status": {
+    "hardware_bringup": "not_tested",
+    "pnr": "not_measured",
+    "sim": "not_applicable",
+    "synthesis": "not_measured",
+    "template": true
+  },
+  "toolchains": [
+    "microchip_libero"
+  ],
+  "vendor": "microchip",
+  "warnings": [
+    "Draft only. Verify every pin against the official schematic and board revision before programming hardware."
+  ]
+}

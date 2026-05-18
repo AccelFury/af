@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AccelFury cores.registry.json",
+  "description": "Universal-core registry. Maps each af_* core to its category, priority, portability level, maturity, declared verification gates and optional reference manifest.",
+  "type": "object",
+  "required": ["schema_version", "cores"],
+  "properties": {
+    "schema_version": { "type": "string", "enum": ["0.1"] },
+    "generated_by": { "type": "string" },
+    "description": { "type": "string" },
+    "cores": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["core_id", "category", "priority", "portability_level", "maturity", "summary"],
+        "properties": {
+          "core_id": {
+            "type": "string",
+            "pattern": "^af_[a-z0-9_]+$",
+            "description": "Lowercase identifier with af_ prefix."
+          },
+          "category": {
+            "type": "string",
+            "description": "Must match an entry in registries/ip_categories.json."
+          },
+          "priority": { "enum": ["P0", "P1", "P2"] },
+          "portability_level": { "enum": ["U0", "U1", "U2", "U3", "U4"] },
+          "maturity": {
+            "enum": ["experimental", "preview", "beta", "stable", "deprecated"]
+          },
+          "summary": { "type": "string", "minLength": 1 },
+          "verification_required": {
+            "type": "array",
+            "items": {
+              "enum": [
+                "simulation",
+                "formal-cdc-assumption",
+                "formal-occupancy",
+                "formal-equivalence",
+                "random-stress",
+                "board-demo",
+                "synthesis-report"
+              ]
+            }
+          },
+          "reference_path": {
+            "type": "string",
+            "description": "Relative path (from repo root) to the in-tree af-core.toml manifest for this core, if one exists."
+          },
+          "tracking_issue": {
+            "type": "string",
+            "description": "Optional URL or issue id tracking this core."
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

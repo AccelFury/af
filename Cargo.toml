@@ -1,0 +1,90 @@
+[workspace]
+resolver = "2"
+members = [
+  "crates/af-backend",
+  "crates/af-backend-fusesoc",
+  "crates/af-backend-icarus",
+  "crates/af-backend-flash",
+  "crates/af-backend-litex",
+  "crates/af-backend-native",
+  "crates/af-backend-nextpnr",
+  "crates/af-backend-sby",
+  "crates/af-backend-vendor",
+  "crates/af-backend-verilator",
+  "crates/af-backend-yosys",
+  "crates/af-board-db",
+  "crates/af-ci",
+  "crates/af-complexity",
+  "crates/af-compatibility",
+  "crates/af-constructor-export",
+  "crates/af-cli",
+  "crates/af-architecture",
+  "crates/af-core",
+  "crates/af-field-ref",
+  "crates/af-host",
+  "crates/af-manifest",
+  "crates/af-report",
+  "crates/af-resource-model",
+  "crates/af-rtl-inspector",
+  "crates/af-security",
+  "crates/af-signoff",
+  "crates/af-template",
+  "crates/af-vectors",
+  "crates/af-vendor-db",
+  "crates/af-wrapper-gen",
+]
+
+[workspace.package]
+edition = "2021"
+license = "Apache-2.0"
+repository = "https://github.com/AccelFury/af"
+authors = ["AccelFury contributors"]
+
+[workspace.dependencies]
+af-backend = { path = "crates/af-backend" }
+af-backend-fusesoc = { path = "crates/af-backend-fusesoc" }
+af-backend-icarus = { path = "crates/af-backend-icarus" }
+af-backend-flash = { path = "crates/af-backend-flash" }
+af-backend-litex = { path = "crates/af-backend-litex" }
+af-backend-native = { path = "crates/af-backend-native" }
+af-backend-nextpnr = { path = "crates/af-backend-nextpnr" }
+af-backend-sby = { path = "crates/af-backend-sby" }
+af-backend-vendor = { path = "crates/af-backend-vendor" }
+af-backend-verilator = { path = "crates/af-backend-verilator" }
+af-backend-yosys = { path = "crates/af-backend-yosys" }
+af-board-db = { path = "crates/af-board-db" }
+af-ci = { path = "crates/af-ci" }
+af-complexity = { path = "crates/af-complexity" }
+af-compatibility = { path = "crates/af-compatibility" }
+af-constructor-export = { path = "crates/af-constructor-export" }
+af-architecture = { path = "crates/af-architecture" }
+af-core = { path = "crates/af-core" }
+af-field-ref = { path = "crates/af-field-ref" }
+af-host = { path = "crates/af-host" }
+af-manifest = { path = "crates/af-manifest" }
+af-report = { path = "crates/af-report" }
+af-resource-model = { path = "crates/af-resource-model" }
+af-rtl-inspector = { path = "crates/af-rtl-inspector" }
+af-security = { path = "crates/af-security" }
+af-signoff = { path = "crates/af-signoff" }
+af-template = { path = "crates/af-template" }
+af-vectors = { path = "crates/af-vectors" }
+af-vendor-db = { path = "crates/af-vendor-db" }
+af-wrapper-gen = { path = "crates/af-wrapper-gen" }
+
+assert_cmd = "2.0"
+clap = { version = "4.5", features = ["derive"] }
+insta = { version = "1.43", features = ["json"] }
+miette = { version = "7.4", features = ["fancy"] }
+predicates = "3.1"
+schemars = { version = "0.8", features = ["derive"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yaml = "0.9"
+regex = "1.11"
+tempfile = "3.15"
+tera = "1.20"
+thiserror = "2.0"
+toml = "0.8"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }

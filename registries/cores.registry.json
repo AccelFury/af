@@ -1,0 +1,283 @@
+{
+  "schema_version": "0.1",
+  "generated_by": "AccelFury IP Toolchain",
+  "description": "Universal-core registry. Priorities (P0/P1/P2) and portability levels (U0..U4) follow the AccelFury manifesto. Entries without reference_path are tracked targets; entries with reference_path point to an in-tree manifest at that path.",
+  "cores": [
+    {
+      "core_id": "af_stream_skid",
+      "category": "stream_infra",
+      "priority": "P0",
+      "portability_level": "U0",
+      "maturity": "experimental",
+      "summary": "Single-cycle skid buffer for valid/ready stream backpressure isolation.",
+      "verification_required": [
+        "simulation",
+        "formal-occupancy",
+        "random-stress"
+      ],
+      "tracking_issue": "manifesto-roadmap: tracked-only, no in-tree RTL yet"
+    },
+    {
+      "core_id": "af_stream_pipeline",
+      "category": "stream_infra",
+      "priority": "P0",
+      "portability_level": "U0",
+      "maturity": "experimental",
+      "summary": "Parameterized N-stage valid/ready pipeline register chain.",
+      "verification_required": [
+        "simulation",
+        "random-stress"
+      ],
+      "tracking_issue": "manifesto-roadmap: tracked-only, no in-tree RTL yet"
+    },
+    {
+      "core_id": "af_sync_fifo",
+      "category": "stream_infra",
+      "priority": "P0",
+      "portability_level": "U1",
+      "maturity": "experimental",
+      "summary": "Single-clock synchronous FIFO with first-word-fall-through option.",
+      "verification_required": [
+        "simulation",
+        "formal-occupancy",
+        "random-stress"
+      ],
+      "tracking_issue": "manifesto-roadmap: tracked-only, no in-tree RTL yet"
+    },
+    {
+      "core_id": "af_async_fifo",
+      "category": "stream_infra",
+      "priority": "P1",
+      "portability_level": "U1",
+      "maturity": "experimental",
+      "summary": "Dual-clock asynchronous FIFO with Gray-coded pointers and CDC handshake.",
+      "verification_required": [
+        "simulation",
+        "formal-cdc-assumption",
+        "random-stress"
+      ],
+      "tracking_issue": "manifesto-roadmap: tracked-only, no in-tree RTL yet"
+    },
+    {
+      "core_id": "af_ram_sdp",
+      "category": "memory_infra",
+      "priority": "P0",
+      "portability_level": "U1",
+      "maturity": "experimental",
+      "summary": "Simple dual-port RAM inferred to vendor block RAM.",
+      "verification_required": [
+        "simulation",
+        "synthesis-report"
+      ],
+      "tracking_issue": "manifesto-roadmap: tracked-only, no in-tree RTL yet"
+    },
+    {
+      "core_id": "af_reset_sync",
+      "category": "stream_infra",
+      "priority": "P0",
+      "portability_level": "U0",
+      "maturity": "preview",
+      "summary": "N-stage reset synchronizer with configurable polarity, async assertion and synchronous deassertion.",
+      "verification_required": [
+        "formal-cdc-assumption",
+        "simulation"
+      ],
+      "reference_path": "examples/af-reset-sync/af-core.toml"
+    },
+    {
+      "core_id": "af_pulse_sync",
+      "category": "stream_infra",
+      "priority": "P1",
+      "portability_level": "U0",
+      "maturity": "experimental",
+      "summary": "Single-bit pulse-toggle synchronizer across two clock domains.",
+      "verification_required": [
+        "formal-cdc-assumption",
+        "simulation"
+      ],
+      "tracking_issue": "manifesto-roadmap: tracked-only, no in-tree RTL yet"
+    },
+    {
+      "core_id": "af_cdc_handshake",
+      "category": "stream_infra",
+      "priority": "P1",
+      "portability_level": "U0",
+      "maturity": "experimental",
+      "summary": "Four-phase request/ack handshake for slow data crossings between clock domains.",
+      "verification_required": [
+        "formal-cdc-assumption",
+        "simulation"
+      ],
+      "tracking_issue": "manifesto-roadmap: tracked-only, no in-tree RTL yet"
+    },
+    {
+      "core_id": "af_gpio",
+      "category": "softcore_peripheral",
+      "priority": "P0",
+      "portability_level": "U0",
+      "maturity": "experimental",
+      "summary": "Memory-mapped GPIO bank with input synchronization and per-pin direction control.",
+      "verification_required": [
+        "simulation"
+      ],
+      "tracking_issue": "manifesto-roadmap: tracked-only, no in-tree RTL yet"
+    },
+    {
+      "core_id": "af_timer",
+      "category": "softcore_peripheral",
+      "priority": "P1",
+      "portability_level": "U0",
+      "maturity": "experimental",
+      "summary": "Programmable timer/counter with one-shot and periodic modes.",
+      "verification_required": [
+        "simulation"
+      ],
+      "tracking_issue": "manifesto-roadmap: tracked-only, no in-tree RTL yet"
+    },
+    {
+      "core_id": "af_watchdog",
+      "category": "softcore_peripheral",
+      "priority": "P1",
+      "portability_level": "U0",
+      "maturity": "experimental",
+      "summary": "Watchdog timer with reset assertion on kick timeout.",
+      "verification_required": [
+        "simulation"
+      ],
+      "tracking_issue": "manifesto-roadmap: tracked-only, no in-tree RTL yet"
+    },
+    {
+      "core_id": "af_uart",
+      "category": "softcore_peripheral",
+      "priority": "P0",
+      "portability_level": "U0",
+      "maturity": "experimental",
+      "summary": "8-N-1 UART transmitter and receiver with configurable baud divider.",
+      "verification_required": [
+        "simulation",
+        "board-demo"
+      ],
+      "tracking_issue": "manifesto-roadmap: tracked-only, no in-tree RTL yet"
+    },
+    {
+      "core_id": "af_spi_master",
+      "category": "softcore_peripheral",
+      "priority": "P0",
+      "portability_level": "U0",
+      "maturity": "experimental",
+      "summary": "SPI master with configurable CPOL/CPHA and per-transfer chip-select control.",
+      "verification_required": [
+        "simulation",
+        "board-demo"
+      ],
+      "tracking_issue": "manifesto-roadmap: tracked-only, no in-tree RTL yet"
+    },
+    {
+      "core_id": "af_pdm_rx",
+      "category": "audio",
+      "priority": "P2",
+      "portability_level": "U0",
+      "maturity": "preview",
+      "summary": "Raw PDM bit-group framing receiver. Not a PDM-to-PCM decimator.",
+      "verification_required": [
+        "simulation",
+        "board-demo"
+      ],
+      "reference_path": "examples/af-pdm-rx/af-core.toml"
+    },
+    {
+      "core_id": "af_mod_add",
+      "category": "field_arithmetic",
+      "priority": "P2",
+      "portability_level": "U1",
+      "maturity": "preview",
+      "summary": "Modular addition z = (a + b) mod p with one conditional subtraction. First in the field-arithmetic lineage (af_mod_sub, af_mod_mul, af_mod_reduce, af_ntt, af_msm, af_poseidon).",
+      "verification_required": [
+        "simulation",
+        "synthesis-report"
+      ],
+      "reference_path": "examples/af-mod-add/af-core.toml"
+    },
+    {
+      "core_id": "af_mod_sub",
+      "category": "field_arithmetic",
+      "priority": "P1",
+      "portability_level": "U1",
+      "maturity": "experimental",
+      "summary": "Modular subtraction z = (a - b) mod p with one conditional addition. Sibling of af_mod_add in the field-arithmetic lineage.",
+      "verification_required": [
+        "simulation",
+        "synthesis-report"
+      ],
+      "tracking_issue": "manifesto-roadmap: tracked-only, no in-tree RTL yet"
+    },
+    {
+      "core_id": "af_mod_mul",
+      "category": "field_arithmetic",
+      "priority": "P1",
+      "portability_level": "U1",
+      "maturity": "experimental",
+      "summary": "Modular multiplication z = (a * b) mod p (Montgomery-friendly default). Random-stress required for wrap/reduction correctness.",
+      "verification_required": [
+        "simulation",
+        "synthesis-report",
+        "random-stress"
+      ],
+      "tracking_issue": "manifesto-roadmap: tracked-only, no in-tree RTL yet"
+    },
+    {
+      "core_id": "af_mod_reduce",
+      "category": "field_arithmetic",
+      "priority": "P1",
+      "portability_level": "U2",
+      "maturity": "experimental",
+      "summary": "Barrett/Montgomery modular reduction primitive used by af_mod_mul and downstream NTT/MSM cores.",
+      "verification_required": [
+        "simulation",
+        "synthesis-report"
+      ],
+      "tracking_issue": "manifesto-roadmap: tracked-only, no in-tree RTL yet"
+    },
+    {
+      "core_id": "af_ntt",
+      "category": "ntt_fft",
+      "priority": "P2",
+      "portability_level": "U2",
+      "maturity": "experimental",
+      "summary": "Number-theoretic transform pipeline over prime fields (radix-2/4 schedule TBD). Vendor DSP backend likely required at U3.",
+      "verification_required": [
+        "simulation",
+        "synthesis-report",
+        "random-stress"
+      ],
+      "tracking_issue": "manifesto-roadmap: tracked-only, no in-tree RTL yet"
+    },
+    {
+      "core_id": "af_msm",
+      "category": "msm_toy",
+      "priority": "P2",
+      "portability_level": "U2",
+      "maturity": "experimental",
+      "summary": "Multi-scalar multiplication scaffold for elliptic-curve / zk pipelines. Educational scope; production MSM needs vendor backends.",
+      "verification_required": [
+        "simulation",
+        "synthesis-report"
+      ],
+      "tracking_issue": "manifesto-roadmap: tracked-only, no in-tree RTL yet"
+    },
+    {
+      "core_id": "af_poseidon",
+      "category": "hash",
+      "priority": "P2",
+      "portability_level": "U2",
+      "maturity": "experimental",
+      "summary": "Poseidon hash core (zk-friendly arithmetic hash). Formal equivalence against reference implementation required before promoting maturity.",
+      "verification_required": [
+        "simulation",
+        "formal-equivalence",
+        "synthesis-report"
+      ],
+      "tracking_issue": "manifesto-roadmap: tracked-only, no in-tree RTL yet"
+    }
+  ]
+}

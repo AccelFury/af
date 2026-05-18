@@ -1,0 +1,14 @@
+{
+  "aliases": [
+    {
+      "alias": "tang-nano-20k",
+      "canonical": "sipeed_tang_nano_20k",
+      "reason": "Legacy af MVP board id retained for existing examples and user scripts."
+    },
+    {
+      "alias": "tang-primer-20k",
+      "canonical": "sipeed_tang_primer_20k_core",
+      "reason": "Legacy af MVP board id retained for existing examples and user scripts."
+    }
+  ]
+}

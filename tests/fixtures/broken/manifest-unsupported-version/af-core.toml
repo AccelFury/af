@@ -1,0 +1,12 @@
+af_version = "9.9"
+name = "manifest-unsupported-version"
+vendor = "accelfury"
+library = "tests"
+core = "manifest_unsupported_version"
+version = "0.1.0"
+
+[rtl]
+top = "manifest_unsupported_version"
+
+[sources]
+files = []

@@ -1,0 +1,17 @@
+af_version = "0.1"
+name = "invalid-port-width"
+vendor = "accelfury"
+library = "tests"
+core = "invalid_port_width"
+version = "0.1.0"
+
+[rtl]
+top = "invalid_port_width"
+
+[sources]
+files = ["rtl/invalid_port_width.sv"]
+
+[[ports]]
+name = "bad"
+direction = "input"
+width = 0

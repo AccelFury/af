@@ -1,0 +1,6 @@
+flowchart TD
+    A[i_valid && o_ready] -->|accept| B[Compute sum]
+    B --> C[Modulo reduction]
+    C --> D[Register output]
+    D --> E[o_valid]
+    E -->|if i_ready| F[Drop full]

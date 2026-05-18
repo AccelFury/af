@@ -1,0 +1,21 @@
+{
+  "board": "terasic_de10_nano_cyclonev_soc",
+  "constraint_formats": [
+    "qsf"
+  ],
+  "family": "intel_cyclonev_soc",
+  "status": {
+    "hardware_bringup": "not_tested",
+    "pnr": "not_measured",
+    "sim": "not_applicable",
+    "synthesis": "not_measured",
+    "template": true
+  },
+  "toolchains": [
+    "intel_quartus"
+  ],
+  "vendor": "intel",
+  "warnings": [
+    "Draft only. Verify every pin against the official schematic and board revision before programming hardware."
+  ]
+}

@@ -1,0 +1,18 @@
+af-reset-sync
+Copyright (c) 2026 AccelFury.
+
+N-stage reset synchronizer with configurable polarity, async assertion and
+synchronous deassertion. Portable Verilog-2001 core; manifesto axis P0/U0.
+
+Attribution requirement:
+Products, projects, source distributions, and documentation that use this
+core under the public-source terms must retain the copyright notice, license
+notice, and attribution to AccelFury.
+
+Verification gates declared in af-core.toml:
+
+- formal-cdc-assumption: async assertion + synchronous deassertion depth
+  property under `formal/af_reset_sync_props.sv` (stub; enable via SymbiYosys).
+- simulation: smoke testbench in `tb/tb_af_reset_sync.v`.
+
+No timing closure, CDC sign-off, vendor primitive, or board signoff is claimed.

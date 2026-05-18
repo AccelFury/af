@@ -1,0 +1,9 @@
+af-pdm-rx
+Copyright (c) 2026 AccelFury.
+
+Raw PDM receiver for digital MEMS microphone bitstream capture.
+
+Attribution requirement:
+Products, projects, source distributions, and documentation that use this
+core under the public-source terms must retain the copyright notice, license
+notice, and attribution to AccelFury.

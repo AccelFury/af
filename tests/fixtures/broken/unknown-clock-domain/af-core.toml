@@ -1,0 +1,21 @@
+af_version = "0.1"
+name = "unknown-clock-domain"
+vendor = "accelfury"
+library = "tests"
+core = "unknown_clock_domain"
+version = "0.1.0"
+
+[rtl]
+top = "unknown_clock_domain"
+
+[sources]
+files = ["rtl/unknown_clock_domain.sv"]
+
+[[clocks]]
+name = "clk"
+
+[[ports]]
+name = "data"
+direction = "input"
+width = 1
+clock = "other_clk"

@@ -1,0 +1,172 @@
+af_version = "0.3"
+name = "af-pdm-rx"
+vendor = "accelfury"
+library = "audio"
+core = "af-pdm-rx"
+version = "0.1.0"
+category = "audio"
+portability_level = "U0"
+priority = "P2"
+maturity = "preview"
+boards = [
+  "tang-nano-20k",
+  "tang-primer-20k",
+]
+known_limitations = [
+  "Core captures raw PDM bit groups only. It does not implement CIC/FIR decimation and does not output PCM audio.",
+  "Timing closure must be validated by target vendor backend and board constraints.",
+  "Audio quality is not checked because this core does not generate PCM audio.",
+]
+
+[metadata]
+display_name = "AccelFury PDM RX"
+license = "AccelFury Source Available License v1.0"
+authors = ["AccelFury contributors"]
+repository = "https://github.com/AccelFury/af"
+description = "Raw PDM receiver for digital MEMS microphone bitstream capture. This core does not perform PDM-to-PCM decimation."
+
+[rtl]
+top = "af_pdm_rx"
+language = "systemverilog"
+systemverilog_subset = true
+default_clock = "clk"
+default_reset = "rst_n"
+
+[sources]
+files = ["rtl/af_pdm_rx.sv"]
+include_dirs = []
+
+[sources.roles]
+"rtl/af_pdm_rx.sv" = "rtl"
+
+[sources.file_types]
+"rtl/af_pdm_rx.sv" = "systemVerilogSource"
+
+[[parameters]]
+name = "CLK_DIV"
+value = "16"
+kind = "integer"
+min = "2"
+description = "Clock divider for generated PDM sampling clock."
+
+[[parameters]]
+name = "WORD_BITS"
+value = "32"
+kind = "integer"
+allowed = ["8", "16", "24", "32", "64"]
+description = "Number of captured PDM bits grouped into one output word."
+
+[[ports]]
+name = "clk"
+direction = "input"
+width = 1
+kind = "clock"
+clock_domain = "sys"
+
+[[ports]]
+name = "rst_n"
+direction = "input"
+width = 1
+kind = "reset"
+active = "low"
+reset_style = "async"
+clock_domain = "sys"
+
+[[ports]]
+name = "pdm_data_i"
+direction = "input"
+width = 1
+kind = "data"
+interface = "pdm_in"
+
+[[ports]]
+name = "pdm_clk_o"
+direction = "output"
+width = 1
+kind = "clock_out"
+interface = "pdm_in"
+
+[[ports]]
+name = "sample_word_o"
+direction = "output"
+width = "WORD_BITS"
+kind = "data"
+interface = "raw_stream"
+clock_domain = "sys"
+
+[[ports]]
+name = "sample_valid_o"
+direction = "output"
+width = 1
+kind = "valid"
+interface = "raw_stream"
+clock_domain = "sys"
+
+[[ports]]
+name = "sample_ready_i"
+direction = "input"
+width = 1
+kind = "ready"
+interface = "raw_stream"
+clock_domain = "sys"
+
+[[clocks]]
+name = "sys"
+port = "clk"
+frequency_hz = 27000000
+description = "Default board/system clock for Tang Nano 20K reference build."
+
+[[resets]]
+name = "sys_rst_n"
+port = "rst_n"
+active = "low"
+style = "async"
+clock_domain = "sys"
+
+[[interfaces]]
+name = "pdm_in"
+kind = "pdm_raw_rx"
+clock = "pdm_clk_o"
+
+[[stream_interfaces]]
+name = "raw_stream"
+kind = "valid_ready"
+clock_domain = "sys"
+data = "sample_word_o"
+valid = "sample_valid_o"
+ready = "sample_ready_i"
+data_width = "WORD_BITS"
+payload_semantics = "raw_pdm_bit_group"
+
+[csr]
+present = false
+
+[interrupts]
+present = false
+
+[[testbenches]]
+name = "verilator_smoke"
+backend = "verilator"
+top = "tb_af_pdm_rx"
+sources = ["tb/tb_af_pdm_rx.sv"]
+rtl_sources = ["rtl/af_pdm_rx.sv"]
+expected = "pass"
+
+[formal]
+name = "basic_handshake"
+backend = "sby"
+enabled = false
+properties = []
+files = []
+
+[backend_compatibility]
+verilator = true
+fusesoc = true
+
+[[verification_required]]
+kind = "simulation"
+description = "Verilator smoke test for clocking and framing (tb/tb_af_pdm_rx.sv)."
+
+[[verification_required]]
+kind = "board-demo"
+description = "Microphone capture demo on Tang Nano 20K with declared CLK_DIV/WORD_BITS."

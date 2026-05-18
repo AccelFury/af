@@ -1,0 +1,4 @@
+# Constraints placeholder for sipeed_tang_mega_138k_pro
+
+Draft only. Verify every pin against the official schematic and board revision
+before programming hardware.

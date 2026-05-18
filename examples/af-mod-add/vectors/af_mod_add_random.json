@@ -1,0 +1,331 @@
+{
+  "metadata": {
+    "ip": "af_mod_add",
+    "modulus": "0xFFFFFFFF00000001",
+    "seed": 1311768467294899695,
+    "count": 64,
+    "metadata_hash": "0x90DD694DDDD11B4E"
+  },
+  "vectors": [
+    {
+      "a": "0x44C9D9BF470881A0",
+      "b": "0x15218B52E4DC7D88",
+      "expected": "0x59EB65122BE4FF28"
+    },
+    {
+      "a": "0x2376E1AB3D6F1CD4",
+      "b": "0xD27D18BFB422696F",
+      "expected": "0xF5F3FA6AF1918643"
+    },
+    {
+      "a": "0x6BB8F9D1D391D580",
+      "b": "0x286CC3B7F1DEA20A",
+      "expected": "0x9425BD89C570778A"
+    },
+    {
+      "a": "0x1C1CDDFA39E039D9",
+      "b": "0x6962EF4C22B31833",
+      "expected": "0x857FCD465C93520C"
+    },
+    {
+      "a": "0xA13ABA2C571CAD33",
+      "b": "0x45E64E0B7C3738A9",
+      "expected": "0xE7210837D353E5DC"
+    },
+    {
+      "a": "0x2CB13BADA5A1269F",
+      "b": "0x62EDF2C34278DB2B",
+      "expected": "0x8F9F2E70E81A01CA"
+    },
+    {
+      "a": "0x0A87B2E4E56E480C",
+      "b": "0x331599EF7A08402B",
+      "expected": "0x3D9D4CD45F768837"
+    },
+    {
+      "a": "0x3C0767B24056C081",
+      "b": "0x94CFA9EF21185A41",
+      "expected": "0xD0D711A1616F1AC2"
+    },
+    {
+      "a": "0x91B1034271039C7C",
+      "b": "0x5D2E11E6787169AD",
+      "expected": "0xEEDF1528E9750629"
+    },
+    {
+      "a": "0x89B25A86C8382FF2",
+      "b": "0xE7E1384B6084D819",
+      "expected": "0x719392D328BD080A"
+    },
+    {
+      "a": "0x61D5D6AAA6D953F3",
+      "b": "0xF067A48EA307B426",
+      "expected": "0x523D7B3A49E10818"
+    },
+    {
+      "a": "0x17ED17E182843CF5",
+      "b": "0xF7420703AAF15D56",
+      "expected": "0x0F2F1EE62D759A4A"
+    },
+    {
+      "a": "0x3CCCB3AC8FEF74AD",
+      "b": "0xE29776D464E1B4BC",
+      "expected": "0x1F642A81F4D12968"
+    },
+    {
+      "a": "0xD1F2628F56C6BE49",
+      "b": "0xFF93F21124D55204",
+      "expected": "0xD18654A17B9C104C"
+    },
+    {
+      "a": "0x47BE31F1D4B5422C",
+      "b": "0x7270E57CD08D5806",
+      "expected": "0xBA2F176EA5429A32"
+    },
+    {
+      "a": "0x6D7D63257621E0AB",
+      "b": "0x76B2F14F4B3F2CF1",
+      "expected": "0xE4305474C1610D9C"
+    },
+    {
+      "a": "0xF26E726062C3DBDB",
+      "b": "0xF0DC19DB840EE140",
+      "expected": "0xE34A8C3CE6D2BD1A"
+    },
+    {
+      "a": "0x0103FFEC30419E60",
+      "b": "0x3CCB871A6C6FDE37",
+      "expected": "0x3DCF87069CB17C97"
+    },
+    {
+      "a": "0x7DAAA764E0A8D0D5",
+      "b": "0x05C4F7A0A440D208",
+      "expected": "0x836F9F0584E9A2DD"
+    },
+    {
+      "a": "0x2B34991C16A921E3",
+      "b": "0x918BB7D55154478B",
+      "expected": "0xBCC050F167FD696E"
+    },
+    {
+      "a": "0x2E0F2616CFB3F3CA",
+      "b": "0xA16B84C96FF2F2C1",
+      "expected": "0xCF7AAAE03FA6E68B"
+    },
+    {
+      "a": "0xB7173A2769175F88",
+      "b": "0xA8F8EBAC628E02C5",
+      "expected": "0x601025D4CBA5624C"
+    },
+    {
+      "a": "0x339C78E8F6BA52F5",
+      "b": "0x23024977A4A700E1",
+      "expected": "0x569EC2609B6153D6"
+    },
+    {
+      "a": "0xD5963D79793F3AD9",
+      "b": "0x9942408155567572",
+      "expected": "0x6ED87DFBCE95B04A"
+    },
+    {
+      "a": "0x464F1AC07869EE14",
+      "b": "0x93695AF38A13CD66",
+      "expected": "0xD9B875B4027DBB7A"
+    },
+    {
+      "a": "0xF016E63FAC305DD9",
+      "b": "0xE3535E55847ABF01",
+      "expected": "0xD36A449630AB1CD9"
+    },
+    {
+      "a": "0x93D3A75F0B54B31E",
+      "b": "0x4735D61291E73A80",
+      "expected": "0xDB097D719D3BED9E"
+    },
+    {
+      "a": "0x6D8005FA840CFABD",
+      "b": "0x79EDFD1AEEAC73EF",
+      "expected": "0xE76E031572B96EAC"
+    },
+    {
+      "a": "0xDBAD2C5BC78763AD",
+      "b": "0x30A1A4E0EC9AD977",
+      "expected": "0x0C4ED13DB4223D23"
+    },
+    {
+      "a": "0x23AE91964C3F5FC6",
+      "b": "0x68B5B496B2CDEC98",
+      "expected": "0x8C64462CFF0D4C5E"
+    },
+    {
+      "a": "0x44BEF803E26CF548",
+      "b": "0xD4D796A351263A60",
+      "expected": "0x19968EA833932FA7"
+    },
+    {
+      "a": "0xFC0A212F9DCDF2E5",
+      "b": "0x9F5D81B182933F25",
+      "expected": "0x9B67A2E220613209"
+    },
+    {
+      "a": "0xB4124BAF1A42D8F3",
+      "b": "0xD46EEBC619051523",
+      "expected": "0x888137763347EE15"
+    },
+    {
+      "a": "0x89EFCBB03C812261",
+      "b": "0x4B23B10C8534F2E8",
+      "expected": "0xD5137CBCC1B61549"
+    },
+    {
+      "a": "0x4CDC9F6DFA620B2B",
+      "b": "0xA0E26407012F4964",
+      "expected": "0xEDBF0374FB91548F"
+    },
+    {
+      "a": "0x69373BE115FE2799",
+      "b": "0x214D9051478571EC",
+      "expected": "0x8A84CC325D839985"
+    },
+    {
+      "a": "0x41BC54D28366362F",
+      "b": "0x462F7B741CFA203F",
+      "expected": "0x87EBD046A060566E"
+    },
+    {
+      "a": "0xEBB212C606106AA0",
+      "b": "0x908E51914E8A153D",
+      "expected": "0x7C406458549A7FDC"
+    },
+    {
+      "a": "0x1A8730EA15CEB3F8",
+      "b": "0x6AF98840ECEA5B5F",
+      "expected": "0x8580B92B02B90F57"
+    },
+    {
+      "a": "0x20805460099C3225",
+      "b": "0xFAAB67A31304D735",
+      "expected": "0x1B2BBC041CA10959"
+    },
+    {
+      "a": "0xE0754BF5A3DDE913",
+      "b": "0x6764A5A3D0FBD723",
+      "expected": "0x47D9F19A74D9C035"
+    },
+    {
+      "a": "0x89B39EF94E084E80",
+      "b": "0x0488F34A6F131E07",
+      "expected": "0x8E3C9243BD1B6C87"
+    },
+    {
+      "a": "0x91FFF80EB73CDA89",
+      "b": "0x5ACA542946F3F0C6",
+      "expected": "0xECCA4C37FE30CB4F"
+    },
+    {
+      "a": "0xC04F1AD06E02190F",
+      "b": "0x56224DC2A5A0D9C0",
+      "expected": "0x1671689413A2F2CE"
+    },
+    {
+      "a": "0x6009E8FBCB2903DC",
+      "b": "0xAB243F0457BE93AA",
+      "expected": "0x0B2E280122E79785"
+    },
+    {
+      "a": "0x1E07D1EE2C0E3409",
+      "b": "0xFC30BA3C56BB2B91",
+      "expected": "0x1A388C2B82C95F99"
+    },
+    {
+      "a": "0xFB8D57C5ABDF1460",
+      "b": "0x051E6C86BB79FCF2",
+      "expected": "0x00ABC44D67591151"
+    },
+    {
+      "a": "0xE756F726EE427630",
+      "b": "0x47799104794C5587",
+      "expected": "0x2ED0882C678ECBB6"
+    },
+    {
+      "a": "0x37077AF24A2C694C",
+      "b": "0x54BE88610175E82B",
+      "expected": "0x8BC603534BA25177"
+    },
+    {
+      "a": "0xF4BAF87697616855",
+      "b": "0x3BB27CE5FFEEDC74",
+      "expected": "0x306D755D975044C8"
+    },
+    {
+      "a": "0x1FB555188122A107",
+      "b": "0xB82BE208C6618D96",
+      "expected": "0xD7E1372147842E9D"
+    },
+    {
+      "a": "0x218713DB9F492035",
+      "b": "0x9D86925AF512FE28",
+      "expected": "0xBF0DA636945C1E5D"
+    },
+    {
+      "a": "0xBE382713BF8F01DD",
+      "b": "0xD8C1A0052DDB42AA",
+      "expected": "0x96F9C719ED6A4486"
+    },
+    {
+      "a": "0xF5E7E8CB13B08BA1",
+      "b": "0x169400EEFA312D8C",
+      "expected": "0x0C7BE9BB0DE1B92C"
+    },
+    {
+      "a": "0xE68795837DEEC179",
+      "b": "0xBAED6503DF71FDC7",
+      "expected": "0xA174FA885D60BF3F"
+    },
+    {
+      "a": "0xF5F2D50FAD6511C8",
+      "b": "0x9280EE8311613132",
+      "expected": "0x8873C393BEC642F9"
+    },
+    {
+      "a": "0x4C4A08F80D7DB2E6",
+      "b": "0x13A9170831EE9586",
+      "expected": "0x5FF320003F6C486C"
+    },
+    {
+      "a": "0x86435B1789C3A9AD",
+      "b": "0x1A9A9CBAA2D7E692",
+      "expected": "0xA0DDF7D22C9B903F"
+    },
+    {
+      "a": "0xA8D4A0B7FCFDF8C5",
+      "b": "0x275C8D12E65A1288",
+      "expected": "0xD0312DCAE3580B4D"
+    },
+    {
+      "a": "0xD7D7EA984D49DC23",
+      "b": "0x008B5A5B65CD5B45",
+      "expected": "0xD86344F3B3173768"
+    },
+    {
+      "a": "0x41E036A5D6E8F0B9",
+      "b": "0x123A657944258B6F",
+      "expected": "0x541A9C1F1B0E7C28"
+    },
+    {
+      "a": "0x0052EA0CF007BDF1",
+      "b": "0x1A4CFD4B69097AD3",
+      "expected": "0x1A9FE758591138C4"
+    },
+    {
+      "a": "0x106D9241D08B935A",
+      "b": "0x915710314917DA45",
+      "expected": "0xA1C4A27319A36D9F"
+    },
+    {
+      "a": "0xF8A57699939E3CB9",
+      "b": "0xE17E7839DA8E2909",
+      "expected": "0xDA23EED46E2C65C1"
+    }
+  ]
+}

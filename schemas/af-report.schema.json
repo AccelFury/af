@@ -1,0 +1,619 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AfReport",
+  "type": "object",
+  "required": [
+    "generated_by",
+    "kind",
+    "report_version",
+    "schema_version",
+    "status"
+  ],
+  "properties": {
+    "artifacts": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "command_payload": {
+      "description": "M3 per-command typed payload. Each command-handler in af-cli fills in the variant relevant to the command that was just run, so the JSON emitted by `af core lint` is structurally distinguishable from `af core sim` / `af core formal` / `af core package` / `af build`. `None` for commands that do not have a dedicated payload yet (e.g. `core check`, `core report`).",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/CommandPayload"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "commands": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/CommandRecord"
+      }
+    },
+    "core": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/CoreIdentity"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "generated_by": {
+      "type": "string"
+    },
+    "kind": {
+      "type": "string"
+    },
+    "limitations": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "maturity": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/ReusableCoreMaturity"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "report_version": {
+      "type": "string"
+    },
+    "reproducibility": {
+      "description": "M3 reproducibility metadata. Populated via `with_reproducibility()` when the producer has finished merging tool_versions. Deterministic by construction (no timestamps).",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/Reproducibility"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "schema_version": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string"
+    },
+    "tool_versions": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/ToolVersion"
+      }
+    },
+    "warnings": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "definitions": {
+    "CommandPayload": {
+      "description": "Typed per-command payload (M3). The `kind` discriminator carries the command name so consumers can branch without sniffing schemas, while the inner data is command-specific. Adding a new variant does not break old consumers that ignore unknown kinds.",
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "inspection_issue_count",
+            "kind",
+            "legal_issue_count",
+            "manifest_status",
+            "source_count"
+          ],
+          "properties": {
+            "inspection_issue_count": {
+              "type": "integer",
+              "format": "uint",
+              "minimum": 0.0
+            },
+            "kind": {
+              "type": "string",
+              "enum": [
+                "check"
+              ]
+            },
+            "legal_issue_count": {
+              "type": "integer",
+              "format": "uint",
+              "minimum": 0.0
+            },
+            "manifest_status": {
+              "type": "string"
+            },
+            "source_count": {
+              "type": "integer",
+              "format": "uint",
+              "minimum": 0.0
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "backend",
+            "backend_status",
+            "include_dir_count",
+            "kind",
+            "source_count"
+          ],
+          "properties": {
+            "backend": {
+              "type": "string"
+            },
+            "backend_status": {
+              "type": "string"
+            },
+            "include_dir_count": {
+              "type": "integer",
+              "format": "uint",
+              "minimum": 0.0
+            },
+            "kind": {
+              "type": "string",
+              "enum": [
+                "lint"
+              ]
+            },
+            "source_count": {
+              "type": "integer",
+              "format": "uint",
+              "minimum": 0.0
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "backend",
+            "backend_status",
+            "kind",
+            "testbench_count"
+          ],
+          "properties": {
+            "backend": {
+              "type": "string"
+            },
+            "backend_status": {
+              "type": "string"
+            },
+            "kind": {
+              "type": "string",
+              "enum": [
+                "simulation"
+              ]
+            },
+            "testbench_count": {
+              "type": "integer",
+              "format": "uint",
+              "minimum": 0.0
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "backend",
+            "backend_status",
+            "kind",
+            "property_count"
+          ],
+          "properties": {
+            "backend": {
+              "type": "string"
+            },
+            "backend_status": {
+              "type": "string"
+            },
+            "kind": {
+              "type": "string",
+              "enum": [
+                "formal"
+              ]
+            },
+            "property_count": {
+              "type": "integer",
+              "format": "uint",
+              "minimum": 0.0
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "backend",
+            "backend_status",
+            "board",
+            "kind"
+          ],
+          "properties": {
+            "backend": {
+              "type": "string"
+            },
+            "backend_status": {
+              "type": "string"
+            },
+            "board": {
+              "type": "string"
+            },
+            "kind": {
+              "type": "string",
+              "enum": [
+                "build"
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "format",
+            "kind",
+            "manifest_path"
+          ],
+          "properties": {
+            "format": {
+              "type": "string"
+            },
+            "kind": {
+              "type": "string",
+              "enum": [
+                "package"
+              ]
+            },
+            "manifest_path": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "artifact_count",
+            "input_kind",
+            "kind",
+            "maturity_blocked_rows",
+            "maturity_verdict"
+          ],
+          "properties": {
+            "artifact_count": {
+              "type": "integer",
+              "format": "uint",
+              "minimum": 0.0
+            },
+            "input_kind": {
+              "description": "`\"core_with_manifest\"` when an `af-core.toml` was found, otherwise `\"build_dir_only\"`. Lets consumers branch without re-checking inputs.",
+              "type": "string"
+            },
+            "kind": {
+              "type": "string",
+              "enum": [
+                "report"
+              ]
+            },
+            "maturity_blocked_rows": {
+              "type": "integer",
+              "format": "uint",
+              "minimum": 0.0
+            },
+            "maturity_verdict": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "available_tools",
+            "kind",
+            "missing_tools",
+            "total_tools"
+          ],
+          "properties": {
+            "available_tools": {
+              "type": "integer",
+              "format": "uint",
+              "minimum": 0.0
+            },
+            "kind": {
+              "type": "string",
+              "enum": [
+                "tooling"
+              ]
+            },
+            "missing_tools": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "total_tools": {
+              "type": "integer",
+              "format": "uint",
+              "minimum": 0.0
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "available_tools",
+            "kind",
+            "missing_tools",
+            "overall_status",
+            "total_tools"
+          ],
+          "properties": {
+            "available_tools": {
+              "type": "integer",
+              "format": "uint",
+              "minimum": 0.0
+            },
+            "kind": {
+              "type": "string",
+              "enum": [
+                "doctor"
+              ]
+            },
+            "missing_tools": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "overall_status": {
+              "type": "string"
+            },
+            "total_tools": {
+              "type": "integer",
+              "format": "uint",
+              "minimum": 0.0
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "backend",
+            "backend_status",
+            "kind"
+          ],
+          "properties": {
+            "backend": {
+              "type": "string"
+            },
+            "backend_status": {
+              "type": "string"
+            },
+            "kind": {
+              "type": "string",
+              "enum": [
+                "flash"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "CommandRecord": {
+      "type": "object",
+      "required": [
+        "args",
+        "program",
+        "stderr",
+        "stdout"
+      ],
+      "properties": {
+        "allow_network": {
+          "default": false,
+          "type": "boolean"
+        },
+        "args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "cwd": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "env": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "exit_code": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int32"
+        },
+        "program": {
+          "type": "string"
+        },
+        "stderr": {
+          "type": "string"
+        },
+        "stderr_log": {
+          "description": "Filesystem path of a sidecar `.err.log` artifact, when the runner persisted stderr.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "stdout": {
+          "type": "string"
+        },
+        "stdout_log": {
+          "description": "Filesystem path of a sidecar `.out.log` artifact, when the runner persisted stdout. Populated by `persist_command_logs`. M3 contract from docs/dev-roadmap.md \"write stdout/stderr logs as artifacts and reference them from reports\".",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "timeout_seconds": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0.0
+        }
+      }
+    },
+    "CoreIdentity": {
+      "type": "object",
+      "required": [
+        "core",
+        "library",
+        "name",
+        "vendor",
+        "version",
+        "vlnv"
+      ],
+      "properties": {
+        "core": {
+          "type": "string"
+        },
+        "library": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "vendor": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "vlnv": {
+          "type": "string"
+        }
+      }
+    },
+    "MaturityRow": {
+      "type": "object",
+      "required": [
+        "area",
+        "evidence",
+        "limitations",
+        "status"
+      ],
+      "properties": {
+        "area": {
+          "type": "string"
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "limitations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "status": {
+          "type": "string"
+        }
+      }
+    },
+    "Reproducibility": {
+      "description": "Reproducibility metadata for a report. Designed to be **deterministic** given identical inputs and tool versions (NFR-004): no wall-clock timestamp or runtime duration is included. Wall-clock telemetry, if needed, belongs in a separate sidecar artifact.",
+      "type": "object",
+      "required": [
+        "af_version",
+        "environment_hash",
+        "host_arch",
+        "host_os"
+      ],
+      "properties": {
+        "af_version": {
+          "type": "string"
+        },
+        "environment_hash": {
+          "description": "FNV1a64 hash of the sorted tool-version list, formatted as a 16-char hex string. Same env + same `tool_versions` → same hash, so the report stays bit-deterministic across runs on the same host.",
+          "type": "string"
+        },
+        "host_arch": {
+          "type": "string"
+        },
+        "host_os": {
+          "type": "string"
+        }
+      }
+    },
+    "ReusableCoreMaturity": {
+      "type": "object",
+      "required": [
+        "rows",
+        "summary",
+        "verdict"
+      ],
+      "properties": {
+        "rows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/MaturityRow"
+          }
+        },
+        "summary": {
+          "type": "string"
+        },
+        "verdict": {
+          "type": "string"
+        }
+      }
+    },
+    "ToolVersion": {
+      "type": "object",
+      "required": [
+        "available",
+        "tool"
+      ],
+      "properties": {
+        "available": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "tool": {
+          "type": "string"
+        },
+        "version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    }
+  }
+}

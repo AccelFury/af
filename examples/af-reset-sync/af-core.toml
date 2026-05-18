@@ -1,0 +1,94 @@
+af_version = "0.3"
+name = "af-reset-sync"
+vendor = "accelfury"
+library = "utility"
+core = "af_reset_sync"
+version = "0.1.0"
+category = "stream_infra"
+portability_level = "U0"
+priority = "P0"
+maturity = "preview"
+known_limitations = [
+  "Portable Verilog-2001 only. Vendor-specific reset distribution networks (Xilinx INIT, Intel CLR, Gowin GSR) are out of scope for this core.",
+  "CDC assertions are simulation-quality; full formal sign-off requires SBY/JasperGold with vendor reset assumptions.",
+]
+
+[metadata]
+license = "AccelFury Source Available License v1.0"
+authors = ["AccelFury contributors"]
+description = "Reset synchronizer with configurable depth and polarity. Asynchronous assertion, synchronous deassertion."
+
+[rtl]
+top = "af_reset_sync"
+language = "verilog-2001"
+default_clock = "clk"
+default_reset = "src_rst"
+
+[sources]
+files = ["rtl/af_reset_sync.v"]
+
+[[parameters]]
+name = "STAGES"
+value = "2"
+kind = "integer"
+description = "Number of synchronizer flops in the destination clock domain."
+
+[[parameters]]
+name = "RESET_POLARITY"
+value = "0"
+kind = "integer"
+allowed = ["0", "1"]
+description = "0 = active-low (src_rst is src_rst_n); 1 = active-high."
+
+[[clocks]]
+name = "clk"
+port = "clk"
+description = "Destination clock domain that releases the synchronized reset."
+
+[[resets]]
+name = "src_rst"
+port = "src_rst"
+active = "low"
+style = "async"
+clock_domain = "clk"
+asynchronous = true
+
+[[ports]]
+name = "clk"
+direction = "input"
+width = 1
+kind = "clock"
+
+[[ports]]
+name = "src_rst"
+direction = "input"
+width = 1
+kind = "reset"
+
+[[ports]]
+name = "dst_rst"
+direction = "output"
+width = 1
+kind = "reset"
+
+[[testbenches]]
+name = "smoke"
+top = "tb_af_reset_sync"
+sources = ["tb/tb_af_reset_sync.v"]
+rtl_sources = ["rtl/af_reset_sync.v"]
+expected = "release after STAGES rising edges"
+
+[formal]
+name = "af_reset_sync_cdc"
+backend = "sby"
+enabled = false
+files = ["formal/af_reset_sync_props.sv"]
+properties = ["asynchronous-assertion", "synchronous-deassertion-depth"]
+
+[[verification_required]]
+kind = "formal-cdc-assumption"
+description = "Async assertion and N-cycle synchronous deassertion with no glitch on dst_rst."
+
+[[verification_required]]
+kind = "simulation"
+description = "Smoke testbench in tb/ exercising both polarities and STAGES=2..4."

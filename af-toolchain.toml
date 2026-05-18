@@ -1,0 +1,92 @@
+schema_version = "0.1"
+kind = "accelfury.toolchain"
+
+[policy]
+offline = true
+allow_network = false
+allow_untrusted_scripts = false
+allow_shell = false
+
+[tools.verilator]
+required = true
+command = "verilator"
+min_version = "5.040"
+
+[tools.iverilog]
+required = false
+command = "iverilog"
+
+[tools.vvp]
+required = false
+command = "vvp"
+
+[tools.fusesoc]
+required = true
+command = "fusesoc"
+
+[tools.edalize]
+required = true
+python_module = "edalize"
+
+[tools.xmllint]
+required = false
+command = "xmllint"
+
+[tools.litex]
+required = false
+python_module = "litex"
+
+[tools.yosys]
+required = false
+command = "yosys"
+
+[tools.nextpnr_ice40]
+required = false
+command = "nextpnr-ice40"
+
+[tools.nextpnr_ecp5]
+required = false
+command = "nextpnr-ecp5"
+
+[tools.nextpnr_gowin]
+required = false
+command = "nextpnr-gowin"
+
+[tools.sby]
+required = false
+command = "sby"
+
+[tools.boolector]
+required = false
+command = "boolector"
+
+[tools.z3]
+required = false
+command = "z3"
+
+[tools.yices_smt2]
+required = false
+command = "yices-smt2"
+
+[tools.bitwuzla]
+required = false
+command = "bitwuzla"
+
+[tools.cvc5]
+required = false
+command = "cvc5"
+
+[tools.openfpgaloader]
+required = false
+command = "openFPGALoader"
+
+[tools.gowin]
+required = false
+gw_sh = "gw_sh"
+programmer_cli = "programmer_cli"
+
+[artifacts]
+root = ".af-build"
+keep_logs = true
+write_json = true
+write_markdown = true

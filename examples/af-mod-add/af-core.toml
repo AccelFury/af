@@ -1,0 +1,220 @@
+af_version = "0.3"
+name = "af-mod-add"
+vendor = "accelfury"
+library = "ip"
+core = "af_mod_add"
+version = "0.1.0"
+category = "field_arithmetic"
+portability_level = "U1"
+priority = "P2"
+maturity = "preview"
+boards = [
+  "sipeed_tang_nano_1k",
+  "sipeed_tang_nano_4k",
+  "sipeed_tang_nano_9k",
+  "sipeed_tang_nano_20k",
+  "sipeed_tang_primer_20k_core",
+  "sipeed_tang_primer_20k_dock",
+  "sipeed_tang_primer_20k_lite",
+  "sipeed_tang_primer_25k",
+  "sipeed_tang_mega_138k",
+  "sipeed_tang_mega_138k_pro",
+  "icebreaker_ice40up5k",
+  "tinyfpga_bx_ice40lp8k",
+  "icestick_ice40hx1k",
+  "ulx3s_ecp5",
+  "orangecrab_ecp5",
+  "colorlight_5a_75b_ecp5",
+  "terasic_de0_nano_cyclone4",
+  "terasic_de10_lite_max10",
+  "terasic_de10_nano_cyclonev_soc",
+  "qmtech_cyclone4_core",
+  "digilent_basys3_artix7",
+  "digilent_arty_a7",
+  "digilent_cmod_a7",
+  "qmtech_artix7",
+  "ebaz4205_zynq7010",
+  "trion_t8",
+  "trion_t20",
+  "titanium_ti60",
+  "polarfire_splash_template",
+  "igloo2_template",
+]
+known_limitations = [
+  "Imported board wrappers are template-only and must not be treated as verified hardware pinouts.",
+  "Vendor bitstream generation is represented by documented adapter templates unless the vendor tools are installed.",
+]
+
+[metadata]
+license = "AccelFury Source Available License v1.0"
+authors = ["AccelFury contributors"]
+repository = "https://github.com/AccelFury/af"
+description = "Parametric modular addition IP core for ZK-friendly finite fields."
+
+[rtl]
+top = "af_mod_add_top"
+language = "systemverilog"
+default_clock = "i_clk"
+default_reset = "i_rst_n"
+
+[rtl.variants]
+systemverilog = [
+  "rtl/core/af_core_pkg.sv",
+  "rtl/core/af_mod_add.sv",
+  "rtl/core/af_mod_add_top.sv",
+]
+verilog_2001 = [
+  "rtl/core/verilog2001/af_mod_add.v",
+  "rtl/core/verilog2001/af_mod_add_top.v",
+]
+verilog_2005 = [
+  "rtl/core/verilog2001/af_mod_add.v",
+  "rtl/core/verilog2001/af_mod_add_top.v",
+]
+
+[sources]
+files = [
+  "rtl/core/af_core_pkg.sv",
+  "rtl/core/af_mod_add.sv",
+  "rtl/core/af_mod_add_top.sv",
+  "rtl/common/af_stream_if.sv",
+  "rtl/common/af_skid_buffer.sv",
+  "rtl/common/af_fifo_sync.sv",
+  "rtl/common/af_ram_tdp.sv",
+  "rtl/common/af_reset_sync.sv",
+]
+include_dirs = ["rtl/core", "rtl/common"]
+
+[[parameters]]
+name = "FIELD_BITS"
+value = "64"
+description = "Field width in bits."
+
+[[parameters]]
+name = "MODULUS"
+value = "64'hFFFF_FFFF_0000_0001"
+description = "Goldilocks field modulus."
+
+[[clocks]]
+name = "i_clk"
+
+[[resets]]
+name = "i_rst_n"
+active = "low"
+asynchronous = true
+
+[[ports]]
+name = "i_clk"
+direction = "input"
+width = 1
+clock = "i_clk"
+
+[[ports]]
+name = "i_rst_n"
+direction = "input"
+width = 1
+reset = "i_rst_n"
+
+[[ports]]
+name = "i_valid"
+direction = "input"
+width = 1
+clock = "i_clk"
+reset = "i_rst_n"
+
+[[ports]]
+name = "o_ready"
+direction = "output"
+width = 1
+clock = "i_clk"
+reset = "i_rst_n"
+
+[[ports]]
+name = "i_a"
+direction = "input"
+width = 64
+clock = "i_clk"
+reset = "i_rst_n"
+
+[[ports]]
+name = "i_b"
+direction = "input"
+width = 64
+clock = "i_clk"
+reset = "i_rst_n"
+
+[[ports]]
+name = "o_valid"
+direction = "output"
+width = 1
+clock = "i_clk"
+reset = "i_rst_n"
+
+[[ports]]
+name = "i_ready"
+direction = "input"
+width = 1
+clock = "i_clk"
+reset = "i_rst_n"
+
+[[ports]]
+name = "o_result"
+direction = "output"
+width = 64
+clock = "i_clk"
+reset = "i_rst_n"
+
+[[interfaces]]
+name = "stream_in"
+kind = "ready_valid"
+clock = "i_clk"
+reset = "i_rst_n"
+
+[[interfaces]]
+name = "stream_out"
+kind = "ready_valid"
+clock = "i_clk"
+reset = "i_rst_n"
+
+[[testbenches]]
+name = "smoke"
+top = "tb_af_mod_add"
+sources = ["tb/sv/tb_pkg.sv", "tb/sv/tb_af_mod_add.sv"]
+
+[[vectors]]
+name = "basic"
+format = "json"
+path = "vectors/af_mod_add_basic.json"
+
+[[vectors]]
+name = "random"
+format = "json"
+path = "vectors/af_mod_add_random.json"
+
+[[vectors]]
+name = "random_svh"
+format = "systemverilog-header"
+path = "vectors/af_mod_add_random.svh"
+
+[tooling]
+rust = true
+typescript_deno = true
+python = false
+cocotb = false
+fusesoc_required = false
+
+[formal]
+enabled = false
+properties = []
+
+[backend_compatibility]
+verilator = true
+fusesoc = false
+
+[[verification_required]]
+kind = "simulation"
+description = "Smoke + random vectors (tb/sv/) cross-verified against vectors/af_mod_add_random.svh and vectors/af_mod_add_basic.svh."
+
+[[verification_required]]
+kind = "synthesis-report"
+description = "Yosys/nextpnr or vendor synthesis report for at least one declared board profile."

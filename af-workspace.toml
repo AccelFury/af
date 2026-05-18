@@ -1,0 +1,13 @@
+schema_version = "0.1"
+kind = "accelfury.workspace"
+
+[workspace]
+name = "accelfury-ip"
+cores = ["examples/af-pdm-rx", "examples/af-mod-add", "examples/simple-counter"]
+boards = ["boards/tang-nano-20k", "boards/tang-primer-20k"]
+artifact_root = ".af-build"
+
+[defaults]
+core = "accelfury:audio:af-pdm-rx"
+board = "tang-nano-20k"
+backend = "verilator"

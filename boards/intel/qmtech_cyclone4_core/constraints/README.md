@@ -1,0 +1,4 @@
+# Constraints placeholder for qmtech_cyclone4_core
+
+Draft only. Verify every pin against the official schematic and board revision
+before programming hardware.

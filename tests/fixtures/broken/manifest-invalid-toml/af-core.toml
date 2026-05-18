@@ -1,0 +1,9 @@
+af_version = "0.1"
+name = "manifest-invalid-toml"
+vendor = "accelfury"
+library = "tests"
+core = "manifest_invalid_toml"
+version = "0.1.0"
+
+[rtl
+top = "manifest_invalid_toml"

@@ -1,0 +1,55 @@
+af_version = "0.3"
+name = "simple-counter"
+vendor = "accelfury"
+library = "examples"
+core = "simple_counter"
+version = "0.1.0"
+category = "board_debug"
+portability_level = "U0"
+priority = "P2"
+maturity = "experimental"
+known_limitations = ["Example-only counter; no timing or board integration claims."]
+
+[metadata]
+license = "AccelFury Source Available License v1.0"
+authors = ["AccelFury contributors"]
+description = "Minimal counter core used as a small manifest example."
+
+[rtl]
+top = "simple_counter"
+language = "systemverilog"
+default_clock = "clk"
+default_reset = "rst_n"
+
+[sources]
+files = ["rtl/simple_counter.sv"]
+
+[[clocks]]
+name = "clk"
+
+[[resets]]
+name = "rst_n"
+active = "low"
+
+[[ports]]
+name = "clk"
+direction = "input"
+width = 1
+clock = "clk"
+
+[[ports]]
+name = "rst_n"
+direction = "input"
+width = 1
+reset = "rst_n"
+
+[[ports]]
+name = "count"
+direction = "output"
+width = 8
+clock = "clk"
+reset = "rst_n"
+
+[[verification_required]]
+kind = "simulation"
+description = "Tiny manifest-shape example; demonstrates v0.3 axes without claiming hardware-level proof."

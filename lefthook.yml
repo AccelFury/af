@@ -1,0 +1,20 @@
+# lefthook configuration for AccelFury `af`.
+#
+# Opt-in pre-commit hook. Install with:
+#   lefthook install
+# See https://github.com/evilmartians/lefthook for installation per platform.
+#
+# CI runs the same checks independently; this hook just shortens the
+# feedback loop locally. Skip with `LEFTHOOK=0 git commit ...` when needed.
+
+pre-commit:
+  parallel: false
+  commands:
+    contract-guard:
+      run: .claude/skills/af-cli-contract-guard/check.sh
+    fmt:
+      glob: "*.rs"
+      run: cargo fmt --all -- --check
+    clippy:
+      glob: "crates/**/*.rs"
+      run: cargo clippy --workspace --all-targets -- -D warnings

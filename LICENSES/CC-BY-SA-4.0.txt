@@ -1,0 +1,4 @@
+SPDX-License-Identifier: CC-BY-SA-4.0
+This project documentation is licensed under Creative Commons Attribution-ShareAlike 4.0 International.
+For full license text, see:
+https://creativecommons.org/licenses/by-sa/4.0/

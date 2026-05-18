@@ -1,0 +1,4 @@
+project = "broken-ci"
+
+[hdl
+language = "verilog-2001"

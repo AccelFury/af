@@ -1,0 +1,4 @@
+# Constraints placeholder for tinyfpga_bx_ice40lp8k
+
+Draft only. Verify every pin against the official schematic and board revision
+before programming hardware.

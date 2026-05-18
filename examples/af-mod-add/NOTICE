@@ -1,0 +1,9 @@
+af-mod-add
+Copyright (c) 2026 AccelFury.
+
+Parametric modular addition IP core for ZK-friendly finite fields.
+
+Attribution requirement:
+Products, projects, source distributions, and documentation that use this
+core under the public-source terms must retain the copyright notice, license
+notice, and attribution to AccelFury.

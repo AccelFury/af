@@ -1,0 +1,22 @@
+{
+  "name": "AccelFury af open-source flow",
+  "build": {
+    "dockerfile": "../Dockerfile",
+    "context": ".."
+  },
+  "workspaceFolder": "/work",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/work,type=bind,consistency=cached",
+  "postCreateCommand": "cargo --version && rustc --version && verilator --version && fusesoc --version && yosys -V",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "rust-lang.rust-analyzer",
+        "tamasfe.even-better-toml"
+      ]
+    }
+  },
+  "remoteEnv": {
+    "AF_OFFLINE": "true",
+    "AF_BUILD_ROOT": "/work/.af-build/devcontainer"
+  }
+}

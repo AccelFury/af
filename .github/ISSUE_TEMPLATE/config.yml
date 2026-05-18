@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+contact_links:
+  - name: CLI reference
+    url: https://github.com/AccelFury/af/blob/main/docs/cli-reference.md
+    about: Every subcommand, flag, exit code, and JSON shape. Read this before reporting "missing" behaviour.
+  - name: Manifest reference
+    url: https://github.com/AccelFury/af/blob/main/docs/manifest-reference.md
+    about: af-core.toml v0.1 / v0.2 / v0.3 fields and validation rules.
+  - name: Known limitations
+    url: https://github.com/AccelFury/af/blob/main/docs/known-limitations.md
+    about: What af explicitly does not prove (timing, CDC sign-off, vendor bitstream, ...).
+  - name: For AI agents — read this first
+    url: https://github.com/AccelFury/af/blob/main/docs/agent-workflow.md
+    about: Standard workflow for LLM/AI agents driving `af`. Use `af agent issue` (offline issue builder) instead of authoring issues by hand.

@@ -1,0 +1,44 @@
+AccelFury Source Available License v1.0
+
+Copyright (c) 2026 AccelFury.
+
+This license applies to the af-pdm-rx source code, documentation, tests,
+examples, and board-support files distributed in this repository, unless a file
+explicitly states a different license.
+
+1. Public Open-Source Use
+
+You may use, copy, modify, build, simulate, synthesize, and redistribute this
+software for public open-source projects, provided that:
+
+- the complete corresponding source code of the project using af-pdm-rx is
+  publicly available under an open-source license;
+- attribution to AccelFury and this repository is retained in source
+  distributions, documentation, and notices;
+- this license text and copyright notice are preserved.
+
+2. Closed-Source And Commercial Use
+
+Closed-source, proprietary, private, customer-delivered, paid, ASIC, SoC,
+chiplet, embedded product, or commercial use requires a separate paid
+commercial license from AccelFury before use.
+
+See COMMERCIAL-LICENSE.md for the commercial licensing summary.
+
+3. No Trademark Rights
+
+This license does not grant rights to use AccelFury names, logos, or trademarks
+except for factual attribution.
+
+4. No Warranty
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR
+A PARTICULAR PURPOSE, NONINFRINGEMENT, SAFETY, OR HARDWARE SUITABILITY.
+
+5. Limitation Of Liability
+
+TO THE MAXIMUM EXTENT PERMITTED BY LAW, ACCELFURY AND CONTRIBUTORS SHALL NOT BE
+LIABLE FOR ANY CLAIM, DAMAGE, LOSS, COST, OR LIABILITY ARISING FROM USE OF THIS
+SOFTWARE, INCLUDING HARDWARE DAMAGE, DATA LOSS, COMMERCIAL LOSS, OR
+CONSEQUENTIAL DAMAGES.
