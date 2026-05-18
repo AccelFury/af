@@ -8,22 +8,25 @@
 > recommended pre-PR checks.
 
 `af` is a Rust-first CLI for FPGA / IP development. It turns each `af_*` core
-(or any third-party core converted to the `af` format) into a verifiable
-product: portable Verilog-2001, a manifest, tests, optional formal
-properties, synthesis, machine-readable reports, declared limitations,
-documentation, board wrappers, and an honest readiness status.
+(or any third-party core wrapped in an `af-core.toml` manifest) into a
+verifiable product: portable Verilog-2001, a manifest, tests, optional
+formal properties, synthesis, machine-readable reports, declared
+limitations, documentation, board wrappers, and an honest readiness
+status.
 
 `af` does **not** "generate HDL by magic". It is the deterministic backend
 that powers `af_*` core lifecycles: manifest validation, classification,
 simulation, synthesis hooks, packaging, CI scaffolding, board/vendor
-adapters, and integration with `fpga.chat` / online constructors.
+adapters, and a documented integration surface for `fpga.chat` / online
+constructors (see [docs/fpga-chat-backend.md](docs/fpga-chat-backend.md)).
 
 ## Quick Start
 
-Prereqs: a Linux host with `git`, `make`, `python3`, a C/C++ toolchain, and a
-stable Rust toolchain (`rustup` policy is your call; `af` does not bootstrap
-Rust for you). Optional: Docker, when you don't want to install HDL tools on
-the host.
+Prereqs: a Linux host with `git`, `make`, `python3`, and a stable Rust
+toolchain (`rustup` policy is your call; `af` does not bootstrap Rust for
+you). A C/C++ toolchain is only required for the optional HDL backends
+(Verilator, Yosys, Icarus, SymbiYosys, etc.). Optional: Docker, when you
+don't want to install HDL tools on the host.
 
 ```bash
 # Sanity-check the toolchain
@@ -164,7 +167,7 @@ hallucinated flows:
 
 The contributor skills under `.claude/skills/` and the subagents under
 `.claude/agents/` codify these guardrails as reusable workflows — see
-the [Contributor skills and subagents](#contributor-skills-and-subagents-claude-)
+the [Contributor skills and subagents](#contributor-skills-and-subagents-claude)
 section below.
 
 ## Documentation
@@ -253,7 +256,7 @@ of [CLAUDE.md](CLAUDE.md).
 - Keep generated outputs under `.af-build/` (or any explicit
   `--build-root`).
 - Use the existing
-  [contributor skills](#contributor-skills-and-subagents-claude-) before
+  [contributor skills](#contributor-skills-and-subagents-claude) before
   writing scaffolding by hand.
 - Do not commit local IDE / agent state — see `.gitignore`.
 
