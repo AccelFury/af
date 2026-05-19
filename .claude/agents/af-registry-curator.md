@@ -190,6 +190,13 @@ Baseline: `af registry check` passed. No cross-reference divergences detected.
 Audited: <N> registry entries, <M> in-tree manifests, <K> categories, <L> boards.
 ```
 
+## Test Design Obligation
+
+When this agent recommends or participates in changes to `af`, it must require
+thoughtful tests for the touched behavior. Cover success, failure, deterministic
+JSON/error output, and evidence boundaries where applicable; if no direct test
+is possible, state the reason and cite the closest existing coverage.
+
 ## Hard rules
 
 - **Read-only.** Never modify any of the four files. If you find a problem that you "could just fix" with an edit, surface it as a suggestion and stop.

@@ -14,3 +14,7 @@ af-manifest.workspace = true
 af-security.workspace = true
 serde.workspace = true
 thiserror.workspace = true
+
+[dev-dependencies]
+insta.workspace = true
+tempfile.workspace = true

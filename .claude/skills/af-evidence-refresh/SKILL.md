@@ -189,6 +189,13 @@ Verdict: `<supported|partial|blocked>`
 (list rows still not `supported` with one-line action each — same mapping as `af-verify-tier`)
 ```
 
+## Test Design Obligation
+
+When this skill modifies `af`, it must add thoughtful tests for the touched
+behavior. Cover success, failure, deterministic JSON/error output, and evidence
+boundaries where applicable; if no direct test is possible, state the reason
+and cite the closest existing coverage.
+
 ## Hard rules
 
 - **Never run a backend whose tool is absent.** Detect first via `af doctor`; skip with explicit reason. The `AF_BACKEND_UNAVAILABLE` exit is not an RTL failure, but invoking those backends pollutes the run with noise.

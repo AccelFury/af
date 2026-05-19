@@ -10,3 +10,6 @@ repository.workspace = true
 af-backend.workspace = true
 af-manifest.workspace = true
 af-security.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

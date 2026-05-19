@@ -10,3 +10,6 @@ repository.workspace = true
 af-complexity.workspace = true
 serde.workspace = true
 thiserror.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

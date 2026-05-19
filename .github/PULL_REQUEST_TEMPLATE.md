@@ -11,6 +11,7 @@
 - [ ] `cargo test --workspace`
 - [ ] `cargo run -p af-cli --bin af -- self check --json`
 - [ ] `cargo run -p af-cli --bin af -- registry check --json`
+- [ ] Tests were added or updated for the changed behavior, or the PR explains why direct test coverage is not possible.
 
 ## Checklist
 

@@ -12,3 +12,6 @@ af-manifest.workspace = true
 af-security.workspace = true
 serde.workspace = true
 thiserror.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

@@ -1415,7 +1415,9 @@ fn agent_issue_cmd(
         &body,
         &labels,
     );
-    let body_file_for_cli = body_path.clone().unwrap_or_else(|| PathBuf::from("body.md"));
+    let body_file_for_cli = body_path
+        .clone()
+        .unwrap_or_else(|| PathBuf::from("body.md"));
     let gh_cli = agent::render_gh_cli(
         &context.repo_owner,
         &context.repo_name,
@@ -1464,11 +1466,14 @@ fn agent_gh_url_cmd(
     let (owner, repo) = agent::discover_github_repo(&repo_root)
         .unwrap_or_else(|| ("AccelFury".into(), "af".into()));
     let labels_vec: Vec<&str> = match labels {
-        Some(s) => s.split(',').map(|x| x.trim()).filter(|x| !x.is_empty()).collect(),
+        Some(s) => s
+            .split(',')
+            .map(|x| x.trim())
+            .filter(|x| !x.is_empty())
+            .collect(),
         None => kind.default_labels().to_vec(),
     };
-    let (url, warnings) =
-        agent::render_gh_url(&owner, &repo, kind, title, &body, &labels_vec);
+    let (url, warnings) = agent::render_gh_url(&owner, &repo, kind, title, &body, &labels_vec);
     Ok(CliOutput {
         human: url.clone(),
         json: json!({
@@ -1502,7 +1507,11 @@ fn agent_gh_cli_cmd(
     let (owner, repo) = agent::discover_github_repo(&repo_root)
         .unwrap_or_else(|| ("AccelFury".into(), "af".into()));
     let labels_vec: Vec<&str> = match labels {
-        Some(s) => s.split(',').map(|x| x.trim()).filter(|x| !x.is_empty()).collect(),
+        Some(s) => s
+            .split(',')
+            .map(|x| x.trim())
+            .filter(|x| !x.is_empty())
+            .collect(),
         None => kind.default_labels().to_vec(),
     };
     let cli = agent::render_gh_cli(&owner, &repo, title, body_file, &labels_vec);

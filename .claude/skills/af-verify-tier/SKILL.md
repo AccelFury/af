@@ -139,6 +139,13 @@ cargo run --quiet -p af-cli --bin af -- core verify <CORE_DIR> --tier <tier> --j
 ```
 ```
 
+## Test Design Obligation
+
+When this skill modifies `af`, it must add thoughtful tests for the touched
+behavior. Cover success, failure, deterministic JSON/error output, and evidence
+boundaries where applicable; if no direct test is possible, state the reason
+and cite the closest existing coverage.
+
 ## Hard rules
 
 - **No row promotion shortcuts.** The skill must never edit `af-core.toml`, `cores.registry.json`, or any evidence file to "make" a row supported. Tier promotion happens only by producing real evidence.

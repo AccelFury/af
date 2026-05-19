@@ -44,6 +44,19 @@ diagnose for you.
 6. **`AF_AGENT_NAME` env var conveys identity.** Set it to a stable
    identifier (e.g. `claude-code/sonnet-4.6` or `ci-triager-v1`) so
    issue bodies, logs, and audit trails can attribute output to you.
+7. **Tool changes require test design.** If you modify `af` itself,
+   add or update tests for the changed behavior. Cover success, failure,
+   deterministic output, and evidence boundaries where applicable. If a
+   direct test is not possible, state why and name the closest existing
+   coverage.
+
+## Test Design Obligation
+
+All agents and skills that modify this repository must preserve the test
+contract in [docs/testing-strategy.md](testing-strategy.md). A valid change
+includes thoughtful tests: unit, functional, integration, property, or fuzz
+tests for the touched surface. If no direct test can be added, state the reason
+and cite the closest existing coverage.
 
 ## Standard invocation pattern
 

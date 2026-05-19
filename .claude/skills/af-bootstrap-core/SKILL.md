@@ -130,6 +130,13 @@ Always exactly this shape (no preamble, no closing pleasantries):
 
 Do not pad. The user wants the scaffold and the punch list.
 
+## Test Design Obligation
+
+When this skill modifies `af`, it must add thoughtful tests for the touched
+behavior. Cover success, failure, deterministic JSON/error output, and evidence
+boundaries where applicable; if no direct test is possible, state the reason
+and cite the closest existing coverage.
+
 ## Hard rules
 
 - **Do not write RTL behaviour.** The generated `rtl/<module>.v` from `af core new` is intentionally a skeleton. Skill must not "improve" it — that is `af-portable-coach`'s job and only on explicit request.

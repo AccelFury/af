@@ -144,6 +144,13 @@ Always exactly this Markdown shape:
 <one short paragraph: either "submit via `gh`", or "open URL in browser", or "stop — duplicate exists at #<num>">
 ```
 
+## Test Design Obligation
+
+When this agent recommends or participates in changes to `af`, it must require
+thoughtful tests for the touched behavior. Cover success, failure, deterministic
+JSON/error output, and evidence boundaries where applicable; if no direct test
+is possible, state the reason and cite the closest existing coverage.
+
 ## Hard rules
 
 - **Never run `gh issue create`.** Even on explicit request. Tell the operator to run it themselves; you only prepare the inputs. This keeps audit attribution honest.

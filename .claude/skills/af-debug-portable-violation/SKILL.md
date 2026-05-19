@@ -257,6 +257,13 @@ cargo run --quiet -p af-cli --bin af -- core check <core_dir> --json
 
 If only one code fires and it is trivial (`DEFAULT_NETTYPE_MISSING` alone), the output is just one short section — no need for the "× count" header.
 
+## Test Design Obligation
+
+When this skill modifies `af`, it must add thoughtful tests for the touched
+behavior. Cover success, failure, deterministic JSON/error output, and evidence
+boundaries where applicable; if no direct test is possible, state the reason
+and cite the closest existing coverage.
+
 ## Hard rules
 
 - **Never edit RTL automatically.** This skill describes the patch; the user applies it. Avoiding auto-edits keeps the human in the loop on real RTL changes.

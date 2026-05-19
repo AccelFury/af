@@ -8,6 +8,7 @@
     "check:toolchains": "deno run --allow-read tools/ts/toolchains_check.ts",
     "check:docs": "deno run --allow-read tools/ts/docs_check.ts",
     "check:license": "deno run --allow-read tools/ts/license_check.ts",
+    "check:agents": "deno run --allow-read tools/ts/agent_policy_check.ts",
     "check:no-python": "deno run --allow-read tools/ts/no_python_check.ts",
     "audit:repo": "deno run --allow-read --allow-write=docs/board_matrix.md tools/ts/repo_audit.ts",
     "board:matrix": "deno run --allow-read --allow-write=docs/board_matrix.md tools/ts/board_matrix.ts"

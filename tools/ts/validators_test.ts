@@ -4,6 +4,7 @@ import { checkDocs } from "./docs_check.ts";
 import { checkLicense } from "./license_check.ts";
 import { checkManifest } from "./manifest_check.ts";
 import { checkToolchains } from "./toolchains_check.ts";
+import { checkAgentPolicy } from "./agent_policy_check.ts";
 
 Deno.test("read-only repository validators pass", async () => {
   const root = Deno.cwd();
@@ -12,4 +13,5 @@ Deno.test("read-only repository validators pass", async () => {
   await checkLicense(root);
   await checkBoards(root);
   await checkToolchains(root);
+  await checkAgentPolicy(root);
 });

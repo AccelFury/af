@@ -1779,7 +1779,10 @@ fn agent_issue_renders_markdown_with_required_sections() {
     let body = std::fs::read_to_string(&out).unwrap();
     assert!(body.contains("## Summary"), "missing Summary heading");
     assert!(body.contains("one line summary"), "summary not rendered");
-    assert!(body.contains("## Agent context"), "missing Agent context heading");
+    assert!(
+        body.contains("## Agent context"),
+        "missing Agent context heading"
+    );
     assert!(
         body.contains("`automated_submission`: `true`"),
         "missing automated_submission marker"

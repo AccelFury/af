@@ -1,0 +1,54 @@
+[package]
+name = "af-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[workspace]
+
+[dependencies]
+af-board-db = { path = "../crates/af-board-db" }
+af-ci = { path = "../crates/af-ci" }
+af-manifest = { path = "../crates/af-manifest" }
+af-rtl-inspector = { path = "../crates/af-rtl-inspector" }
+af-security = { path = "../crates/af-security" }
+libfuzzer-sys = "0.4"
+tempfile = "3"
+
+[[bin]]
+name = "manifest_toml"
+path = "fuzz_targets/manifest_toml.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "security_paths"
+path = "fuzz_targets/security_paths.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "board_registry_json"
+path = "fuzz_targets/board_registry_json.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "rtl_source"
+path = "fuzz_targets/rtl_source.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "ci_generate_options"
+path = "fuzz_targets/ci_generate_options.rs"
+test = false
+doc = false
+bench = false

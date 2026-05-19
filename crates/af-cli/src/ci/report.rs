@@ -1,4 +1,4 @@
-// SPDX-License: Apache-2.0
+// SPDX-License-Identifier: Apache-2.0
 
 use crate::ci::{config::CiConfig, scanner::RepoScan};
 use serde::{Deserialize, Serialize};

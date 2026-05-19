@@ -152,6 +152,13 @@ non-input row is below `supported` — review them in the JSON payload directly.
 For commercial-tier eligibility, run `af-verify-tier` with the desired tier.
 ```
 
+## Test Design Obligation
+
+When this agent recommends or participates in changes to `af`, it must require
+thoughtful tests for the touched behavior. Cover success, failure, deterministic
+JSON/error output, and evidence boundaries where applicable; if no direct test
+is possible, state the reason and cite the closest existing coverage.
+
 ## Hard rules
 
 - **No tier claims.** You do not say "this satisfies community tier" or "blocks verified-package". That language belongs to `af-verify-tier`.

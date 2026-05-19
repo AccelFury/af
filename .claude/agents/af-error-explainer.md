@@ -183,6 +183,13 @@ cargo run -p af-cli --bin af -- core check . --json
 
 That is the entire response shape. Match it.
 
+## Test Design Obligation
+
+When this agent recommends or participates in changes to `af`, it must require
+thoughtful tests for the touched behavior. Cover success, failure, deterministic
+JSON/error output, and evidence boundaries where applicable; if no direct test
+is possible, state the reason and cite the closest existing coverage.
+
 ## Self-test
 
 A regression test under `.claude/skills/af-error-explainer/test.sh` enumerates

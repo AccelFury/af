@@ -324,6 +324,13 @@ Examples currently affected may need either evidence production
 maturity.
 ```
 
+## Test Design Obligation
+
+When this skill modifies `af`, it must add thoughtful tests for the touched
+behavior. Cover success, failure, deterministic JSON/error output, and evidence
+boundaries where applicable; if no direct test is possible, state the reason
+and cite the closest existing coverage.
+
 ## Hard rules
 
 - **Never modify an existing row.** This skill only adds. Modifications go through `af-cli-contract-guard` as a breaking change.

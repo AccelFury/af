@@ -54,6 +54,14 @@ cargo run -p af-cli --bin af -- self check --json
 cargo run -p af-cli --bin af -- self check --include-optional --json
 ```
 
+Fuzz targets are kept outside the normal workspace under `fuzz/`. Run them
+manually or in a scheduled/nightly profile, not as part of default CI:
+
+```bash
+cargo +nightly fuzz run manifest_toml -- -runs=1024
+cargo +nightly fuzz run security_paths -- -runs=1024
+```
+
 The self-check manifest is `af-selfcheck.toml`. Optional external targets are resolved via env vars (e.g. `AF_SELF_CHECK_AF_MOD_ADD`, `AF_SELF_CHECK_AF_RESET_SYNC`) so a public checkout stays reproducible without private paths.
 
 ## Workspace Architecture
@@ -108,6 +116,7 @@ These guard the public contract of `af` and the manifesto. Apply unconditionally
 6. **Bump `AfReport.schema_version` / `report_version` only with a `CHANGELOG.md` entry** describing the shape change and migration. Adding new optional fields is non-breaking; renaming or removing existing fields is breaking.
 7. **Vendor tools are detect-only.** `gw_sh`, `vivado`, `quartus`, etc., are not invoked unless the user explicitly passes `--allow-network --allow-system --yes`. Never copy vendor netlists (`.dcp`, `.xci`, `.edn`, encrypted envelopes) into the repo; `AF_PORTABLE_ENCRYPTED_NETLIST` enforces this for portable cores.
 8. **LLM output is never evidence.** Maturity rows are computed only from artifacts, manifest fields, tool versions, and committed reports. A subagent or skill may *describe* evidence; it must not *fabricate* it.
+9. **Every behavior change needs test design.** Add or update focused tests for changed CLI/JSON/schema/registry/backend/report behavior. If no direct test is possible, state why in the final response and name the closest existing coverage.
 
 ## For LLM / AI agents driving `af`
 
@@ -119,6 +128,15 @@ Read [docs/agent-workflow.md](docs/agent-workflow.md) before integrating `af` in
 4. When you do file: use `af agent issue --kind <k> --from-error <file> --title "..." --output <body.md>` to render a body, then `af agent gh-url ...` or `af agent gh-cli ...`. **`af agent` never submits** — submission is your explicit action.
 5. Run `gh search issues` (or invoke the `af-issue-author` subagent which does it for you) before creating a new issue. Dedupe is your responsibility.
 6. Do not claim signoff `af` did not return. The `evidence-first` rule applies to agents the same way it applies to humans.
+7. When you modify the tool, design tests before or alongside the change. Cover success, failure, deterministic output, and evidence boundaries for the touched surface.
+
+## Test Design Obligation
+
+All agents and skills that modify this repository must preserve the test
+contract in [docs/testing-strategy.md](docs/testing-strategy.md). A valid
+implementation includes thoughtful tests: unit, functional, integration,
+property, or fuzz tests for the changed behavior. If no direct test is
+possible, state the reason and cite the closest existing coverage.
 
 ## Subagents and skills shipped with this repo
 

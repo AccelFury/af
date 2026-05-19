@@ -12,6 +12,9 @@ pre-commit:
   commands:
     contract-guard:
       run: .claude/skills/af-cli-contract-guard/check.sh
+    agent-policy:
+      glob: "{CLAUDE.md,docs/agent-workflow.md,docs/testing-strategy.md,.claude/**/*.md,tools/ts/agent_policy_check.ts}"
+      run: if command -v deno >/dev/null 2>&1; then deno task check:agents; else echo "deno not installed; skipping agent-policy check"; fi
     fmt:
       glob: "*.rs"
       run: cargo fmt --all -- --check

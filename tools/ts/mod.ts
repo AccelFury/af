@@ -5,6 +5,7 @@ import { checkLicense } from "./license_check.ts";
 import { checkBoards } from "./boards_check.ts";
 import { checkToolchains } from "./toolchains_check.ts";
 import { checkNoPython } from "./no_python_check.ts";
+import { checkAgentPolicy } from "./agent_policy_check.ts";
 
 export async function runAllChecks(root = Deno.cwd()): Promise<{
   manifest: boolean;
@@ -13,6 +14,7 @@ export async function runAllChecks(root = Deno.cwd()): Promise<{
   boards: boolean;
   toolchains: boolean;
   noPython: boolean;
+  agentPolicy: boolean;
 }> {
   return {
     manifest: await checkManifest(root),
@@ -21,6 +23,7 @@ export async function runAllChecks(root = Deno.cwd()): Promise<{
     boards: await checkBoards(root),
     toolchains: await checkToolchains(root),
     noPython: await checkNoPython(root),
+    agentPolicy: await checkAgentPolicy(root),
   };
 }
 

@@ -1,5 +1,13 @@
 # --- Rust / Cargo ------------------------------------------------------------
 /target/
+/fuzz/artifacts/
+/fuzz/corpus/
+/fuzz/coverage/
+/fuzz/target/
+/fuzz/crash-*
+/fuzz/oom-*
+/fuzz/timeout-*
+/fuzz/slow-unit-*
 
 # --- af build & tool runtime ------------------------------------------------
 /.af-build/

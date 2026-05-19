@@ -232,6 +232,13 @@ Implement the body of `<namespace>_<name_snake>` in `crates/af-cli/src/main.rs`.
 If the subcommand's surface or output changes the contract (new flag default, new JSON shape, new error code), run `af-cli-contract-guard` before commit.
 ```
 
+## Test Design Obligation
+
+When this skill modifies `af`, it must add thoughtful tests for the touched
+behavior. Cover success, failure, deterministic JSON/error output, and evidence
+boundaries where applicable; if no direct test is possible, state the reason
+and cite the closest existing coverage.
+
 ## Hard rules
 
 - **Never touch an existing subcommand.** This skill only adds. Renames or removals are breaking and go through `af-cli-contract-guard`.

@@ -261,6 +261,13 @@ Companion changes detected: <N>
 - ❌ SMOKE REGRESSION — at least one smoke check failed (independent of diff).
 ```
 
+## Test Design Obligation
+
+When this skill modifies or reviews changes to `af`, it must require thoughtful
+tests for the touched behavior. Cover success, failure, deterministic
+JSON/error output, and evidence boundaries where applicable; if no direct test
+is possible, state the reason and cite the closest existing coverage.
+
 ## Hard rules
 
 - **Do not edit anything to "fix" findings.** This skill is read-only.

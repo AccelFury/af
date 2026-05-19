@@ -1,0 +1,178 @@
+---
+source: crates/af-cli/tests/cli_snapshots.rs
+expression: topology
+---
+{
+  "manifest": {
+    "af_version": "<string>",
+    "architecture": "<null>",
+    "backend_compatibility": {
+      "fusesoc": "<bool>",
+      "verilator": "<bool>"
+    },
+    "backend_variants": [],
+    "boards": [
+      "<string>"
+    ],
+    "category": "<string>",
+    "clocks": [
+      {
+        "description": "<null>",
+        "frequency_hz": "<null>",
+        "name": "<string>",
+        "port": "<null>"
+      }
+    ],
+    "complexity": "<null>",
+    "constructor": "<null>",
+    "core": "<string>",
+    "csr": "<null>",
+    "dependencies": {
+      "cores": []
+    },
+    "evidence": "<null>",
+    "formal": {
+      "backend": "<null>",
+      "enabled": "<bool>",
+      "files": [],
+      "name": "<null>",
+      "properties": []
+    },
+    "interfaces": [
+      {
+        "clock": "<string>",
+        "kind": "<string>",
+        "name": "<string>",
+        "reset": "<string>"
+      }
+    ],
+    "interrupts": "<null>",
+    "kind": "<null>",
+    "known_limitations": [
+      "<string>"
+    ],
+    "library": "<string>",
+    "maturity": "<string>",
+    "metadata": {
+      "authors": [
+        "<string>"
+      ],
+      "description": "<string>",
+      "display_name": "<null>",
+      "license": "<string>",
+      "repository": "<string>"
+    },
+    "name": "<string>",
+    "parameters": [
+      {
+        "allowed": [],
+        "description": "<string>",
+        "kind": "<null>",
+        "min": "<null>",
+        "name": "<string>",
+        "value": "<string>"
+      }
+    ],
+    "portability_level": "<string>",
+    "ports": [
+      {
+        "active": "<null>",
+        "clock": "<string>",
+        "clock_domain": "<null>",
+        "description": "<null>",
+        "direction": "<string>",
+        "interface": "<null>",
+        "kind": "<null>",
+        "name": "<string>",
+        "reset": "<null>",
+        "reset_style": "<null>",
+        "width": "<number>"
+      }
+    ],
+    "priority": "<string>",
+    "resets": [
+      {
+        "active": "<string>",
+        "asynchronous": "<bool>",
+        "clock_domain": "<null>",
+        "name": "<string>",
+        "port": "<null>",
+        "style": "<null>"
+      }
+    ],
+    "resources": {
+      "dsp": [],
+      "memory": []
+    },
+    "reuse": "<null>",
+    "rtl": {
+      "default_clock": "<string>",
+      "default_reset": "<string>",
+      "language": "<string>",
+      "systemverilog_subset": "<null>",
+      "top": "<string>",
+      "variants": {
+        "systemverilog": [
+          "<string>"
+        ],
+        "verilog_2001": [
+          "<string>"
+        ],
+        "verilog_2005": [
+          "<string>"
+        ]
+      }
+    },
+    "sources": {
+      "file_types": {},
+      "files": [
+        "<string>"
+      ],
+      "include_dirs": [
+        "<string>"
+      ],
+      "roles": {}
+    },
+    "stream_interfaces": [],
+    "testbenches": [
+      {
+        "backend": "<null>",
+        "expected": "<null>",
+        "name": "<string>",
+        "rtl_sources": [],
+        "sources": [
+          "<string>"
+        ],
+        "top": "<string>"
+      }
+    ],
+    "tooling": {
+      "cocotb": "<bool>",
+      "fusesoc_required": "<bool>",
+      "python": "<bool>",
+      "rust": "<bool>",
+      "typescript_deno": "<bool>"
+    },
+    "vectors": [
+      {
+        "format": "<string>",
+        "name": "<string>",
+        "path": "<string>"
+      }
+    ],
+    "vendor": "<string>",
+    "verification_required": [
+      {
+        "description": "<string>",
+        "evidence": "<null>",
+        "kind": "<string>"
+      }
+    ],
+    "version": "<string>"
+  },
+  "status": "<string>",
+  "validation": {
+    "issues": [],
+    "valid": "<bool>"
+  }
+}

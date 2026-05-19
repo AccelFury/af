@@ -1,0 +1,91 @@
+{
+  "metadata": {
+    "ip": "af_mod_add",
+    "modulus": "0xFFFFFFFF00000001",
+    "seed": 1311768467294899695,
+    "count": 16,
+    "metadata_hash": "0xD07C182CF8BBA7DA"
+  },
+  "vectors": [
+    {
+      "a": "0x44C9D9BF470881A0",
+      "b": "0x15218B52E4DC7D88",
+      "expected": "0x59EB65122BE4FF28"
+    },
+    {
+      "a": "0x2376E1AB3D6F1CD4",
+      "b": "0xD27D18BFB422696F",
+      "expected": "0xF5F3FA6AF1918643"
+    },
+    {
+      "a": "0x6BB8F9D1D391D580",
+      "b": "0x286CC3B7F1DEA20A",
+      "expected": "0x9425BD89C570778A"
+    },
+    {
+      "a": "0x1C1CDDFA39E039D9",
+      "b": "0x6962EF4C22B31833",
+      "expected": "0x857FCD465C93520C"
+    },
+    {
+      "a": "0xA13ABA2C571CAD33",
+      "b": "0x45E64E0B7C3738A9",
+      "expected": "0xE7210837D353E5DC"
+    },
+    {
+      "a": "0x2CB13BADA5A1269F",
+      "b": "0x62EDF2C34278DB2B",
+      "expected": "0x8F9F2E70E81A01CA"
+    },
+    {
+      "a": "0x0A87B2E4E56E480C",
+      "b": "0x331599EF7A08402B",
+      "expected": "0x3D9D4CD45F768837"
+    },
+    {
+      "a": "0x3C0767B24056C081",
+      "b": "0x94CFA9EF21185A41",
+      "expected": "0xD0D711A1616F1AC2"
+    },
+    {
+      "a": "0x91B1034271039C7C",
+      "b": "0x5D2E11E6787169AD",
+      "expected": "0xEEDF1528E9750629"
+    },
+    {
+      "a": "0x89B25A86C8382FF2",
+      "b": "0xE7E1384B6084D819",
+      "expected": "0x719392D328BD080A"
+    },
+    {
+      "a": "0x61D5D6AAA6D953F3",
+      "b": "0xF067A48EA307B426",
+      "expected": "0x523D7B3A49E10818"
+    },
+    {
+      "a": "0x17ED17E182843CF5",
+      "b": "0xF7420703AAF15D56",
+      "expected": "0x0F2F1EE62D759A4A"
+    },
+    {
+      "a": "0x3CCCB3AC8FEF74AD",
+      "b": "0xE29776D464E1B4BC",
+      "expected": "0x1F642A81F4D12968"
+    },
+    {
+      "a": "0xD1F2628F56C6BE49",
+      "b": "0xFF93F21124D55204",
+      "expected": "0xD18654A17B9C104C"
+    },
+    {
+      "a": "0x47BE31F1D4B5422C",
+      "b": "0x7270E57CD08D5806",
+      "expected": "0xBA2F176EA5429A32"
+    },
+    {
+      "a": "0x6D7D63257621E0AB",
+      "b": "0x76B2F14F4B3F2CF1",
+      "expected": "0xE4305474C1610D9C"
+    }
+  ]
+}

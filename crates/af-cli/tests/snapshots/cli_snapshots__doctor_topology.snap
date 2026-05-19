@@ -1,0 +1,49 @@
+---
+source: crates/af-cli/tests/cli_snapshots.rs
+expression: topology
+---
+{
+  "artifacts": [
+    "<string>"
+  ],
+  "command_payload": {
+    "available_tools": "<number>",
+    "kind": "<string>",
+    "missing_tools": [
+      "<string>"
+    ],
+    "overall_status": "<string>",
+    "total_tools": "<number>"
+  },
+  "commands": [
+    {
+      "allow_network": "<bool>",
+      "args": [
+        "<string>"
+      ],
+      "exit_code": "<number>",
+      "program": "<string>",
+      "stderr": "<string>",
+      "stdout": "<string>",
+      "stdout_log": "<string>"
+    }
+  ],
+  "generated_by": "<string>",
+  "kind": "<string>",
+  "limitations": [
+    "<string>"
+  ],
+  "report_version": "<string>",
+  "schema_version": "<string>",
+  "status": "<string>",
+  "tool_versions": [
+    {
+      "available": "<bool>",
+      "tool": "<string>",
+      "version": "<string>"
+    }
+  ],
+  "warnings": [
+    "<string>"
+  ]
+}

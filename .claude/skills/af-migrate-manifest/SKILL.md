@@ -149,6 +149,13 @@ Hard failures → roll back nothing (the user owns their tree) but surface the e
 2. Run `af core verify --tier community <core_dir>` to confirm baseline tier still holds.
 ```
 
+## Test Design Obligation
+
+When this skill modifies `af`, it must add thoughtful tests for the touched
+behavior. Cover success, failure, deterministic JSON/error output, and evidence
+boundaries where applicable; if no direct test is possible, state the reason
+and cite the closest existing coverage.
+
 ## Hard rules
 
 - **No new manifesto axes invention.** Always source from `registries/cores.registry.json`; ask the user only if no entry exists.
