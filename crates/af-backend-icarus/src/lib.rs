@@ -3,7 +3,7 @@ use af_backend::{
     AfBackend, BackendCapability, BackendError, BackendId, BackendReport, BackendStatus,
     CommandRecord, CommandRunner, CommandSpec, ProcessCommandRunner, ToolInfo, ToolVersion,
 };
-use af_manifest::CoreManifest;
+use af_manifest::{CoreManifest, Testbench};
 use af_security::SecurityError;
 use std::path::Path;
 
@@ -185,6 +185,16 @@ where
                 .push("No testbenches declared; Icarus simulation skipped.".to_string());
             return Ok(report);
         }
+        if select_testbench(manifest, self.name()).is_none() {
+            report
+                .warnings
+                .push("No Icarus-compatible testbench declared; simulation skipped.".to_string());
+            report.limitations.push(
+                "A testbench with another explicit backend is not treated as portable simulation evidence."
+                    .to_string(),
+            );
+            return Ok(report);
+        }
 
         let out_dir = build_root.join("icarus");
         std::fs::create_dir_all(&out_dir).map_err(|err| BackendError::Failed {
@@ -243,7 +253,7 @@ pub fn icarus_sim_compile_command(
     core_dir: &Path,
     output: &Path,
 ) -> CommandSpec {
-    let testbench = manifest.testbenches.first();
+    let testbench = select_testbench(manifest, "icarus");
     let top = testbench
         .map(|tb| tb.top.clone())
         .unwrap_or_else(|| manifest.rtl.top.clone());
@@ -275,6 +285,18 @@ pub fn icarus_sim_compile_command(
 
 fn is_verilog_source(source: &str) -> bool {
     source.ends_with(".v") || source.ends_with(".vh") || source.ends_with(".sv")
+}
+
+fn select_testbench<'a>(manifest: &'a CoreManifest, backend: &str) -> Option<&'a Testbench> {
+    manifest
+        .testbenches
+        .iter()
+        .find(|tb| {
+            tb.backend
+                .as_deref()
+                .is_some_and(|name| name.eq_ignore_ascii_case(backend))
+        })
+        .or_else(|| manifest.testbenches.iter().find(|tb| tb.backend.is_none()))
 }
 
 fn iverilog_standard_flag(manifest: &CoreManifest) -> String {
@@ -312,7 +334,39 @@ fn first_non_empty_line(text: &str) -> Option<&str> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use af_security::{CommandOutput, SecurityError};
     use std::path::PathBuf;
+    use std::sync::{Arc, Mutex};
+
+    #[derive(Clone)]
+    struct FakeRunner {
+        outputs: Arc<Mutex<Vec<CommandOutput>>>,
+    }
+
+    impl FakeRunner {
+        fn new(outputs: Vec<CommandOutput>) -> Self {
+            Self {
+                outputs: Arc::new(Mutex::new(outputs)),
+            }
+        }
+    }
+
+    impl CommandRunner for FakeRunner {
+        fn run(&self, spec: &CommandSpec) -> Result<CommandOutput, SecurityError> {
+            let mut outputs = self.outputs.lock().unwrap();
+            if outputs.is_empty() {
+                return Ok(CommandOutput {
+                    spec: spec.clone(),
+                    exit_code: Some(0),
+                    stdout: String::new(),
+                    stderr: String::new(),
+                });
+            }
+            let mut output = outputs.remove(0);
+            output.spec = spec.clone();
+            Ok(output)
+        }
+    }
 
     fn manifest() -> CoreManifest {
         CoreManifest::from_toml_str(
@@ -362,5 +416,58 @@ rtl_sources = ["rtl/demo.v"]
         assert_eq!(spec.program, "iverilog");
         assert!(spec.args.contains(&"tb_demo".to_string()));
         assert!(spec.args.contains(&"tb/tb_demo.v".to_string()));
+    }
+
+    #[test]
+    fn sim_skips_testbench_for_other_explicit_backend() {
+        let manifest = CoreManifest::from_toml_str(
+            r#"
+af_version = "0.1"
+name = "demo"
+vendor = "accelfury"
+library = "ip"
+core = "demo"
+version = "0.1.0"
+
+[rtl]
+top = "demo"
+language = "systemverilog"
+
+[sources]
+files = ["rtl/demo.sv"]
+
+[[testbenches]]
+name = "verilator_only"
+backend = "verilator"
+top = "tb_demo"
+sources = ["tb/tb_demo.sv"]
+"#,
+            "af-core.toml",
+        )
+        .unwrap();
+        let iverilog = CommandOutput {
+            spec: CommandSpec::new("iverilog"),
+            exit_code: Some(0),
+            stdout: "Icarus Verilog version 12.0".to_string(),
+            stderr: String::new(),
+        };
+        let vvp = CommandOutput {
+            spec: CommandSpec::new("vvp"),
+            exit_code: Some(0),
+            stdout: "Icarus Verilog runtime version 12.0".to_string(),
+            stderr: String::new(),
+        };
+        let backend = IcarusBackend::new(FakeRunner::new(vec![iverilog, vvp]));
+
+        let report = backend
+            .sim(&manifest, Path::new("."), Path::new(".af-build"))
+            .unwrap();
+
+        assert_eq!(report.status, BackendStatus::Passed);
+        assert_eq!(report.commands.len(), 2, "must only run tool probes");
+        assert!(report
+            .warnings
+            .iter()
+            .any(|warning| warning.contains("No Icarus-compatible testbench declared")));
     }
 }

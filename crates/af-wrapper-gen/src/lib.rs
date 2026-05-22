@@ -14,19 +14,80 @@ pub enum WrapperTarget {
     FuseSoc,
     LiteX,
     IpXact,
+    StreamFifo,
 }
 
 impl WrapperTarget {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::FuseSoc => "fusesoc",
+            Self::LiteX => "litex",
+            Self::IpXact => "ipxact",
+            Self::StreamFifo => "stream-fifo",
+        }
+    }
+
     pub fn parse(input: &str) -> Result<Self, WrapperGenError> {
         match input {
             "fusesoc" => Ok(Self::FuseSoc),
             "litex" => Ok(Self::LiteX),
             "ipxact" => Ok(Self::IpXact),
+            "stream-fifo" => Ok(Self::StreamFifo),
             other => Err(WrapperGenError::UnsupportedTarget {
                 target: other.to_string(),
             }),
         }
     }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+pub struct WrapperTargetCapability {
+    pub target: String,
+    pub adapter_kind: Option<String>,
+    pub generates_rtl: bool,
+    pub status: String,
+    pub limitations: Vec<String>,
+}
+
+pub fn wrapper_target_capabilities() -> Vec<WrapperTargetCapability> {
+    vec![
+        WrapperTargetCapability {
+            target: WrapperTarget::FuseSoc.as_str().to_string(),
+            adapter_kind: None,
+            generates_rtl: false,
+            status: "supported".to_string(),
+            limitations: vec![
+                "package metadata only; does not add protocol glue".to_string(),
+            ],
+        },
+        WrapperTargetCapability {
+            target: WrapperTarget::LiteX.as_str().to_string(),
+            adapter_kind: None,
+            generates_rtl: false,
+            status: "supported".to_string(),
+            limitations: vec![
+                "reference skeleton only; does not add bus bridges or CDC".to_string(),
+            ],
+        },
+        WrapperTargetCapability {
+            target: WrapperTarget::IpXact.as_str().to_string(),
+            adapter_kind: None,
+            generates_rtl: false,
+            status: "supported".to_string(),
+            limitations: vec![
+                "metadata skeleton only; bus interfaces remain external".to_string(),
+            ],
+        },
+        WrapperTargetCapability {
+            target: WrapperTarget::StreamFifo.as_str().to_string(),
+            adapter_kind: Some("stream_fifo_adapter".to_string()),
+            generates_rtl: true,
+            status: "supported".to_string(),
+            limitations: vec![
+                "known FIFO control to ready/valid adapter only; no CDC, width conversion, AXI, or vendor primitives".to_string(),
+            ],
+        },
+    ]
 }
 
 #[derive(Debug, Error)]
@@ -57,7 +118,7 @@ impl WrapperGenError {
     pub fn hint(&self) -> &'static str {
         match self {
             WrapperGenError::UnsupportedTarget { .. } => {
-                "Use --target fusesoc, --target litex, or --target ipxact."
+                "Use --target fusesoc, --target litex, --target ipxact, or --target stream-fifo."
             }
             WrapperGenError::Core(err) => err.hint(),
             WrapperGenError::FuseSoc(err) => err.hint(),
@@ -160,7 +221,176 @@ pub fn generate_wrapper(
                 limitations,
             })
         }
+        WrapperTarget::StreamFifo => {
+            let output_dir = build_root.join("stream-fifo");
+            fs::create_dir_all(&output_dir).map_err(|err| WrapperGenError::Write {
+                path: output_dir.clone(),
+                message: err.to_string(),
+            })?;
+            let wrapper = generate_stream_fifo_wrapper(&core_report.manifest);
+            let output = safe_join(&output_dir, &wrapper.file_name)?;
+            fs::write(&output, &wrapper.content).map_err(|err| WrapperGenError::Write {
+                path: output.clone(),
+                message: err.to_string(),
+            })?;
+            let mut warnings = core_report.warnings;
+            warnings.extend(wrapper.warnings);
+            let mut limitations = core_report.limitations;
+            limitations.extend(wrapper.limitations);
+            Ok(WrapperReport {
+                target,
+                artifacts: vec![output],
+                warnings,
+                limitations,
+            })
+        }
     }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+pub struct StreamFifoWrapper {
+    pub file_name: String,
+    pub content: String,
+    pub warnings: Vec<String>,
+    pub limitations: Vec<String>,
+}
+
+pub fn generate_stream_fifo_wrapper(manifest: &CoreManifest) -> StreamFifoWrapper {
+    let wrapper_module = format!(
+        "{}_stream_fifo",
+        sanitize_verilog_identifier(&manifest.core)
+    );
+    let fifo_module = sanitize_verilog_identifier(&manifest.rtl.top);
+    let file_name = format!("{wrapper_module}.v");
+    let full_write_policy = manifest
+        .contracts
+        .fifo
+        .as_ref()
+        .and_then(|fifo| fifo.full_write_policy.as_deref())
+        .unwrap_or("reject_when_full");
+    let ready_expr = if matches!(
+        full_write_policy,
+        "accept_when_full_with_read" | "allow_when_same_cycle_read"
+    ) {
+        "!fifo_full_w || fifo_rd_en_w"
+    } else {
+        "!fifo_full_w"
+    };
+    let parameters = render_stream_fifo_parameters(manifest);
+    let parameter_overrides = render_stream_fifo_parameter_overrides(manifest);
+    let mut warnings = Vec::new();
+    if manifest.contracts.fifo.is_none() {
+        warnings.push(
+            "AF_WRAPPER_STREAM_FIFO_CONTRACT_MISSING: generated wrapper uses conventional af_sync_fifo-style ports because [contracts.fifo] is absent."
+                .to_string(),
+        );
+    }
+    let content = format!(
+        r#"`default_nettype none
+// Generated by AccelFury IP Toolchain
+// Ready/valid adapter around raw FIFO control ports. Handwritten RTL remains
+// the source of the FIFO; this wrapper contains only protocol mapping.
+
+module {wrapper_module} #(
+{parameters}
+) (
+    input  wire                 clk,
+    input  wire                 rst,
+    input  wire                 clear,
+
+    input  wire                 s_valid,
+    output wire                 s_ready,
+    input  wire [DATA_BITS-1:0] s_data,
+
+    output wire                 m_valid,
+    input  wire                 m_ready,
+    output wire [DATA_BITS-1:0] m_data
+);
+
+    wire fifo_full_w;
+    wire fifo_empty_w;
+    wire fifo_almost_full_unused_w;
+    wire [FIFO_ADDR_BITS:0] fifo_level_unused_w;
+    wire fifo_rd_en_w;
+    wire fifo_wr_en_w;
+
+    assign m_valid      = !fifo_empty_w;
+    assign fifo_rd_en_w = m_ready && !fifo_empty_w;
+    assign s_ready      = {ready_expr};
+    assign fifo_wr_en_w = s_valid && s_ready;
+
+    {fifo_module} #(
+{parameter_overrides}
+    ) u_fifo (
+        .clk(clk),
+        .rst(rst),
+        .clear(clear),
+        .wr_en(fifo_wr_en_w),
+        .wr_data(s_data),
+        .full(fifo_full_w),
+        .almost_full(fifo_almost_full_unused_w),
+        .rd_en(fifo_rd_en_w),
+        .rd_data(m_data),
+        .empty(fifo_empty_w),
+        .level(fifo_level_unused_w)
+    );
+
+endmodule
+
+`default_nettype wire
+"#
+    );
+    StreamFifoWrapper {
+        file_name,
+        content,
+        warnings,
+        limitations: vec![
+            "Stream FIFO wrapper is a generated protocol adapter; it does not add CDC, AXI, bus bridging, timing constraints, or vendor primitives."
+                .to_string(),
+        ],
+    }
+}
+
+fn render_stream_fifo_parameters(manifest: &CoreManifest) -> String {
+    let mut lines = Vec::new();
+    for parameter in &manifest.parameters {
+        lines.push(format!(
+            "    parameter {} = {}",
+            sanitize_verilog_identifier(&parameter.name),
+            parameter.value
+        ));
+    }
+    if lines.is_empty() {
+        lines.push("    parameter DATA_BITS = 32".to_string());
+        lines.push("    parameter FIFO_ADDR_BITS = 4".to_string());
+        lines.push("    parameter ALMOST_FULL_TH = (1 << FIFO_ADDR_BITS) - 2".to_string());
+    }
+    lines.join(",\n")
+}
+
+fn render_stream_fifo_parameter_overrides(manifest: &CoreManifest) -> String {
+    let names: Vec<String> = if manifest.parameters.is_empty() {
+        vec![
+            "DATA_BITS".to_string(),
+            "FIFO_ADDR_BITS".to_string(),
+            "ALMOST_FULL_TH".to_string(),
+        ]
+    } else {
+        manifest
+            .parameters
+            .iter()
+            .map(|parameter| sanitize_verilog_identifier(&parameter.name))
+            .collect()
+    };
+    names
+        .iter()
+        .enumerate()
+        .map(|(idx, name)| {
+            let comma = if idx + 1 == names.len() { "" } else { "," };
+            format!("        .{name}({name}){comma}")
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 pub fn generate_ipxact_skeleton(manifest: &CoreManifest, board: Option<&str>) -> IpXactSkeleton {
@@ -262,6 +492,25 @@ fn sanitize_xml_identifier(input: &str) -> String {
     }
     if out.is_empty() {
         "accelfury".to_string()
+    } else {
+        out
+    }
+}
+
+fn sanitize_verilog_identifier(input: &str) -> String {
+    let mut out = String::new();
+    for (idx, ch) in input.chars().enumerate() {
+        if ch.is_ascii_alphanumeric() || ch == '_' {
+            if idx == 0 && ch.is_ascii_digit() {
+                out.push('_');
+            }
+            out.push(ch);
+        } else {
+            out.push('_');
+        }
+    }
+    if out.is_empty() {
+        "af_wrapper".to_string()
     } else {
         out
     }

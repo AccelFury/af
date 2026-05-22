@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: CERN-OHL-S-2.0
+`timescale 1ns/1ps
 module af_ram_tdp #(
   parameter int ADDR_WIDTH = 10,
   parameter int DATA_WIDTH = 32

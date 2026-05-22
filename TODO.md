@@ -24,6 +24,19 @@ Active lifecycle-tool gaps discovered while hardening generated cores.
 
 ## Recently closed
 
+- AF.TODO.GENERIC-PROTOCOL-CONTRACTS — v0.3 contracts now include
+  `[[contracts.protocols]]` for non-FIFO reusable protocol semantics.
+  `af compatibility check` consumes these contracts for protocol, width, clock,
+  reset, and adapter-hint diagnostics while RTL generation remains limited to
+  known wrapper targets such as `stream-fifo`.
+- AF.TODO.WORKSPACE-LOCAL-DEPS — v0.3 `[[dependencies.cores]]` entries now
+  support same-workspace `path` plus `parameter_overrides`; `af manifest
+  validate`, `af core check`, and `af core report` resolve sibling cores
+  without requiring `deps/` symlinked RTL source paths, keep arbitrary
+  dependency paths fail-closed at the workspace boundary, and attribute
+  dependency manifests/sources to the owning core in report artifacts. Tests in
+  `crates/af-core`, `crates/af-cli` coverage through command JSON/report
+  generation.
 - AF.TODO.CI-CURRENT-TREE-EVIDENCE-GATE — `docker_ci_cd_evidence` now demotes
   workflow-file-only state to `planned` unless a current-tree run record and a
   `SHA256SUMS` bundle are present in the artifact list. Tests in

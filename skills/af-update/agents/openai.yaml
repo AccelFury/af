@@ -1,0 +1,4 @@
+interface:
+  display_name: "AF Update"
+  short_description: "Sync af canon into derived surfaces"
+  default_prompt: "Use $af-update to synchronize canonical af surfaces into derived docs, reports, and installed skill mirrors."

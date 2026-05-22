@@ -51,10 +51,13 @@ fn public_tree_excludes_internal_work_surfaces() {
     // TODO.md is intentionally public: it surfaces open and recently-closed
     // lifecycle gaps (AF.TODO.* identifiers) that public reviewers may need to
     // cite. Private worklogs live elsewhere.
+    // Project `skills/af-*` is a tracked source of truth for installable Codex
+    // skills, not per-user state. Keep private indexes and runtime workspaces
+    // forbidden without rejecting the canonical skill sources.
+    let skills_index = ["skills/", "INDEX.md"].concat();
     let forbidden_prefixes = [
         agent_docs.as_str(),
         agent_reports.as_str(),
-        "skills/",
         runtime_dir.as_str(),
         private_design_dir.as_str(),
         private_design_docs.as_str(),
@@ -66,6 +69,7 @@ fn public_tree_excludes_internal_work_surfaces() {
         request_schema.as_str(),
         agent_issue_template.as_str(),
         internal_skill_installer.as_str(),
+        skills_index.as_str(),
     ];
 
     for file in tracked_files(&root) {

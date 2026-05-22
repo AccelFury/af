@@ -165,8 +165,9 @@ File `<path>`:
 - Build an AXI-aware wrapper at `wrapper/axi/<core>_axi.v` that re-exposes
   the AXI signal names and routes them to the generic ports.
 - Update `[sources].files` so the generic core no longer references the
-  AXI signal names; the wrapper goes into a separate manifest or under
-  `wrapper/` next to the core.
+  AXI signal names. Keep the AXI-aware wrapper outside the portable
+  `[sources].files` path, either under `wrapper/axi/` or a backend-specific
+  package/manifest surface.
 ```
 
 #### `VENDOR_OR_CLOCK_MARKER`
@@ -190,8 +191,13 @@ File `<path>:<line_of_marker>`:
   input wire <signal>_in,
   output wire <signal>_out,
   ```
-- Update `[sources].files` to include both the generic file and the wrapper.
-- Add the wrapper as a `[[backend_variants]]` entry if not present (mark `status = "planned"` if no real evidence yet).
+- Keep the generic file in `[sources].files`; do not add the vendor wrapper to
+  portable `[sources].files`.
+- Add the wrapper/backend lane as a `[[backend_variants]]` entry if not present
+  (mark `status = "planned"` if no real evidence yet, and add a matching
+  `known_limitations` entry because planned/unsupported variants require one).
+- Put vendor wrapper sources under `vendor/<vendor>/` or a backend-specific
+  wrapper package, not under `rtl/`.
 ```
 
 If multiple vendor markers are detected from different vendors in the same generic file, that is a stronger violation — say so plainly: "this file mixes Xilinx and Intel primitives; the generic core cannot host either".
@@ -322,10 +328,13 @@ File `rtl/af_clk_top.v:42` — marker `mmcm`:
 - Move the MMCME2_BASE instantiation into `vendor/xilinx/af_clk_top_mmcm_wrapper.v`.
 - Replace the in-module instantiation with three plain ports:
   `input wire clk_out_p, input wire mmcm_locked, output wire ref_clk`.
-- Update `[sources].files`:
-  - generic: `rtl/af_clk_top.v`, `rtl/af_clk_bridge.v`
-  - vendor: add `vendor/xilinx/af_clk_top_mmcm_wrapper.v`
-- Declare a `[[backend_variants]]` with `name = "xilinx_7series", vendor = "xilinx", status = "planned"`.
+- Keep `[sources].files` limited to the generic files (`rtl/af_clk_top.v`,
+  `rtl/af_clk_bridge.v`).
+- Place the wrapper at `vendor/xilinx/af_clk_top_mmcm_wrapper.v` and expose it
+  through backend-specific packaging or constraints.
+- Declare a `[[backend_variants]]` with `name = "xilinx_7series"`,
+  `vendor = "xilinx"`, `status = "planned"`, plus a `known_limitations` note
+  explaining that vendor evidence is not yet produced.
 
 ## Vendor inferred
 

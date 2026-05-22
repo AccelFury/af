@@ -74,6 +74,10 @@ prefer_existing_microcores = true
 name = "af-stream-skid-buffer"
 version = ">=0.2.0"
 role = "ready_valid_boundary"
+path = "../af-stream-skid-buffer" # optional same-workspace dependency path
+
+[dependencies.cores.parameter_overrides]
+DATA_BITS = "PAYLOAD_BITS"
 
 [[resources.memory]]
 name = "work_ram"
@@ -101,6 +105,40 @@ category = "compute"
 compatibility_profile = "af_stream_v1"
 ```
 
+Optional v0.3 semantic contracts:
+
+```toml
+[contracts.fifo]
+kind = "single_clock"                     # single_clock | dual_clock
+interface = "wr_rd_control"               # wr_rd_control | ready_valid
+read_mode = "first_word_fall_through"     # first_word_fall_through | registered_read
+full_write_policy = "accept_when_full_with_read" # or reject_when_full; allow_when_same_cycle_read is accepted as a legacy alias
+clear_behavior = "sync_flush"             # none | sync_flush | async_flush
+overflow_policy = "backpressure_no_drop"  # backpressure_no_drop | drop_new | drop_old | flag_only
+
+[[contracts.protocols]]
+name = "packet_stream"
+kind = "stream"
+interface = "ready_valid"
+clock = "clk"
+reset = "rst"
+data_width = "DATA_BITS"
+
+[contracts.protocols.semantics]
+payload = "packet_word"
+backpressure = "ready_valid"
+
+[[contracts.reset_modes]]
+name = "async_active_low"
+reset = "rst"
+active = "low"
+asynchronous = true
+
+[contracts.reset_modes.parameter_overrides]
+RESET_ACTIVE_LOW = "1"
+ASYNC_RESET = "1"
+```
+
 Supported `complexity.class` values:
 
 - `simple-portable`
@@ -125,14 +163,27 @@ description = "Core description"
 
 Validation rules:
 
-- all manifest paths must be relative and must not contain `..`;
-- port widths must be positive integers;
+- all source, include, evidence and artifact manifest paths must be relative and
+  must not contain `..`;
+- port widths must be positive integers, parameter names, or simple
+  parameter/integer expressions such as `"DATA_BITS"` or
+  `"FIFO_ADDR_BITS + 1"`;
 - port/interface clock and reset references must be declared;
+- `contracts.protocols[].clock` and `reset` must reference declared clocks,
+  resets, or bound ports;
 - RTL language must be `systemverilog`, `verilog`, `verilog-2001`, or `vhdl`;
 - `sources.files` must not be empty.
 - v0.3 constructor export requires `[constructor].category` and
   `[constructor].compatibility_profile` when `export = true`;
 - v0.3 resource contracts must have positive memory width/depth and DSP count.
+- optional dependency `path` entries may use same-workspace relative paths such
+  as `../af-sync-fifo`; `af manifest validate` and `af core check` canonicalize
+  them, require an `af-core.toml` at the target, and fail closed if the path
+  leaves the current workspace root.
+
+`af core check` also compares manifest port widths against the top RTL module
+declaration. A parameterized RTL bus such as `[DATA_BITS-1:0]` should be
+declared as `width = "DATA_BITS"` rather than `width = 1`.
 
 ## Manifesto axes (optional, v0.3)
 

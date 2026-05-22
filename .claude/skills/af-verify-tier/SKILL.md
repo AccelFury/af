@@ -60,7 +60,7 @@ The structured payload is in `details.tier_verification.missing` (or
 ```json
 {
   "area": "<row name>",
-  "status": "blocked|planned|absent",
+  "status": "supported|blocked|planned|not-applicable",
   "evidence": [...],
   "limitations": [...]
 }
@@ -82,8 +82,8 @@ substituted, when the row is missing.
 | `wrapper_package_compatibility` | `af wrapper generate <CORE_DIR> --target fusesoc`; optionally `--target litex --board <board>`; optionally `--target ipxact` | At least one wrapper artifact required. |
 | `docker_ci_cd_evidence` | (a) `af ci init --project <name> --hdl verilog-2001 --rtl rtl --top <top> --provider github`; (b) push and wait for a run; (c) `af ci doctor --repo .` + archive `SHA256SUMS` + run-record JSON under `<CORE_DIR>/evidence/ci/`; (d) re-run verify | A workflow file alone is `planned`, not `supported`. The gate requires a current-tree run record AND a SHA256SUMS bundle. See `TODO.md` (closed) AF.TODO.CI-CURRENT-TREE-EVIDENCE-GATE. |
 | `vendor_tool_evidence` | `af evidence ingest --kind synthesis-report --input <vivado_or_quartus_or_gowin_report> --tool <vendor> --status passed` | `af` cannot run vendor tools itself. The user must provide a vendor report; `af` only ingests it. |
-| `board_hardware_evidence` | Generate board bring-up artifacts (`af build <core> --board <id> --backend nextpnr`) + collect physical-bring-up logs (`reports/board_bringup/<id>.json`); then `af evidence ingest --kind board-bringup --input ...` | Manifesto explicitly forbids claiming board signoff from simulation alone. |
-| `release_support_legal_evidence` | Ensure `[metadata].license` is set in `af-core.toml`; check `LICENSE`, `COMMERCIAL-LICENSE.md`, `NOTICE` exist | Cheapest row to close. `af core check` fails closed on missing legal files for generated cores. |
+| `board_hardware_evidence` | Current row cannot be made `supported` by a single CLI command. `af build <core> --board <id> --backend nextpnr --json` and `af evidence ingest --kind hardware-measurement --input <bringup_log.json> --status passed` can archive evidence, but `board_hardware_evidence` currently remains `planned`/`not-applicable` until the maturity model consumes hardware-measurement evidence. | Do not claim enterprise tier if this row is not `supported`. `af evidence ingest --kind board-bringup` is not a valid command. |
+| `release_support_legal_evidence` | Ensure `[metadata].license` is set in `af-core.toml`, then run `af core check <CORE_DIR> --json`. | The row itself is driven by `metadata.license`; `core check` covers broader legal-file policy for generated cores. |
 
 ### Step 4 — verify-after-fix loop boundary
 
@@ -151,9 +151,9 @@ and cite the closest existing coverage.
 - **No row promotion shortcuts.** The skill must never edit `af-core.toml`, `cores.registry.json`, or any evidence file to "make" a row supported. Tier promotion happens only by producing real evidence.
 - **Quote tiers verbatim.** Do not invent intermediate tiers; the three names are fixed.
 - **Do not run vendor tools.** If `vendor_tool_evidence` is missing, the right action is "user produces a vendor report and `af evidence ingest`s it". `af` does not orchestrate Vivado/Quartus/Gowin EDA.
-- **Do not claim a row is supported because a file exists.** The maturity computation reads `--build-root/reports/` and `--build-root/ci/` plus the manifest. If the user has artifacts elsewhere, suggest moving them under `--build-root` or using `af evidence ingest`.
+- **Do not claim a row is supported because a file exists.** The maturity computation reads the manifest plus report/evidence records under `--build-root/reports/` (including `--build-root/reports/evidence/`). If the user has artifacts elsewhere, suggest regenerating under the same `--build-root` or using `af evidence ingest` where the current maturity model consumes that evidence.
 - **Stay terse.** This skill produces a table and a few code blocks. No prose summaries, no encouragement.
-- **Forbid claim language.** Do not produce strings like "ready for production", "drop-in replacement", "buyer-grade certified". Only structural status (`supported` / `planned` / `blocked`).
+- **Forbid claim language.** Do not produce strings like "ready for production", "drop-in replacement", "buyer-grade certified". Only structural status (`supported` / `planned` / `blocked` / `not-applicable`).
 
 ## Example session
 

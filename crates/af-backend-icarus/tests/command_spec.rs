@@ -94,3 +94,29 @@ fn sim_compile_dedupes_sources_when_overlap_with_testbench() {
         }
     }
 }
+
+#[test]
+fn sim_compile_prefers_icarus_specific_testbench() {
+    let (core_dir, mut manifest) = mod_add();
+    manifest.testbenches[0].backend = Some("verilator".to_string());
+    let mut icarus_tb = manifest.testbenches[0].clone();
+    icarus_tb.name = "icarus_smoke".to_string();
+    icarus_tb.backend = Some("icarus".to_string());
+    icarus_tb.top = "tb_for_icarus".to_string();
+    icarus_tb.sources = vec!["tb/icarus_only.v".to_string()];
+    manifest.testbenches.push(icarus_tb);
+
+    let out = core_dir.join("build/sim.vvp");
+    let spec = icarus_sim_compile_command(&manifest, &core_dir, &out);
+
+    let s_idx = spec.args.iter().position(|a| a == "-s").expect("-s flag");
+    assert_eq!(
+        spec.args.get(s_idx + 1).map(String::as_str),
+        Some("tb_for_icarus")
+    );
+    assert!(
+        spec.args.iter().any(|arg| arg == "tb/icarus_only.v"),
+        "selected Icarus testbench source missing from argv: {:?}",
+        spec.args
+    );
+}

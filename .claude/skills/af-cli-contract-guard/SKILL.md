@@ -31,6 +31,16 @@ None beyond the repo state. The skill operates against the local git tree:
 - unstaged tracked changes (`git diff`)
 - baseline = `HEAD` (or the user's specified base via "compare to main")
 
+Executable guard:
+
+```bash
+.claude/skills/af-cli-contract-guard/check.sh
+```
+
+Use the script as the canonical check when a shell is available. It performs
+the diff analysis below and always prints one summary block plus explicit
+smoke statuses, even when no contract-bearing files changed.
+
 ## What counts as the contract
 
 These are the surfaces guarded — every one corresponds to a downstream
@@ -105,7 +115,8 @@ git diff --name-only HEAD -- \
 ```
 
 If the result is empty, this skill has nothing to check. Report
-"no contract-bearing files changed; nothing to guard" and exit.
+"no contract-bearing files changed; smoke checks still run" and continue to
+the sanity run.
 
 ### Step 2 — for each changed contract surface, run the matching diagnostic
 
@@ -224,8 +235,9 @@ Always exactly:
 ## Contract guard summary
 
 Changed contract files: <N>
-Breaking changes detected: <N>
-Companion changes detected: <N>
+Breaking findings: <N>
+Additive findings: <N>
+Review-needed findings: <N>
 
 ## Findings
 
@@ -248,16 +260,17 @@ Companion changes detected: <N>
 
 ## Smoke checks
 
-- `af registry check --json` → <status>
-- `af self check --json` → <status>
-- `af manifest validate examples/af-reset-sync/af-core.toml --json` → <status>
+- `af registry check --json` -> <passed|failed>
+- `af self check --json` -> <passed|failed>
+- `af manifest validate examples/af-reset-sync/af-core.toml --json` -> <passed|failed>
 
 ## Verdict
 
 <one of:>
-- ✅ SAFE — only additive changes, smoke green.
-- ⚠️ ADDITIVE ONLY (CHANGELOG suggested) — new surface, smoke green, CHANGELOG entry missing.
-- ❌ BREAKING WITHOUT COMPANION — at least one breaking change has no required companion bump. Block the commit.
+- ✅ SAFE — no contract surfaces changed (or only review-needed advisories); smoke green.
+- ⚠️ ADDITIVE ONLY — smoke green; consider adding a CHANGELOG line under Unreleased.
+- ❌ BREAKING WITHOUT COMPANION — review findings; CHANGELOG / version bump required.
+- ❌ SMOKE REGRESSION — at least one smoke check failed (independent of diff).
 - ❌ SMOKE REGRESSION — at least one smoke check failed (independent of diff).
 ```
 

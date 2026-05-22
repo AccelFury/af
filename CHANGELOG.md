@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Manifest v0.3 now supports optional FIFO and reset semantic contracts,
+  same-workspace dependency paths with parameter overrides, stricter
+  manifest-vs-RTL port-width checking, `af compatibility` stream FIFO adapter
+  suggestions, generic `[[contracts.protocols]]` adapter hints, and
+  `af wrapper generate --target stream-fifo`.
 - M3 typed report contract is now uniform across **every** command family:
   `af core check`, `af core lint`, `af core sim`, `af core formal`,
   `af core package`, `af core report`, `af core tooling`, `af build`,

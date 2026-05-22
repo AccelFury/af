@@ -103,6 +103,8 @@ pub struct CoreManifest {
     #[serde(default)]
     pub stream_interfaces: Vec<StreamInterface>,
     #[serde(default)]
+    pub contracts: Contracts,
+    #[serde(default)]
     pub csr: Option<PresenceBlock>,
     #[serde(default)]
     pub interrupts: Option<PresenceBlock>,
@@ -382,6 +384,24 @@ impl CoreManifest {
                 &mut issues,
             );
             require_non_empty("dependencies.cores.role", &dependency.role, &mut issues);
+            if let Some(path) = &dependency.path {
+                require_non_empty("dependencies.cores.path", path, &mut issues);
+                if Path::new(path).is_absolute() {
+                    issues.push(ValidationIssue::new(
+                        "AF_DEPENDENCY_PATH_ABSOLUTE",
+                        format!("dependency `{}` uses absolute path `{path}`", dependency.name),
+                        "Use a relative workspace dependency path; canonical workspace bounds are checked by af core commands.",
+                    ));
+                }
+            }
+            for (parameter, value) in &dependency.parameter_overrides {
+                require_ident(
+                    "dependencies.cores.parameter_overrides",
+                    parameter,
+                    &mut issues,
+                );
+                require_non_empty("dependencies.cores.parameter_overrides", value, &mut issues);
+            }
         }
 
         for memory in &self.resources.memory {
@@ -499,6 +519,16 @@ impl CoreManifest {
             .iter()
             .filter_map(|reset| reset.port.as_deref())
             .collect();
+        validate_contracts(
+            &self.contracts,
+            &parameter_names,
+            &clocks,
+            &clock_ports,
+            &resets,
+            &reset_ports,
+            &port_names,
+            &mut issues,
+        );
 
         if let Some(default_clock) = &self.rtl.default_clock {
             if !clocks.contains(default_clock.as_str())
@@ -597,7 +627,9 @@ impl CoreManifest {
                         "Use a positive integer width or omit width for scalar ports.",
                     )),
                     PortWidth::Parameter(parameter) => {
-                        if !parameter_names.contains(parameter.as_str()) {
+                        if is_width_identifier_token(parameter)
+                            && !parameter_names.contains(parameter.as_str())
+                        {
                             issues.push(ValidationIssue::new(
                                 "AF_PORT_WIDTH_PARAMETER_UNKNOWN",
                                 format!(
@@ -606,6 +638,13 @@ impl CoreManifest {
                                 ),
                                 "Add the parameter to [[parameters]] or use an integer width.",
                             ));
+                        } else {
+                            validate_width_expr(
+                                &format!("ports.{}.width", port.name),
+                                parameter,
+                                &parameter_names,
+                                &mut issues,
+                            );
                         }
                     }
                     PortWidth::Integer(_) => {}
@@ -766,16 +805,12 @@ impl CoreManifest {
                 }
             }
             if let Some(width) = &interface.data_width {
-                if !parameter_names.contains(width.as_str()) && width.parse::<u32>().is_err() {
-                    issues.push(ValidationIssue::new(
-                        "AF_INTERFACE_WIDTH_INVALID",
-                        format!(
-                            "stream interface `{}` data_width `{width}` is not an integer or parameter",
-                            interface.name
-                        ),
-                        "Use an integer or a [[parameters]].name value.",
-                    ));
-                }
+                validate_width_expr(
+                    &format!("stream_interfaces.{}.data_width", interface.name),
+                    width,
+                    &parameter_names,
+                    &mut issues,
+                );
             }
         }
 
@@ -936,6 +971,62 @@ pub struct StreamInterface {
     pub payload_semantics: Option<String>,
 }
 
+#[derive(Clone, Debug, Default, Deserialize, JsonSchema, Serialize, PartialEq, Eq)]
+pub struct Contracts {
+    #[serde(default)]
+    pub fifo: Option<FifoContract>,
+    #[serde(default)]
+    pub protocols: Vec<ProtocolContract>,
+    #[serde(default)]
+    pub reset_modes: Vec<ResetModeContract>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, JsonSchema, Serialize, PartialEq, Eq)]
+pub struct FifoContract {
+    #[serde(default)]
+    pub kind: Option<String>,
+    #[serde(default)]
+    pub interface: Option<String>,
+    #[serde(default)]
+    pub read_mode: Option<String>,
+    #[serde(default)]
+    pub full_write_policy: Option<String>,
+    #[serde(default)]
+    pub clear_behavior: Option<String>,
+    #[serde(default)]
+    pub overflow_policy: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, JsonSchema, Serialize, PartialEq, Eq)]
+pub struct ProtocolContract {
+    pub name: String,
+    pub kind: String,
+    pub interface: String,
+    #[serde(default)]
+    pub clock: Option<String>,
+    #[serde(default)]
+    pub reset: Option<String>,
+    #[serde(default)]
+    pub data_width: Option<String>,
+    #[serde(default)]
+    pub semantics: BTreeMap<String, String>,
+}
+
+#[derive(Clone, Debug, Deserialize, JsonSchema, Serialize, PartialEq, Eq)]
+pub struct ResetModeContract {
+    pub name: String,
+    #[serde(default)]
+    pub reset: Option<String>,
+    #[serde(default)]
+    pub active: Option<String>,
+    #[serde(default)]
+    pub asynchronous: Option<bool>,
+    #[serde(default)]
+    pub parameter_overrides: BTreeMap<String, String>,
+    #[serde(default)]
+    pub description: Option<String>,
+}
+
 #[derive(Clone, Debug, Deserialize, JsonSchema, Serialize, PartialEq, Eq)]
 pub struct Testbench {
     pub name: String,
@@ -1038,6 +1129,10 @@ pub struct CoreDependency {
     pub name: String,
     pub version: String,
     pub role: String,
+    #[serde(default)]
+    pub path: Option<String>,
+    #[serde(default)]
+    pub parameter_overrides: BTreeMap<String, String>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, JsonSchema, Serialize, PartialEq, Eq)]
@@ -1289,6 +1384,232 @@ fn is_identifier_like(value: &str) -> bool {
         return false;
     }
     chars.all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.'))
+}
+
+fn validate_width_expr(
+    field: &str,
+    expr: &str,
+    parameter_names: &BTreeSet<&str>,
+    issues: &mut Vec<ValidationIssue>,
+) {
+    let expr = expr.trim();
+    if expr.is_empty() {
+        issues.push(ValidationIssue::new(
+            "AF_INTERFACE_WIDTH_INVALID",
+            format!("{field} must not be empty"),
+            "Use a positive integer, parameter name, or simple parameter expression.",
+        ));
+        return;
+    }
+    if expr.parse::<u32>().is_ok() {
+        return;
+    }
+    if is_simple_width_expr(expr, parameter_names) {
+        return;
+    }
+    issues.push(ValidationIssue::new(
+        "AF_INTERFACE_WIDTH_INVALID",
+        format!("{field} `{expr}` is not a supported integer, parameter, or simple parameter expression"),
+        "Use an integer, a [[parameters]].name value, or simple addition/subtraction over parameters and integers.",
+    ));
+}
+
+fn is_simple_width_expr(expr: &str, parameter_names: &BTreeSet<&str>) -> bool {
+    let mut saw_operand = false;
+    let mut expect_operand = true;
+    let mut token = String::new();
+    for ch in expr.chars().chain(std::iter::once(' ')) {
+        if ch.is_ascii_whitespace() {
+            if !token.is_empty() {
+                if !width_operand_valid(&token, parameter_names) || !expect_operand {
+                    return false;
+                }
+                saw_operand = true;
+                expect_operand = false;
+                token.clear();
+            }
+            continue;
+        }
+        if matches!(ch, '+' | '-') {
+            if !token.is_empty() {
+                if !width_operand_valid(&token, parameter_names) || !expect_operand {
+                    return false;
+                }
+                saw_operand = true;
+                token.clear();
+            } else if expect_operand {
+                return false;
+            }
+            expect_operand = true;
+            continue;
+        }
+        if ch.is_ascii_alphanumeric() || ch == '_' {
+            token.push(ch);
+            continue;
+        }
+        return false;
+    }
+    saw_operand && !expect_operand
+}
+
+fn width_operand_valid(token: &str, parameter_names: &BTreeSet<&str>) -> bool {
+    token.parse::<u32>().is_ok() || parameter_names.contains(token)
+}
+
+fn is_width_identifier_token(value: &str) -> bool {
+    let mut chars = value.chars();
+    let Some(first) = chars.next() else {
+        return false;
+    };
+    (first.is_ascii_alphabetic() || first == '_')
+        && chars.all(|ch| ch.is_ascii_alphanumeric() || ch == '_')
+}
+
+fn validate_contracts(
+    contracts: &Contracts,
+    parameter_names: &BTreeSet<&str>,
+    clocks: &BTreeSet<&str>,
+    clock_ports: &BTreeSet<&str>,
+    resets: &BTreeSet<&str>,
+    reset_ports: &BTreeSet<&str>,
+    ports: &BTreeSet<&str>,
+    issues: &mut Vec<ValidationIssue>,
+) {
+    if let Some(fifo) = &contracts.fifo {
+        validate_optional_enum(
+            "contracts.fifo.kind",
+            fifo.kind.as_deref(),
+            &["single_clock", "dual_clock"],
+            issues,
+        );
+        validate_optional_enum(
+            "contracts.fifo.interface",
+            fifo.interface.as_deref(),
+            &["wr_rd_control", "ready_valid"],
+            issues,
+        );
+        validate_optional_enum(
+            "contracts.fifo.read_mode",
+            fifo.read_mode.as_deref(),
+            &["first_word_fall_through", "registered_read"],
+            issues,
+        );
+        validate_optional_enum(
+            "contracts.fifo.full_write_policy",
+            fifo.full_write_policy.as_deref(),
+            &[
+                "reject_when_full",
+                "accept_when_full_with_read",
+                "allow_when_same_cycle_read",
+            ],
+            issues,
+        );
+        validate_optional_enum(
+            "contracts.fifo.clear_behavior",
+            fifo.clear_behavior.as_deref(),
+            &["none", "sync_flush", "async_flush"],
+            issues,
+        );
+        validate_optional_enum(
+            "contracts.fifo.overflow_policy",
+            fifo.overflow_policy.as_deref(),
+            &["backpressure_no_drop", "drop_new", "drop_old", "flag_only"],
+            issues,
+        );
+    }
+    for protocol in &contracts.protocols {
+        require_ident("contracts.protocols.name", &protocol.name, issues);
+        require_ident("contracts.protocols.kind", &protocol.kind, issues);
+        require_ident("contracts.protocols.interface", &protocol.interface, issues);
+        if let Some(clock) = &protocol.clock {
+            if !clocks.contains(clock.as_str())
+                && !clock_ports.contains(clock.as_str())
+                && !ports.contains(clock.as_str())
+            {
+                issues.push(ValidationIssue::new(
+                    "AF_CLOCK_UNKNOWN",
+                    format!(
+                        "protocol contract `{}` references unknown clock or clock port `{clock}`",
+                        protocol.name
+                    ),
+                    "Add the clock to [[clocks]], bind clocks.port, or update contracts.protocols.clock.",
+                ));
+            }
+        }
+        if let Some(reset) = &protocol.reset {
+            if !resets.contains(reset.as_str())
+                && !reset_ports.contains(reset.as_str())
+                && !ports.contains(reset.as_str())
+            {
+                issues.push(ValidationIssue::new(
+                    "AF_RESET_UNKNOWN",
+                    format!(
+                        "protocol contract `{}` references unknown reset or reset port `{reset}`",
+                        protocol.name
+                    ),
+                    "Add the reset to [[resets]], bind resets.port, or update contracts.protocols.reset.",
+                ));
+            }
+        }
+        if let Some(data_width) = &protocol.data_width {
+            validate_width_expr(
+                &format!("contracts.protocols.{}.data_width", protocol.name),
+                data_width,
+                parameter_names,
+                issues,
+            );
+        }
+        for (key, value) in &protocol.semantics {
+            require_ident("contracts.protocols.semantics", key, issues);
+            require_non_empty("contracts.protocols.semantics", value, issues);
+        }
+    }
+    for mode in &contracts.reset_modes {
+        require_ident("contracts.reset_modes.name", &mode.name, issues);
+        if let Some(active) = &mode.active {
+            if !matches!(active.as_str(), "high" | "low") {
+                issues.push(ValidationIssue::new(
+                    "AF_RESET_ACTIVE_INVALID",
+                    format!(
+                        "reset mode `{}` has invalid active level `{active}`",
+                        mode.name
+                    ),
+                    "Use active = \"high\" or active = \"low\".",
+                ));
+            }
+        }
+        for (parameter, value) in &mode.parameter_overrides {
+            require_ident(
+                "contracts.reset_modes.parameter_overrides",
+                parameter,
+                issues,
+            );
+            validate_width_expr(
+                "contracts.reset_modes.parameter_overrides",
+                value,
+                parameter_names,
+                issues,
+            );
+        }
+    }
+}
+
+fn validate_optional_enum(
+    field: &str,
+    value: Option<&str>,
+    allowed: &[&str],
+    issues: &mut Vec<ValidationIssue>,
+) {
+    let Some(value) = value else {
+        return;
+    };
+    if !allowed.contains(&value) {
+        issues.push(ValidationIssue::new(
+            "AF_CONTRACT_VALUE_INVALID",
+            format!("{field} `{value}` is unsupported"),
+            format!("Use one of: {}.", allowed.join(", ")),
+        ));
+    }
 }
 
 fn validate_manifest_path(path: &str, issues: &mut Vec<ValidationIssue>) {
@@ -1693,6 +2014,16 @@ sources = ["tb/tb_example_core.sv"]
         assert!(issues
             .iter()
             .any(|issue| issue.code == "AF_PORT_WIDTH_INVALID"));
+    }
+
+    #[test]
+    fn rejects_unknown_bare_port_width_parameter_with_legacy_code() {
+        let raw = valid_manifest().replace("width = 1", "width = \"MISSING_WIDTH\"");
+        let err = CoreManifest::from_toml_str(&raw, "af-core.toml").unwrap_err();
+        let issues = validation_issues(err);
+        assert!(issues
+            .iter()
+            .any(|issue| issue.code == "AF_PORT_WIDTH_PARAMETER_UNKNOWN"));
     }
 
     #[test]
@@ -2216,6 +2547,166 @@ conclusion = "success"
         assert!(issues
             .iter()
             .any(|issue| issue.code == "AF_EVIDENCE_VENDOR_TOOL_INVALID"));
+    }
+
+    #[test]
+    fn parses_fifo_contract_reset_modes_and_dependency_overrides() {
+        let raw = r#"
+af_version = "0.3"
+name = "af-sync-fifo"
+vendor = "accelfury"
+library = "ip"
+core = "af_sync_fifo"
+version = "0.1.0"
+
+[rtl]
+top = "af_sync_fifo"
+language = "verilog-2001"
+
+[sources]
+files = ["rtl/af_sync_fifo.v"]
+
+[[parameters]]
+name = "DATA_BITS"
+value = "32"
+
+[[parameters]]
+name = "FIFO_ADDR_BITS"
+value = "4"
+
+[[clocks]]
+name = "clk"
+port = "clk"
+
+[[resets]]
+name = "rst"
+port = "rst"
+active = "high"
+
+[[ports]]
+name = "clk"
+direction = "input"
+width = 1
+
+[[ports]]
+name = "rst"
+direction = "input"
+width = 1
+
+[[ports]]
+name = "wr_data"
+direction = "input"
+width = "DATA_BITS"
+
+[[ports]]
+name = "level"
+direction = "output"
+width = "FIFO_ADDR_BITS + 1"
+
+[contracts.fifo]
+kind = "single_clock"
+interface = "wr_rd_control"
+read_mode = "first_word_fall_through"
+full_write_policy = "accept_when_full_with_read"
+clear_behavior = "sync_flush"
+overflow_policy = "backpressure_no_drop"
+
+[[contracts.protocols]]
+name = "state_stream"
+kind = "stream"
+interface = "ready_valid"
+clock = "clk"
+reset = "rst"
+data_width = "DATA_BITS"
+
+[contracts.protocols.semantics]
+payload = "state_vector_word"
+backpressure = "ready_valid"
+
+[[contracts.reset_modes]]
+name = "async_active_low"
+reset = "rst"
+active = "low"
+asynchronous = true
+
+[contracts.reset_modes.parameter_overrides]
+RESET_ACTIVE_LOW = "1"
+ASYNC_RESET = "1"
+
+[[dependencies.cores]]
+name = "af-ram-sdp"
+version = ">=0.1.0"
+role = "storage"
+path = "../af-ram-sdp"
+
+[dependencies.cores.parameter_overrides]
+DATA_BITS = "DATA_BITS"
+"#;
+        let manifest = CoreManifest::from_toml_str(raw, "af-core.toml").unwrap();
+        let fifo = manifest.contracts.fifo.unwrap();
+        assert_eq!(
+            fifo.full_write_policy.as_deref(),
+            Some("accept_when_full_with_read")
+        );
+        assert_eq!(manifest.contracts.protocols.len(), 1);
+        assert_eq!(manifest.contracts.protocols[0].name, "state_stream");
+        assert_eq!(
+            manifest.contracts.protocols[0].data_width.as_deref(),
+            Some("DATA_BITS")
+        );
+        assert_eq!(
+            manifest.contracts.protocols[0]
+                .semantics
+                .get("payload")
+                .map(String::as_str),
+            Some("state_vector_word")
+        );
+        assert_eq!(manifest.contracts.reset_modes.len(), 1);
+        assert_eq!(
+            manifest.dependencies.cores[0].path.as_deref(),
+            Some("../af-ram-sdp")
+        );
+    }
+
+    #[test]
+    fn accepts_legacy_fifo_same_cycle_read_alias() {
+        let raw = valid_manifest().replace(
+            "[sources]\nfiles = [\"rtl/example_core.sv\"]",
+            "[sources]\nfiles = [\"rtl/example_core.sv\"]\n\n[contracts.fifo]\nfull_write_policy = \"allow_when_same_cycle_read\"",
+        );
+        let manifest = CoreManifest::from_toml_str(&raw, "af-core.toml").unwrap();
+        assert_eq!(
+            manifest
+                .contracts
+                .fifo
+                .and_then(|fifo| fifo.full_write_policy)
+                .as_deref(),
+            Some("allow_when_same_cycle_read")
+        );
+    }
+
+    #[test]
+    fn rejects_invalid_protocol_contract_reference() {
+        let raw = valid_manifest().replace(
+            "[sources]\nfiles = [\"rtl/example_core.sv\"]",
+            "[sources]\nfiles = [\"rtl/example_core.sv\"]\n\n[[contracts.protocols]]\nname = \"out\"\nkind = \"stream\"\ninterface = \"ready_valid\"\nclock = \"missing_clk\"\ndata_width = \"DATA_BITS\"",
+        );
+        let err = CoreManifest::from_toml_str(&raw, "af-core.toml").unwrap_err();
+        let issues = validation_issues(err);
+        assert!(issues.iter().any(|issue| issue.code == "AF_CLOCK_UNKNOWN"));
+    }
+
+    #[test]
+    fn rejects_invalid_fifo_contract_value() {
+        let raw = valid_manifest().replace(
+            "[sources]\nfiles = [\"rtl/example_core.sv\"]",
+            "[sources]\nfiles = [\"rtl/example_core.sv\"]\n\n[contracts.fifo]\nfull_write_policy = \"overwrite_when_full\"",
+        );
+        let err = CoreManifest::from_toml_str(&raw, "af-core.toml").unwrap_err();
+        let issues = validation_issues(err);
+        assert!(issues
+            .iter()
+            .any(|issue| issue.code == "AF_CONTRACT_VALUE_INVALID"));
     }
 
     fn validation_issues(err: ManifestError) -> Vec<ValidationIssue> {

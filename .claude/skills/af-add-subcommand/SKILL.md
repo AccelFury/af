@@ -6,7 +6,7 @@ allowed-tools: Bash, Read, Edit, Write, Grep
 
 # af-add-subcommand
 
-Rule #5 of `CLAUDE.md` says every new CLI surface touches **four** files together: the clap enum, the lifecycle-name function, `docs/cli-reference.md`, and an integration test. Forgetting any of the four creates a regression that `af-cli-contract-guard` will catch — but it is cheaper to wire all four up at the same time. This skill is the deterministic scaffolder.
+Rule #5 of `CLAUDE.md` says every new CLI surface touches **four** surfaces together: the clap enum, the lifecycle-name function, `docs/cli-reference.md`, and an integration test. Forgetting any of the four creates a regression that `af-cli-contract-guard` will catch — but it is cheaper to wire all four up at the same time. This skill is the deterministic scaffolder.
 
 ## When to invoke
 
@@ -49,7 +49,7 @@ If the namespace does not exist (`af --help` does not list it), refuse with the 
 
 Each touch-point is a precise edit, not a search-and-pray.
 
-#### 2a. Clap enum (`crates/af-cli/src/main.rs`)
+#### 2a. Clap enum (`crates/af-cli/src/main.rs`, plus module args when used)
 
 Find the `<Namespace>Command` enum:
 
@@ -71,7 +71,16 @@ Insert the new variant just before the closing brace. Use this template (with `<
     },
 ```
 
-#### 2b. Dispatch (`crates/af-cli/src/main.rs`)
+For namespaces already using tuple argument structs in
+`crates/af-cli/src/commands/` (`ci`, `wrapper`, `evidence`, `backend`, `self`,
+and any future extracted module), define the args in the owning module and make
+the clap variant a tuple variant:
+
+```rust
+    <Name>(commands::<module_name>::<Name>Args),
+```
+
+#### 2b. Dispatch (`crates/af-cli/src/main.rs` or the owning command module)
 
 Find the existing `match` arm for this namespace group. Typically:
 
@@ -88,6 +97,13 @@ Insert a new arm calling a placeholder handler:
     <Namespace>Command::<Name> { /* args */ } => <namespace>_<name_snake>(/* args */, &cli.build_root),
 ```
 
+For tuple variants backed by `crates/af-cli/src/commands/<module_name>.rs`,
+dispatch through that module instead:
+
+```rust
+    <Namespace>Command::<Name>(args) => commands::<module_name>::run(args),
+```
+
 Define the handler stub near the other `<namespace>_*` functions:
 
 ```rust
@@ -101,6 +117,10 @@ fn <namespace>_<name_snake>(/* args */ _build_root: &Path) -> Result<CliOutput, 
     ))
 }
 ```
+
+For module-backed commands, define the stub in the owning module and return the
+same `CliError` shape from `run`. Keep `crates/af-cli/src/main.rs` limited to
+the enum, command-name arm, and dispatch arm for that command.
 
 The error code follows the project convention `AF_<DOMAIN>_<CONDITION>` (rule #3 in CLAUDE.md). Use exit code 1 (generic) until the real semantics are known.
 
@@ -246,7 +266,7 @@ and cite the closest existing coverage.
 - **Never invent a namespace.** If the parent (`af <namespace>`) does not exist, refuse and tell the user to create it first.
 - **All four touch-points or none.** If any step fails (compile, clap-help, test), revert the patches you applied so the tree is left clean. Use `git diff` to inspect; if there are partial edits, `git checkout -p` selectively. Surface the failure clearly.
 - **Error code follows the convention.** `AF_<NAMESPACE>_<NAME>_<CONDITION>`. Do not invent ad-hoc strings.
-- **Stay within `af-cli`.** This skill does not touch other crates. If the subcommand needs new library logic in `af-manifest` or `af-report`, that is a separate change the user makes after the scaffold is in.
+- **Stay within `af-cli`.** This skill may touch `crates/af-cli/src/main.rs`, `crates/af-cli/src/commands/*.rs`, `docs/cli-reference.md`, and `crates/af-cli/tests/cli.rs`; it does not touch other crates. If the subcommand needs new library logic in `af-manifest` or `af-report`, that is a separate change the user makes after the scaffold is in.
 - **No mass refactoring.** If the namespace group is large and the dispatch `match` arm is messy, do not "clean it up" while inserting your variant. Add only.
 
 ## Edge cases

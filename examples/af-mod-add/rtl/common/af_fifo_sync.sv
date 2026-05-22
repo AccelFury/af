@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: CERN-OHL-S-2.0
+`timescale 1ns/1ps
 module af_fifo_sync #(
   parameter int DATA_WIDTH = 64,
   parameter int DEPTH = 2

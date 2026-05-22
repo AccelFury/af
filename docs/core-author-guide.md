@@ -41,6 +41,20 @@ markers, and AXI-only markers are rejected in base RTL. Verilog-2001 modules,
 parameters, generate blocks, synchronous logic, explicit clock/reset ports, and
 portable inferred RAM/DSP structures are allowed.
 
+For parameterized top-level buses, declare manifest widths as the same
+parameter expression used by RTL. For example, use `width = "DATA_BITS"` for
+`[DATA_BITS-1:0]` and `width = "FIFO_ADDR_BITS + 1"` for
+`[FIFO_ADDR_BITS:0]`. `af core check` fails with `AF_PORT_WIDTH_MISMATCH` when
+a parameterized bus is collapsed to `width = 1`.
+
+For reusable FIFO-like cores, describe behavior in `[contracts.fifo]` and reset
+variants in `[[contracts.reset_modes]]`. For non-FIFO reusable protocols, add
+`[[contracts.protocols]]` entries with the protocol kind, interface, clock,
+reset, width, and semantics. Ready/valid FIFO adaptation should be a generated
+wrapper (`af wrapper generate --target stream-fifo`) rather than handwritten
+glue in every composite shell; other adapters are compatibility hints until a
+dedicated generator exists.
+
 Keep `known_limitations` explicit. Reports include these limitations so downstream users do not confuse MVP checks with signoff.
 
 Run `af core tooling my-core --json` during core development to record tool

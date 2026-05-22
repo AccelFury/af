@@ -7,7 +7,9 @@
 
 mod common;
 
-use af_wrapper_gen::{generate_wrapper, WrapperGenError, WrapperTarget};
+use af_wrapper_gen::{
+    generate_wrapper, wrapper_target_capabilities, WrapperGenError, WrapperTarget,
+};
 use common::clone_example;
 use tempfile::TempDir;
 
@@ -22,6 +24,10 @@ fn wrapper_target_parses_documented_values() {
         WrapperTarget::parse("ipxact").unwrap(),
         WrapperTarget::IpXact
     );
+    assert_eq!(
+        WrapperTarget::parse("stream-fifo").unwrap(),
+        WrapperTarget::StreamFifo
+    );
 }
 
 #[test]
@@ -30,6 +36,24 @@ fn wrapper_target_rejects_other_strings() {
     assert_eq!(err.code(), "AF_WRAPPER_TARGET_UNSUPPORTED");
     assert_eq!(err.exit_code(), 2);
     assert!(!err.hint().is_empty());
+}
+
+#[test]
+fn wrapper_target_capabilities_identify_generated_protocol_adapters() {
+    let capabilities = wrapper_target_capabilities();
+    let stream_fifo = capabilities
+        .iter()
+        .find(|capability| capability.target == "stream-fifo")
+        .expect("stream-fifo capability");
+
+    assert!(stream_fifo.generates_rtl);
+    assert_eq!(
+        stream_fifo.adapter_kind.as_deref(),
+        Some("stream_fifo_adapter")
+    );
+    assert!(capabilities
+        .iter()
+        .any(|capability| capability.target == "fusesoc" && !capability.generates_rtl));
 }
 
 #[test]
@@ -103,6 +127,27 @@ fn ipxact_wrapper_writes_valid_xml() {
 }
 
 #[test]
+fn stream_fifo_wrapper_writes_verilog_adapter() {
+    let project = TempDir::new().unwrap();
+    write_fifo_project(project.path());
+    let build_root = TempDir::new().unwrap();
+    let report = generate_wrapper(
+        project.path(),
+        build_root.path(),
+        WrapperTarget::StreamFifo,
+        None,
+    )
+    .expect("stream fifo wrapper");
+    assert_eq!(report.target, WrapperTarget::StreamFifo);
+    let artifact = &report.artifacts[0];
+    assert!(artifact.is_file());
+    let text = std::fs::read_to_string(artifact).unwrap();
+    assert!(text.contains("module af_sync_fifo_stream_fifo"));
+    assert!(text.contains("assign s_ready      = !fifo_full_w || fifo_rd_en_w;"));
+    assert!(text.contains(".wr_en(fifo_wr_en_w)"));
+}
+
+#[test]
 fn ipxact_filename_uses_sanitised_identifiers() {
     use af_manifest::CoreManifest;
     use af_wrapper_gen::generate_ipxact_skeleton;
@@ -131,4 +176,149 @@ fn unknown_target_string_returns_envelope_error() {
         }
         other => panic!("expected UnsupportedTarget, got {other:?}"),
     }
+}
+
+fn write_fifo_project(root: &std::path::Path) {
+    std::fs::create_dir_all(root.join("rtl")).unwrap();
+    std::fs::write(
+        root.join("LICENSE"),
+        "AccelFury Source Available License v1.0\n\nCopyright (c) 2026 AccelFury.\n",
+    )
+    .unwrap();
+    std::fs::write(
+        root.join("COMMERCIAL-LICENSE.md"),
+        "# Commercial Licensing\n\nClosed-source and commercial use requires a separate paid commercial license from AccelFury.\nCommercial triggers include closed-source FPGA products and proprietary repositories.\nContact AccelFury for commercial terms, support, warranty options, and custom integration work.\n",
+    )
+    .unwrap();
+    std::fs::write(
+        root.join("af-core.toml"),
+        r#"
+af_version = "0.3"
+name = "af-sync-fifo"
+vendor = "accelfury"
+library = "ip"
+core = "af_sync_fifo"
+version = "0.1.0"
+
+[metadata]
+license = "AccelFury Source Available License v1.0"
+
+[rtl]
+top = "af_sync_fifo"
+language = "verilog-2001"
+
+[sources]
+files = ["rtl/af_sync_fifo.v"]
+
+[[parameters]]
+name = "DATA_BITS"
+value = "32"
+
+[[parameters]]
+name = "FIFO_ADDR_BITS"
+value = "4"
+
+[[parameters]]
+name = "ALMOST_FULL_TH"
+value = "(1 << FIFO_ADDR_BITS) - 2"
+
+[[clocks]]
+name = "clk"
+port = "clk"
+
+[[resets]]
+name = "rst"
+port = "rst"
+active = "high"
+
+[[ports]]
+name = "clk"
+direction = "input"
+width = 1
+
+[[ports]]
+name = "rst"
+direction = "input"
+width = 1
+
+[[ports]]
+name = "clear"
+direction = "input"
+width = 1
+
+[[ports]]
+name = "wr_en"
+direction = "input"
+width = 1
+
+[[ports]]
+name = "wr_data"
+direction = "input"
+width = "DATA_BITS"
+
+[[ports]]
+name = "full"
+direction = "output"
+width = 1
+
+[[ports]]
+name = "almost_full"
+direction = "output"
+width = 1
+
+[[ports]]
+name = "rd_en"
+direction = "input"
+width = 1
+
+[[ports]]
+name = "rd_data"
+direction = "output"
+width = "DATA_BITS"
+
+[[ports]]
+name = "empty"
+direction = "output"
+width = 1
+
+[[ports]]
+name = "level"
+direction = "output"
+width = "FIFO_ADDR_BITS + 1"
+
+[contracts.fifo]
+kind = "single_clock"
+interface = "wr_rd_control"
+read_mode = "first_word_fall_through"
+full_write_policy = "accept_when_full_with_read"
+clear_behavior = "sync_flush"
+overflow_policy = "backpressure_no_drop"
+"#,
+    )
+    .unwrap();
+    std::fs::write(
+        root.join("rtl/af_sync_fifo.v"),
+        r#"`default_nettype none
+module af_sync_fifo #(
+    parameter DATA_BITS = 32,
+    parameter FIFO_ADDR_BITS = 4,
+    parameter ALMOST_FULL_TH = (1 << FIFO_ADDR_BITS) - 2
+) (
+    input wire clk,
+    input wire rst,
+    input wire clear,
+    input wire wr_en,
+    input wire [DATA_BITS-1:0] wr_data,
+    output wire full,
+    output wire almost_full,
+    input wire rd_en,
+    output wire [DATA_BITS-1:0] rd_data,
+    output wire empty,
+    output wire [FIFO_ADDR_BITS:0] level
+);
+endmodule
+`default_nettype wire
+"#,
+    )
+    .unwrap();
 }

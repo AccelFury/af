@@ -6,9 +6,12 @@ expression: topology
   "check": {
     "artifacts": [],
     "core_dir": "<string>",
+    "dependency_issues": [],
+    "dependency_resolutions": [],
     "inspection": {
       "checks": {
         "clock_reset_policy": "<string>",
+        "port_widths_match": "<string>",
         "portable_port_style": "<string>",
         "portable_verilog_policy": "<string>",
         "ports_manifest_match": "<string>",
@@ -45,6 +48,11 @@ expression: topology
       ],
       "complexity": "<null>",
       "constructor": "<null>",
+      "contracts": {
+        "fifo": "<null>",
+        "protocols": [],
+        "reset_modes": []
+      },
       "core": "<string>",
       "csr": "<null>",
       "dependencies": {
@@ -156,7 +164,7 @@ expression: topology
       "stream_interfaces": [],
       "testbenches": [
         {
-          "backend": "<null>",
+          "backend": "<string>",
           "expected": "<null>",
           "name": "<string>",
           "rtl_sources": [],

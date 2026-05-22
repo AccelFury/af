@@ -73,6 +73,35 @@ fn smoke_command_picks_testbench_top_when_present() {
 }
 
 #[test]
+fn smoke_command_prefers_verilator_specific_testbench() {
+    let (core_dir, mut manifest) = mod_add();
+    manifest.testbenches[0].backend = Some("icarus".to_string());
+    let mut verilator_tb = manifest.testbenches[0].clone();
+    verilator_tb.name = "verilator_smoke".to_string();
+    verilator_tb.backend = Some("verilator".to_string());
+    verilator_tb.top = "tb_for_verilator".to_string();
+    verilator_tb.sources = vec!["tb/verilator_only.sv".to_string()];
+    manifest.testbenches.push(verilator_tb);
+
+    let spec = verilator_smoke_command(&manifest, &core_dir);
+
+    let idx = spec
+        .args
+        .iter()
+        .position(|a| a == "--top-module")
+        .expect("--top-module");
+    assert_eq!(
+        spec.args.get(idx + 1).map(String::as_str),
+        Some("tb_for_verilator")
+    );
+    assert!(
+        spec.args.iter().any(|arg| arg == "tb/verilator_only.sv"),
+        "selected Verilator testbench source missing from argv: {:?}",
+        spec.args
+    );
+}
+
+#[test]
 fn no_shell_metacharacters_can_smuggle_into_argv() {
     let (core_dir, manifest) = mod_add();
     let spec = verilator_lint_command(&manifest, &core_dir);

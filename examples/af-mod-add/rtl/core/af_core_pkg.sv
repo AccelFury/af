@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: CERN-OHL-S-2.0
+`timescale 1ns/1ps
 package af_core_pkg;
   parameter int DEFAULT_FIELD_BITS = 64;
 

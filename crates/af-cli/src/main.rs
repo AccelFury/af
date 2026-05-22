@@ -17,7 +17,10 @@ use af_backend_verilator::VerilatorBackend;
 use af_backend_yosys::YosysBackend;
 use af_board_db::BoardDbError;
 use af_complexity::{classify_path, classify_spec_file, ProjectClass};
-use af_core::{check_core, load_manifest_from_core_dir, load_validated_manifest, CoreError};
+use af_core::{
+    check_core, load_manifest_from_core_dir, load_validated_manifest,
+    resolve_workspace_dependencies, CoreDependencyResolution, CoreError,
+};
 use af_manifest::{CoreManifest, ManifestError, ManifestValidationReport};
 use af_report::{
     reusable_core_maturity, write_reports, AfReport, BuildPayload, CheckPayload, CiEvidenceRecord,
@@ -1646,6 +1649,24 @@ fn doctor(build_root: &Path) -> Result<CliOutput, CliError> {
 
 fn manifest_validate(path: &Path) -> Result<CliOutput, CliError> {
     let manifest = CoreManifest::from_path(path)?;
+    let core_dir = path.parent().unwrap_or_else(|| Path::new("."));
+    let (dependency_resolutions, dependency_issues) =
+        resolve_workspace_dependencies(core_dir, &manifest);
+    if !dependency_issues.is_empty() {
+        return Err(CliError::new(
+            "AF_MANIFEST_DEPENDENCY_INVALID",
+            format!(
+                "manifest dependency resolution failed with {} issue(s)",
+                dependency_issues.len()
+            ),
+            "Fix [[dependencies.cores]].path so dependencies resolve to sibling workspace cores with af-core.toml.",
+            2,
+        )
+        .with_details(&json!({
+            "dependency_issues": dependency_issues,
+            "dependency_resolutions": dependency_resolutions,
+        })));
+    }
     let report = ManifestValidationReport {
         valid: true,
         issues: Vec::new(),
@@ -1656,6 +1677,7 @@ fn manifest_validate(path: &Path) -> Result<CliOutput, CliError> {
             "status": "passed",
             "manifest": manifest,
             "validation": report,
+            "dependency_resolutions": dependency_resolutions,
         }),
     })
 }
@@ -2381,6 +2403,9 @@ fn core_check(core_dir: &Path, build_root: &Path) -> Result<CliOutput, CliError>
             .iter()
             .map(|path| path.display().to_string()),
     );
+    af_report
+        .artifacts
+        .extend(dependency_artifacts(&report.dependency_resolutions));
     af_report.warnings.extend(report.warnings.clone());
     af_report.command_payload = Some(CommandPayload::Check(CheckPayload {
         manifest_status: report.status.clone(),
@@ -3089,6 +3114,9 @@ fn core_report(input: &Path, build_root: &Path) -> Result<CliOutput, CliError> {
         );
         report
             .artifacts
+            .extend(dependency_artifacts(&checked.dependency_resolutions));
+        report
+            .artifacts
             .extend(collect_core_report_surfaces(input, build_root));
         report.artifacts.sort();
         report.artifacts.dedup();
@@ -3215,6 +3243,7 @@ fn core_verify(core_dir: &Path, tier: &str, build_root: &Path) -> Result<CliOutp
         .iter()
         .map(|path| path.display().to_string())
         .collect();
+    artifacts.extend(dependency_artifacts(&checked.dependency_resolutions));
     artifacts.extend(collect_core_report_surfaces(core_dir, build_root));
     artifacts.sort();
     artifacts.dedup();
@@ -3911,6 +3940,25 @@ fn current_commit_sha(core_dir: &Path) -> Option<String> {
     } else {
         Some(sha)
     }
+}
+
+fn dependency_artifacts(resolutions: &[CoreDependencyResolution]) -> Vec<String> {
+    let mut artifacts = Vec::new();
+    for resolution in resolutions {
+        artifacts.push(format!(
+            "dependency:{}:{}",
+            resolution.vlnv,
+            resolution.manifest_path.display()
+        ));
+        for source in &resolution.source_files {
+            artifacts.push(format!(
+                "dependency:{}:{}",
+                resolution.vlnv,
+                source.display()
+            ));
+        }
+    }
+    artifacts
 }
 
 fn collect_core_report_surfaces(core_dir: &Path, build_root: &Path) -> Vec<String> {

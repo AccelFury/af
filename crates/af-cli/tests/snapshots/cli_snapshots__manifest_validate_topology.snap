@@ -3,6 +3,7 @@ source: crates/af-cli/tests/cli_snapshots.rs
 expression: topology
 ---
 {
+  "dependency_resolutions": [],
   "manifest": {
     "af_version": "<string>",
     "architecture": "<null>",
@@ -25,6 +26,11 @@ expression: topology
     ],
     "complexity": "<null>",
     "constructor": "<null>",
+    "contracts": {
+      "fifo": "<null>",
+      "protocols": [],
+      "reset_modes": []
+    },
     "core": "<string>",
     "csr": "<null>",
     "dependencies": {
@@ -136,7 +142,7 @@ expression: topology
     "stream_interfaces": [],
     "testbenches": [
       {
-        "backend": "<null>",
+        "backend": "<string>",
         "expected": "<null>",
         "name": "<string>",
         "rtl_sources": [],

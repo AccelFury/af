@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: CERN-OHL-S-2.0
+`timescale 1ns/1ps
 module af_mod_add #(
   parameter int FIELD_BITS = 64,
   parameter logic [FIELD_BITS-1:0] MODULUS = 64'hFFFF_FFFF_0000_0001

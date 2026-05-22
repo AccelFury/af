@@ -178,6 +178,7 @@ reset = "i_rst_n"
 
 [[testbenches]]
 name = "smoke"
+backend = "verilator"
 top = "tb_af_mod_add"
 sources = ["tb/sv/tb_pkg.sv", "tb/sv/tb_af_mod_add.sv"]
 

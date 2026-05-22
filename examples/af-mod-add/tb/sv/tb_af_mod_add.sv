@@ -74,11 +74,11 @@ module tb_af_mod_add;
     begin
       @(posedge clk);
       while (!o_ready) @(posedge clk);
-      i_a <= v.a;
-      i_b <= v.b;
-      i_valid <= 1'b1;
+      i_a = v.a;
+      i_b = v.b;
+      i_valid = 1'b1;
       @(posedge clk);
-      i_valid <= 1'b0;
+      i_valid = 1'b0;
       if (!o_valid) begin
         wait (o_valid);
       end

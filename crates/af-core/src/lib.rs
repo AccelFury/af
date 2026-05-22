@@ -58,6 +58,10 @@ pub struct CoreCheckReport {
     pub inspection: RtlInspectionReport,
     #[serde(default)]
     pub legal_issues: Vec<CoreLegalIssue>,
+    #[serde(default)]
+    pub dependency_resolutions: Vec<CoreDependencyResolution>,
+    #[serde(default)]
+    pub dependency_issues: Vec<CoreDependencyIssue>,
     pub artifacts: Vec<PathBuf>,
     pub warnings: Vec<String>,
     pub limitations: Vec<String>,
@@ -68,6 +72,34 @@ pub struct CoreLegalIssue {
     pub code: String,
     pub message: String,
     pub hint: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+pub struct CoreDependencyResolution {
+    pub name: String,
+    pub role: String,
+    pub requested_path: String,
+    pub resolved_core_dir: PathBuf,
+    pub manifest_path: PathBuf,
+    pub source_files: Vec<PathBuf>,
+    pub vlnv: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+pub struct CoreDependencyIssue {
+    pub code: String,
+    pub message: String,
+    pub hint: String,
+}
+
+impl CoreDependencyIssue {
+    fn new(code: &str, message: impl Into<String>, hint: impl Into<String>) -> Self {
+        Self {
+            code: code.to_string(),
+            message: message.into(),
+            hint: hint.into(),
+        }
+    }
 }
 
 impl CoreLegalIssue {
@@ -116,7 +148,9 @@ pub fn load_validated_manifest(core_dir: impl AsRef<Path>) -> Result<CoreManifes
     }
     let manifest = CoreManifest::from_path(&manifest_path)?;
     let inspection = inspect_core(core_dir, &manifest)?;
-    if inspection.has_errors() {
+    let (dependency_resolutions, dependency_issues) =
+        resolve_workspace_dependencies(core_dir, &manifest);
+    if inspection.has_errors() || !dependency_issues.is_empty() {
         let warnings = inspection.warnings();
         let limitations = manifest.known_limitations.clone();
         let report = CoreCheckReport {
@@ -126,6 +160,8 @@ pub fn load_validated_manifest(core_dir: impl AsRef<Path>) -> Result<CoreManifes
             manifest,
             inspection,
             legal_issues: Vec::new(),
+            dependency_resolutions,
+            dependency_issues,
             artifacts: Vec::new(),
             warnings,
             limitations,
@@ -149,10 +185,15 @@ pub fn check_core(core_dir: impl AsRef<Path>) -> Result<CoreCheckReport, CoreErr
     let manifest = CoreManifest::from_path(&manifest_path)?;
     let inspection = inspect_core(core_dir, &manifest)?;
     let legal_issues = validate_core_legal_policy(core_dir, &manifest);
+    let (dependency_resolutions, dependency_issues) =
+        resolve_workspace_dependencies(core_dir, &manifest);
     let warnings = inspection.warnings();
     let limitations = manifest.known_limitations.clone();
     let report = CoreCheckReport {
-        status: if inspection.has_errors() || !legal_issues.is_empty() {
+        status: if inspection.has_errors()
+            || !legal_issues.is_empty()
+            || !dependency_issues.is_empty()
+        {
             "failed".to_string()
         } else {
             "passed".to_string()
@@ -162,6 +203,8 @@ pub fn check_core(core_dir: impl AsRef<Path>) -> Result<CoreCheckReport, CoreErr
         manifest,
         inspection,
         legal_issues,
+        dependency_resolutions,
+        dependency_issues,
         artifacts: Vec::new(),
         warnings,
         limitations,
@@ -174,6 +217,123 @@ pub fn check_core(core_dir: impl AsRef<Path>) -> Result<CoreCheckReport, CoreErr
             report: Box::new(report),
         })
     }
+}
+
+pub fn resolve_workspace_dependencies(
+    core_dir: &Path,
+    manifest: &CoreManifest,
+) -> (Vec<CoreDependencyResolution>, Vec<CoreDependencyIssue>) {
+    let mut resolutions = Vec::new();
+    let mut issues = Vec::new();
+    let core_root = match core_dir.canonicalize() {
+        Ok(path) => path,
+        Err(err) => {
+            issues.push(CoreDependencyIssue::new(
+                "AF_DEPENDENCY_CORE_ROOT_INVALID",
+                format!(
+                    "failed to canonicalize core directory `{}`: {err}",
+                    core_dir.display()
+                ),
+                "Run from an existing core directory.",
+            ));
+            return (resolutions, issues);
+        }
+    };
+    let workspace_root = discover_workspace_root(&core_root);
+
+    for dependency in &manifest.dependencies.cores {
+        let Some(path) = dependency.path.as_deref() else {
+            continue;
+        };
+        let requested = path.to_string();
+        let joined = core_root.join(path);
+        let resolved = match joined.canonicalize() {
+            Ok(path) => path,
+            Err(err) => {
+                issues.push(CoreDependencyIssue::new(
+                    "AF_DEPENDENCY_PATH_UNRESOLVED",
+                    format!(
+                        "dependency `{}` path `{requested}` could not be resolved from `{}`: {err}",
+                        dependency.name,
+                        core_root.display()
+                    ),
+                    "Check [[dependencies.cores]].path or create the sibling core directory.",
+                ));
+                continue;
+            }
+        };
+        if !resolved.starts_with(&workspace_root) {
+            issues.push(CoreDependencyIssue::new(
+                "AF_DEPENDENCY_PATH_OUTSIDE_WORKSPACE",
+                format!(
+                    "dependency `{}` resolves outside workspace root `{}`: `{}`",
+                    dependency.name,
+                    workspace_root.display(),
+                    resolved.display()
+                ),
+                "Keep dependency paths inside the current workspace; arbitrary path traversal remains fail-closed.",
+            ));
+            continue;
+        }
+        let dep_manifest_path = resolved.join("af-core.toml");
+        if !dep_manifest_path.is_file() {
+            issues.push(CoreDependencyIssue::new(
+                "AF_DEPENDENCY_MANIFEST_MISSING",
+                format!(
+                    "dependency `{}` resolved to `{}` but no af-core.toml was found",
+                    dependency.name,
+                    resolved.display()
+                ),
+                "Point dependencies.cores.path at a directory containing af-core.toml.",
+            ));
+            continue;
+        }
+        let dep_manifest = match CoreManifest::from_path(&dep_manifest_path) {
+            Ok(manifest) => manifest,
+            Err(err) => {
+                issues.push(CoreDependencyIssue::new(
+                    err.code(),
+                    format!(
+                        "dependency `{}` manifest `{}` is invalid: {err}",
+                        dependency.name,
+                        dep_manifest_path.display()
+                    ),
+                    err.hint(),
+                ));
+                continue;
+            }
+        };
+        let source_files = dep_manifest
+            .sources
+            .files
+            .iter()
+            .map(|source| resolved.join(source))
+            .collect();
+        resolutions.push(CoreDependencyResolution {
+            name: dependency.name.clone(),
+            role: dependency.role.clone(),
+            requested_path: requested,
+            resolved_core_dir: resolved,
+            manifest_path: dep_manifest_path,
+            source_files,
+            vlnv: dep_manifest.vlnv(),
+        });
+    }
+
+    (resolutions, issues)
+}
+
+fn discover_workspace_root(core_root: &Path) -> PathBuf {
+    for ancestor in core_root.ancestors() {
+        if ancestor.join(".git").exists()
+            || ancestor.join("Cargo.toml").is_file()
+            || ancestor.join("projects").is_dir()
+            || ancestor.join("examples").is_dir()
+        {
+            return ancestor.to_path_buf();
+        }
+    }
+    core_root.parent().unwrap_or(core_root).to_path_buf()
 }
 
 fn validate_core_legal_policy(core_dir: &Path, manifest: &CoreManifest) -> Vec<CoreLegalIssue> {
@@ -342,6 +502,126 @@ endmodule
         let report = check_core(dir.path()).unwrap();
         assert!(report.passed());
         assert_eq!(report.limitations, vec!["test limitation"]);
+    }
+
+    #[test]
+    fn resolves_sibling_workspace_dependency_path() {
+        let root = tempdir().unwrap();
+        fs::write(root.path().join("Cargo.toml"), "[workspace]\n").unwrap();
+        let projects = root.path().join("projects");
+        let producer = projects.join("producer");
+        let consumer = projects.join("consumer");
+        fs::create_dir_all(producer.join("rtl")).unwrap();
+        fs::create_dir_all(consumer.join("rtl")).unwrap();
+        fs::write(
+            producer.join("af-core.toml"),
+            r#"
+af_version = "0.3"
+name = "producer"
+vendor = "accelfury"
+library = "ip"
+core = "producer"
+version = "0.1.0"
+
+[metadata]
+license = "AccelFury Source Available License v1.0"
+
+[rtl]
+top = "producer"
+language = "verilog-2001"
+
+[sources]
+files = ["rtl/producer.v"]
+
+[[clocks]]
+name = "clk"
+port = "clk"
+
+[[resets]]
+name = "rst"
+port = "rst"
+active = "high"
+
+[[ports]]
+name = "clk"
+direction = "input"
+width = 1
+
+[[ports]]
+name = "rst"
+direction = "input"
+width = 1
+"#,
+        )
+        .unwrap();
+        fs::write(
+            producer.join("rtl/producer.v"),
+            "`default_nettype none\nmodule producer(input wire clk, input wire rst); endmodule\n`default_nettype wire\n",
+        )
+        .unwrap();
+        fs::write(
+            consumer.join("af-core.toml"),
+            r#"
+af_version = "0.3"
+name = "consumer"
+vendor = "accelfury"
+library = "ip"
+core = "consumer"
+version = "0.1.0"
+known_limitations = ["test limitation"]
+
+[metadata]
+license = "AccelFury Source Available License v1.0"
+
+[rtl]
+top = "consumer"
+language = "verilog-2001"
+
+[sources]
+files = ["rtl/consumer.v"]
+
+[[dependencies.cores]]
+name = "producer"
+version = ">=0.1.0"
+role = "test_dependency"
+path = "../producer"
+
+[[clocks]]
+name = "clk"
+port = "clk"
+
+[[resets]]
+name = "rst"
+port = "rst"
+active = "high"
+
+[[ports]]
+name = "clk"
+direction = "input"
+width = 1
+
+[[ports]]
+name = "rst"
+direction = "input"
+width = 1
+"#,
+        )
+        .unwrap();
+        fs::write(
+            consumer.join("rtl/consumer.v"),
+            "`default_nettype none\nmodule consumer(input wire clk, input wire rst); endmodule\n`default_nettype wire\n",
+        )
+        .unwrap();
+        write_legal_files(&consumer);
+
+        let report = check_core(&consumer).unwrap();
+        assert_eq!(report.dependency_issues, Vec::new());
+        assert_eq!(report.dependency_resolutions.len(), 1);
+        assert_eq!(report.dependency_resolutions[0].name, "producer");
+        assert_eq!(
+            report.dependency_resolutions[0].vlnv,
+            "accelfury:ip:producer:0.1.0"
+        );
     }
 
     #[test]

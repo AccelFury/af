@@ -60,7 +60,7 @@ For each row with status ≠ `supported`, propose the canonical closing command(
 | `wrapper_package_compatibility` | `af wrapper generate <dir> --target fusesoc`; `--target ipxact`; `--target litex --board <first_board>` (only if manifest declares ≥1 board) | medium |
 | `docker_ci_cd_evidence` | `af ci init --project <name> --hdl verilog-2001 --rtl rtl --top <top> --provider github`; then push, run, archive run-record JSON + SHA256SUMS, then `af evidence ingest --kind ci-run --input <record.json>` | high |
 | `vendor_tool_evidence` | Out-of-scope for `af` to run; user must produce a Vivado/Quartus/Gowin/Efinity report and `af evidence ingest --kind synthesis-report --tool <vendor> --input <report>` | high |
-| `board_hardware_evidence` | `af build <dir> --board <id> --backend nextpnr`; then physical bring-up logs; then `af evidence ingest --kind board-bringup --input ...` | high |
+| `board_hardware_evidence` | Current maturity row cannot be made `supported` by one CLI command. `af build <dir> --board <id> --backend nextpnr --json` and `af evidence ingest --kind hardware-measurement --input <bringup_log.json> --status passed` can archive evidence, but the row remains `planned`/`not-applicable` until the maturity model consumes hardware-measurement evidence. | high |
 
 `evidence_portability`, `buyer_grade_readiness`, `enterprise_grade_readiness` — never propose direct actions. Just note "aggregation: flips when input rows flip".
 
@@ -211,7 +211,7 @@ Maturity verdict: `blocked` · 8 blocked row(s).
 
 - `vendor_tool_evidence` — out of scope for `af`.
 
-- `board_hardware_evidence` — Declared board support is not hardware bring-up evidence.
+- `board_hardware_evidence` — Declared board support is not hardware bring-up evidence; `hardware-measurement` ingestion archives records but does not currently mark this row supported.
 
 ## Aggregation rows (will flip automatically)
 

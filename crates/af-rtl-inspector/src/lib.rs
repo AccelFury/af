@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-use af_manifest::CoreManifest;
+use af_manifest::{CoreManifest, PortWidth};
 use af_security::{safe_join, SecurityError};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -185,6 +185,7 @@ pub fn inspect_core(
 
         if let Some(header) = top_header.as_deref() {
             check_manifest_ports_in_header(&mut report, manifest, header);
+            check_manifest_port_widths(&mut report, manifest, header);
             check_clock_reset_bindings(&mut report, manifest);
             check_portable_port_style(&mut report, manifest, header);
         }
@@ -522,6 +523,51 @@ fn check_manifest_ports_in_header(
     );
 }
 
+fn check_manifest_port_widths(
+    report: &mut RtlInspectionReport,
+    manifest: &CoreManifest,
+    header: &str,
+) {
+    let Some(declarations) = module_port_declarations(header) else {
+        report
+            .checks
+            .insert("port_widths_match".to_string(), "skip".to_string());
+        return;
+    };
+
+    let mut failed = false;
+    for port in &manifest.ports {
+        let Some(manifest_width) = &port.width else {
+            continue;
+        };
+        let Some(declaration) = declarations
+            .iter()
+            .find(|declaration| declaration_declares_port(declaration, &port.name))
+        else {
+            continue;
+        };
+        let rtl_width = rtl_width_from_declaration(declaration, manifest);
+        if !width_contract_matches(manifest_width, &rtl_width, manifest) {
+            failed = true;
+            report.issues.push(RtlIssue::error(
+                "AF_PORT_WIDTH_MISMATCH",
+                format!(
+                    "manifest port `{}` width `{}` does not match RTL declaration width `{}`",
+                    port.name,
+                    manifest_width_text(manifest_width),
+                    rtl_width.display
+                ),
+                "Update [[ports]].width to the RTL parameter expression or integer width; do not collapse parameterized buses to width = 1.",
+            ));
+        }
+    }
+
+    report.checks.insert(
+        "port_widths_match".to_string(),
+        if failed { "fail" } else { "pass" }.to_string(),
+    );
+}
+
 fn check_clock_reset_bindings(report: &mut RtlInspectionReport, manifest: &CoreManifest) {
     let port_names = manifest
         .ports
@@ -634,6 +680,165 @@ fn module_port_declarations(header: &str) -> Option<Vec<String>> {
         .map(str::to_string)
         .collect::<Vec<_>>();
     Some(declarations)
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct RtlWidth {
+    display: String,
+    normalized_expr: Option<String>,
+    default_bits: Option<u64>,
+}
+
+fn rtl_width_from_declaration(declaration: &str, manifest: &CoreManifest) -> RtlWidth {
+    let Some(start) = declaration.find('[') else {
+        return RtlWidth {
+            display: "1".to_string(),
+            normalized_expr: Some("1".to_string()),
+            default_bits: Some(1),
+        };
+    };
+    let Some(end_offset) = declaration[start + 1..].find(']') else {
+        return RtlWidth {
+            display: "unknown".to_string(),
+            normalized_expr: None,
+            default_bits: None,
+        };
+    };
+    let raw = declaration[start + 1..start + 1 + end_offset].trim();
+    let display = format!("[{raw}]");
+    let Some((msb, lsb)) = raw.split_once(':') else {
+        return RtlWidth {
+            display,
+            normalized_expr: None,
+            default_bits: None,
+        };
+    };
+    let msb = msb.trim();
+    let lsb = lsb.trim();
+    if let (Ok(msb_int), Ok(lsb_int)) = (msb.parse::<i64>(), lsb.parse::<i64>()) {
+        let width = (msb_int - lsb_int).unsigned_abs() + 1;
+        return RtlWidth {
+            display,
+            normalized_expr: Some(width.to_string()),
+            default_bits: Some(width),
+        };
+    }
+    if lsb == "0" {
+        if let Some(param) = msb.strip_suffix("-1").map(str::trim) {
+            let expr = normalize_width_expr(param);
+            return RtlWidth {
+                display,
+                normalized_expr: Some(expr.clone()),
+                default_bits: eval_width_expr(&expr, manifest),
+            };
+        }
+        if is_identifier(msb) {
+            let expr = normalize_width_expr(&format!("{msb}+1"));
+            return RtlWidth {
+                display,
+                normalized_expr: Some(expr.clone()),
+                default_bits: eval_width_expr(&expr, manifest),
+            };
+        }
+    }
+    RtlWidth {
+        display,
+        normalized_expr: Some(normalize_width_expr(raw)),
+        default_bits: eval_width_expr(raw, manifest),
+    }
+}
+
+fn width_contract_matches(
+    manifest_width: &PortWidth,
+    rtl_width: &RtlWidth,
+    manifest: &CoreManifest,
+) -> bool {
+    match manifest_width {
+        PortWidth::Integer(value) => {
+            rtl_width.default_bits == Some(*value as u64)
+                || rtl_width.normalized_expr.as_deref() == Some(&value.to_string())
+        }
+        PortWidth::Parameter(expr) => {
+            let normalized = normalize_width_expr(expr);
+            rtl_width.normalized_expr.as_deref() == Some(normalized.as_str())
+                || eval_width_expr(&normalized, manifest) == rtl_width.default_bits
+        }
+    }
+}
+
+fn manifest_width_text(width: &PortWidth) -> String {
+    match width {
+        PortWidth::Integer(value) => value.to_string(),
+        PortWidth::Parameter(expr) => expr.clone(),
+    }
+}
+
+fn declaration_declares_port(declaration: &str, port_name: &str) -> bool {
+    declaration
+        .split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '$'))
+        .filter(|token| !token.is_empty())
+        .last()
+        == Some(port_name)
+}
+
+fn normalize_width_expr(expr: &str) -> String {
+    expr.chars()
+        .filter(|ch| !ch.is_ascii_whitespace())
+        .collect()
+}
+
+fn eval_width_expr(expr: &str, manifest: &CoreManifest) -> Option<u64> {
+    let expr = normalize_width_expr(expr);
+    if let Ok(value) = expr.parse::<u64>() {
+        return Some(value);
+    }
+    let mut total: i128 = 0;
+    let mut sign: i128 = 1;
+    let mut token = String::new();
+    let mut saw_operand = false;
+    for ch in expr.chars().chain(std::iter::once('+')) {
+        if matches!(ch, '+' | '-') {
+            if token.is_empty() {
+                return None;
+            }
+            let value = parameter_or_integer_value(&token, manifest)? as i128;
+            total += sign * value;
+            saw_operand = true;
+            token.clear();
+            sign = if ch == '-' { -1 } else { 1 };
+            continue;
+        }
+        if ch.is_ascii_alphanumeric() || ch == '_' {
+            token.push(ch);
+            continue;
+        }
+        return None;
+    }
+    if saw_operand && total >= 0 {
+        Some(total as u64)
+    } else {
+        None
+    }
+}
+
+fn parameter_or_integer_value(token: &str, manifest: &CoreManifest) -> Option<u64> {
+    if let Ok(value) = token.parse::<u64>() {
+        return Some(value);
+    }
+    manifest
+        .parameters
+        .iter()
+        .find(|parameter| parameter.name == token)
+        .and_then(|parameter| parameter.value.parse::<u64>().ok())
+}
+
+fn is_identifier(value: &str) -> bool {
+    let mut chars = value.chars();
+    let Some(first) = chars.next() else {
+        return false;
+    };
+    (first.is_ascii_alphabetic() || first == '_')
+        && chars.all(|ch| ch.is_ascii_alphanumeric() || ch == '_')
 }
 
 fn has_explicit_port_style(declaration: &str, direction: &str) -> bool {
@@ -816,6 +1021,153 @@ endmodule
         .unwrap();
         let report = inspect_core(dir.path(), &manifest_with_ports("demo")).unwrap();
         assert!(!report.has_errors(), "{:#?}", report.issues);
+    }
+
+    #[test]
+    fn reports_manifest_width_mismatch_for_parameterized_bus_collapsed_to_one() {
+        let dir = tempdir().unwrap();
+        fs::create_dir_all(dir.path().join("rtl")).unwrap();
+        fs::write(
+            dir.path().join("rtl/demo.v"),
+            r#"`default_nettype none
+module demo #(
+  parameter DATA_BITS = 32
+) (
+  input wire clk,
+  input wire [DATA_BITS-1:0] data
+);
+endmodule
+`default_nettype wire
+"#,
+        )
+        .unwrap();
+        let manifest = CoreManifest::from_toml_str(
+            r#"
+af_version = "0.2"
+name = "demo"
+vendor = "accelfury"
+library = "ip"
+core = "demo"
+version = "0.1.0"
+
+[rtl]
+top = "demo"
+language = "verilog-2001"
+
+[sources]
+files = ["rtl/demo.v"]
+
+[[parameters]]
+name = "DATA_BITS"
+value = "32"
+
+[[clocks]]
+name = "clk"
+port = "clk"
+
+[[resets]]
+name = "rst"
+port = "clk"
+
+[[ports]]
+name = "clk"
+direction = "input"
+width = 1
+
+[[ports]]
+name = "data"
+direction = "input"
+width = 1
+"#,
+            "af-core.toml",
+        )
+        .unwrap();
+        let report = inspect_core(dir.path(), &manifest).unwrap();
+        assert!(report
+            .issues
+            .iter()
+            .any(|issue| issue.code == "AF_PORT_WIDTH_MISMATCH"));
+    }
+
+    #[test]
+    fn accepts_parameter_and_simple_expression_widths() {
+        let dir = tempdir().unwrap();
+        fs::create_dir_all(dir.path().join("rtl")).unwrap();
+        fs::write(
+            dir.path().join("rtl/demo.v"),
+            r#"`default_nettype none
+module demo #(
+  parameter DATA_BITS = 32,
+  parameter FIFO_ADDR_BITS = 4
+) (
+  input wire clk,
+  input wire [DATA_BITS-1:0] data,
+  output wire [FIFO_ADDR_BITS:0] level
+);
+endmodule
+`default_nettype wire
+"#,
+        )
+        .unwrap();
+        let manifest = CoreManifest::from_toml_str(
+            r#"
+af_version = "0.2"
+name = "demo"
+vendor = "accelfury"
+library = "ip"
+core = "demo"
+version = "0.1.0"
+
+[rtl]
+top = "demo"
+language = "verilog-2001"
+
+[sources]
+files = ["rtl/demo.v"]
+
+[[parameters]]
+name = "DATA_BITS"
+value = "32"
+
+[[parameters]]
+name = "FIFO_ADDR_BITS"
+value = "4"
+
+[[clocks]]
+name = "clk"
+port = "clk"
+
+[[resets]]
+name = "rst"
+port = "clk"
+
+[[ports]]
+name = "clk"
+direction = "input"
+width = 1
+
+[[ports]]
+name = "data"
+direction = "input"
+width = "DATA_BITS"
+
+[[ports]]
+name = "level"
+direction = "output"
+width = "FIFO_ADDR_BITS + 1"
+"#,
+            "af-core.toml",
+        )
+        .unwrap();
+        let report = inspect_core(dir.path(), &manifest).unwrap();
+        assert!(
+            !report
+                .issues
+                .iter()
+                .any(|issue| issue.code == "AF_PORT_WIDTH_MISMATCH"),
+            "{:#?}",
+            report.issues
+        );
     }
 
     #[test]

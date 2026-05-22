@@ -3,7 +3,7 @@ use af_backend::{
     AfBackend, BackendCapability, BackendError, BackendId, BackendReport, BackendStatus,
     CommandRecord, CommandRunner, CommandSpec, ProcessCommandRunner, ToolInfo, ToolVersion,
 };
-use af_manifest::CoreManifest;
+use af_manifest::{CoreManifest, Testbench};
 use af_security::SecurityError;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
@@ -189,6 +189,16 @@ where
                 .push("No testbenches declared; smoke simulation skipped.".to_string());
             return Ok(report);
         }
+        if select_testbench(manifest, self.name()).is_none() {
+            report.warnings.push(
+                "No Verilator-compatible testbench declared; smoke simulation skipped.".to_string(),
+            );
+            report.limitations.push(
+                "A testbench with another explicit backend is not treated as portable simulation evidence."
+                    .to_string(),
+            );
+            return Ok(report);
+        }
 
         let spec = verilator_smoke_command(manifest, core_dir);
         let output = self.runner.run(&spec)?;
@@ -228,15 +238,13 @@ pub fn verilator_lint_command(manifest: &CoreManifest, core_dir: &Path) -> Comma
 }
 
 pub fn verilator_smoke_command(manifest: &CoreManifest, core_dir: &Path) -> CommandSpec {
-    let top = manifest
-        .testbenches
-        .first()
+    let testbench = select_testbench(manifest, "verilator");
+    let top = testbench
         .map(|tb| tb.top.clone())
         .unwrap_or_else(|| manifest.rtl.top.clone());
 
-    let has_cpp_testbench = manifest
-        .testbenches
-        .iter()
+    let has_cpp_testbench = testbench
+        .into_iter()
         .flat_map(|tb| tb.sources.iter())
         .any(|source| {
             source.ends_with(".cpp") || source.ends_with(".cc") || source.ends_with(".cxx")
@@ -262,11 +270,30 @@ pub fn verilator_smoke_command(manifest: &CoreManifest, core_dir: &Path) -> Comm
         args.push(format!("-I{include_dir}"));
     }
     args.extend(manifest.sources.files.iter().cloned());
-    for testbench in &manifest.testbenches {
+    if let Some(testbench) = testbench {
+        args.extend(testbench.rtl_sources.iter().cloned());
         args.extend(testbench.sources.iter().cloned());
     }
+    dedup_preserve_order(&mut args);
 
     CommandSpec::new("verilator").args(args).cwd(core_dir)
+}
+
+fn select_testbench<'a>(manifest: &'a CoreManifest, backend: &str) -> Option<&'a Testbench> {
+    manifest
+        .testbenches
+        .iter()
+        .find(|tb| {
+            tb.backend
+                .as_deref()
+                .is_some_and(|name| name.eq_ignore_ascii_case(backend))
+        })
+        .or_else(|| manifest.testbenches.iter().find(|tb| tb.backend.is_none()))
+}
+
+fn dedup_preserve_order(items: &mut Vec<String>) {
+    let mut seen = std::collections::BTreeSet::new();
+    items.retain(|item| seen.insert(item.clone()));
 }
 
 fn first_non_empty_line(text: &str) -> Option<&str> {
@@ -419,5 +446,52 @@ sources = ["tb/tb_pkg.sv", "tb/tb_demo.sv"]
             .unwrap();
         assert_eq!(report.status, BackendStatus::Passed);
         assert_eq!(report.commands.len(), 2);
+    }
+
+    #[test]
+    fn sim_skips_testbench_for_other_explicit_backend() {
+        let manifest = CoreManifest::from_toml_str(
+            r#"
+af_version = "0.1"
+name = "demo"
+vendor = "accelfury"
+library = "ip"
+core = "demo"
+version = "0.1.0"
+
+[rtl]
+top = "demo"
+language = "systemverilog"
+
+[sources]
+files = ["rtl/demo.sv"]
+
+[[testbenches]]
+name = "icarus_only"
+backend = "icarus"
+top = "tb_demo"
+sources = ["tb/tb_demo.sv"]
+"#,
+            "af-core.toml",
+        )
+        .unwrap();
+        let version = CommandOutput {
+            spec: CommandSpec::new("verilator"),
+            exit_code: Some(0),
+            stdout: "Verilator 5.000".to_string(),
+            stderr: String::new(),
+        };
+        let backend = VerilatorBackend::new(FakeRunner::new(vec![version]));
+
+        let report = backend
+            .sim(&manifest, Path::new("."), Path::new(".af-build"))
+            .unwrap();
+
+        assert_eq!(report.status, BackendStatus::Passed);
+        assert_eq!(report.commands.len(), 1, "must only run version probe");
+        assert!(report
+            .warnings
+            .iter()
+            .any(|warning| { warning.contains("No Verilator-compatible testbench declared") }));
     }
 }

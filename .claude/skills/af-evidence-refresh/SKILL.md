@@ -1,6 +1,6 @@
 ---
 name: af-evidence-refresh
-description: Re-run the full open-source evidence cascade for a single core (lint → sim → synth → wrapper → optional CI-record ingest) so that `af core report` evidence rows flip from `planned`/`blocked` to `supported` where the local toolchain allows. Emits an archive directory with all artefacts and a `SHA256SUMS` file. Use when the user says "refresh evidence", "rerun all gates", "rebuild reports", or "evidence rotted after a commit". Do NOT use to fabricate evidence the local environment cannot actually produce.
+description: Re-run the open-source evidence cascade for a single core (manifest/core checks → lint/sim/formal where declared → wrappers → optional CI-record ingest) so that `af core report` evidence rows reflect the current tree. Emits a reproducibility archive with all generated reports and a `SHA256SUMS` file. Use when the user says "refresh evidence", "rerun all gates", "rebuild reports", or "evidence rotted after a commit". Do NOT use to fabricate evidence the local environment cannot actually produce.
 allowed-tools: Bash, Read, Glob
 ---
 
@@ -42,7 +42,7 @@ Source of truth: `crates/af-report/src/lib.rs::reusable_core_maturity` (substrin
 | `wrapper_package_compatibility` | artefact names contain: `fusesoc`, `litex`, `ipxact`, `.core` | `af wrapper generate <core_dir> --target fusesoc`; `--target ipxact`; `--target litex --board <first_board>` (only if `manifest.boards[]` non-empty) |
 | `docker_ci_cd_evidence` | `.af-build/reports/evidence/ci_run_report-*.json` with `conclusion == "success"` AND `commit_sha == HEAD` AND `sha256sums` populated | `af evidence ingest --kind ci-run --input <ci_record> --status <conclusion>` if `ci_record` provided; otherwise leaves the row as-is |
 | `vendor_tool_evidence` | artefact names contain: `vivado`, `quartus`, `gowin`, `efinity` | **Not refreshed by this skill** — vendor tooling is out of scope. User must run vendor flow manually and `af evidence ingest --kind synthesis-report --tool <v>` separately. |
-| `board_hardware_evidence` | manifest's `boards[]` cross-references against `boards.registry.json` non-placeholder rows | **Not refreshed by this skill** — board bring-up evidence requires physical hardware. |
+| `board_hardware_evidence` | current maturity model derives `planned`/`not-applicable` from manifest `boards[]` and board registry placeholder status | **Not refreshed by this skill** — board bring-up evidence requires physical hardware, and ingested `hardware-measurement` records are archival evidence until the maturity row consumes them. |
 | `release_support_legal_evidence` | `metadata.license` set + LICENSE/COMMERCIAL-LICENSE/NOTICE files exist | Confirmed by `af core check` (already in cascade) |
 | `evidence_portability` | aggregation of the others | derived |
 | `buyer_grade_readiness` / `enterprise_grade_readiness` | aggregation | derived |
@@ -75,7 +75,7 @@ cargo run --quiet -p af-cli --bin af -- core lint <core_dir> --backend native --
 cargo run --quiet -p af-cli --bin af -- core lint <core_dir> --backend verilator --json --build-root <build_root>
 cargo run --quiet -p af-cli --bin af -- core sim <core_dir> --backend verilator --json --build-root <build_root>
 
-# If iverilog + vvp detected
+# If iverilog + vvp detected and the manifest has an Icarus-compatible testbench
 cargo run --quiet -p af-cli --bin af -- core sim <core_dir> --backend icarus --json --build-root <build_root>
 
 # If yosys detected
@@ -104,20 +104,22 @@ For each command, capture: exit code, JSON output, stdout/stderr log paths (the 
 
 ```bash
 cargo run --quiet -p af-cli --bin af -- core report <core_dir> --json --build-root <build_root> \
-  > <core_dir>/evidence/report.json
+  > <archive_dir>/report.json
 ```
 
 Read `maturity.verdict` and the `rows[].status` map.
 
 ### Step 5 — write `SHA256SUMS`
 
-`af` itself does not generate the bundle; do it via `sha256sum`:
+`af` itself does not generate the bundle. Use
+`<archive_dir> = <build_root>/evidence-refresh/<core_slug>` by default and
+write hashes there:
 
 ```bash
-mkdir -p <core_dir>/evidence
+mkdir -p <archive_dir>
 ( cd <build_root> && find reports logs -type f \( -name '*.json' -o -name '*.md' -o -name '*.log' -o -name '*.txt' \) -print0 \
-  | sort -z | xargs -0 sha256sum ) > <core_dir>/evidence/SHA256SUMS
-sha256sum <core_dir>/evidence/report.json >> <core_dir>/evidence/SHA256SUMS
+  | sort -z | xargs -0 sha256sum ) > <archive_dir>/SHA256SUMS
+sha256sum <archive_dir>/report.json >> <archive_dir>/SHA256SUMS
 ```
 
 The `( cd ... && find )` ensures relative paths inside `SHA256SUMS` are stable across machines (paths start with `reports/...`, not absolute).
@@ -135,7 +137,7 @@ jq -s '
           before: ($a[$i].status // "absent"),
           after: ($b[$i].status // "absent") }
       | select(.before != .after) ]
-' <baseline_report> <core_dir>/evidence/report.json
+' <baseline_report> <archive_dir>/report.json
 ```
 
 (or implement the comparison directly in skill logic; the jq one-liner is the spec.)
@@ -180,7 +182,7 @@ Verdict: `<supported|partial|blocked>`
 
 ## Archive
 
-`<core_dir>/evidence/`:
+`<archive_dir>`:
 - `report.json`           — consolidated `af core report` output
 - `SHA256SUMS`            — hashes over `<build_root>/{reports,logs}/`
 
@@ -210,7 +212,7 @@ and cite the closest existing coverage.
 
 | Situation | Treatment |
 |---|---|
-| Core has no `tb/` folder | `af core sim` will fail with a clear error; surface it. User must add a testbench before sim evidence exists. |
+| Core has no compatible testbench | Skip the sim backend with an explicit reason. User must add a backend-compatible testbench before sim evidence exists. |
 | Manifest declares `[formal] enabled = false` | Skip the SBY step; it would be a no-op anyway. |
 | `manifest.boards[]` is empty | Skip the `litex --board` wrapper step. |
 | User passes `--targets open_source_tool_evidence` | Skip the wrapper generation block; skip CI ingest. Run only the lint/sim/formal cascade. |
@@ -234,6 +236,6 @@ Plan emitted:
 5. `core lint --backend yosys`
 6. `wrapper generate --target fusesoc`
 7. `wrapper generate --target ipxact`
-8. `core report` → archive
+8. `core report` → archive under `<build_root>/evidence-refresh/<core>/`
 
 Output mirrors the canonical template above with `vendor_tool_evidence` and `board_hardware_evidence` marked "skipped — out of scope".

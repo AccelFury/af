@@ -68,6 +68,7 @@ af vectors generate
 af wrapper generate <core_dir> --target fusesoc
 af wrapper generate <core_dir> --target litex --board <board>
 af wrapper generate <core_dir> --target ipxact
+af wrapper generate <core_dir> --target stream-fifo
 af ci init --project <name> --hdl <verilog-2001|verilog-2005> --rtl <path> --top <module> [--sim <cmd>] [--provider github]
 af ci render --config af-ci.toml --output .github/workflows/hdl-ci.yml [--dry-run]
 af ci doctor --repo .
@@ -274,6 +275,17 @@ in `registries/boards.registry.json`. The wrapper itself is still produced
 because skeleton generation is template-only by design; the warning is the
 honest signal that the resulting wrapper inherits placeholder pin/clock
 metadata.
+
+`af wrapper generate --target stream-fifo` emits a generated ready/valid
+adapter around a raw FIFO core described by `[contracts.fifo]`. For
+`full_write_policy = "accept_when_full_with_read"`, the generated wrapper uses
+`s_ready = !full || (m_ready && m_valid)` so composite shells do not hand-copy
+FIFO full/read protocol formulas.
+
+Generic protocol contracts under `[[contracts.protocols]]` are consumed by
+`af compatibility check` for adapter hints. `stream-fifo` is the first
+generated protocol adapter; reset, width, and CDC adapters remain explicit
+suggestions until a dedicated wrapper generator is added.
 
 `af core report <core_dir>` now includes a `maturity` object in JSON and a
 Reusable Core Maturity section in Markdown. The verdict separates manifest

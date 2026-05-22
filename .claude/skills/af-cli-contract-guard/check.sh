@@ -40,10 +40,6 @@ mapfile -t changed < <(
   git diff --name-only "$base" -- "${surface_paths[@]}" 2>/dev/null
 )
 if [[ ${#changed[@]} -eq 0 ]]; then
-  echo "## Contract guard summary"
-  echo ""
-  echo "Changed contract files: 0"
-  echo "Nothing to guard. Smoke checks still run below."
   smoke_only=1
 else
   smoke_only=0
@@ -120,12 +116,16 @@ fi
 
 # --- Step 3: smoke checks (always) -------------------------------------------
 smoke_fail=0
+smoke_results=()
 run_smoke() {
   local label="$1"; shift
   if ! "$@" >/tmp/af-guard-smoke.log 2>&1; then
     smoke_fail=1
+    smoke_results+=("- \`$label\` -> failed")
     echo "[SMOKE REGRESSION] $label failed:" >&2
     tail -20 /tmp/af-guard-smoke.log >&2
+  else
+    smoke_results+=("- \`$label\` -> passed")
   fi
 }
 
@@ -159,6 +159,10 @@ if [[ ${#findings[@]} -gt 0 ]]; then
     echo "- $f"
   done
 fi
+
+echo ""
+echo "## Smoke checks"
+printf '%s\n' "${smoke_results[@]}"
 
 echo ""
 echo "## Verdict"

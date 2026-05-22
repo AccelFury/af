@@ -1,12 +1,12 @@
 ---
 name: af-migrate-manifest
-description: Upgrade a legacy `af-core.toml` (v0.1 or v0.2) to canonical v0.3 and seed the manifesto axes (`portability_level`/`priority`/`maturity`/`verification_required`) from `registries/cores.registry.json` when an entry exists. Use when a core's manifest is older than v0.3, when the user says "migrate <core>", "upgrade af-core.toml", "bring this core to current schema", or when `af core check` reports `AF_MANIFEST_VERSION_UNSUPPORTED`. Do NOT use to create a new core — that is `af-bootstrap-core`.
+description: Upgrade a legacy `af-core.toml` to the current v0.3 contract and seed the manifesto axes (`portability_level`/`priority`/`maturity`/`verification_required`) from `registries/cores.registry.json` when an entry exists. Use when a core's manifest is older than v0.3, when v0.3 axes are missing, when the user says "migrate <core>", "upgrade af-core.toml", "bring this core to current schema", or when `af core check` reports `AF_MANIFEST_VERSION_UNSUPPORTED`. Do NOT use to create a new core — that is `af-bootstrap-core`.
 allowed-tools: Bash, Read, Edit, Write, Glob
 ---
 
 # af-migrate-manifest
 
-`af manifest migrate` is the built-in subcommand for v0.1 → v0.2 normalisation. This skill wraps it, adds the v0.3 axes step that the built-in command does **not** do, and proves the migrated core still passes `af core check` and `af architecture check`. It is the pair-tool to `af-bootstrap-core`: bootstrap creates fresh, migrate brings legacy in line.
+`af manifest migrate` is the built-in subcommand for the supported v0.1 → v0.2 compatibility migration. This skill wraps that exact CLI when needed, then adds the v0.3 axes step that the built-in command does **not** do, and proves the migrated core still passes `af core check` and `af architecture check`. It is the pair-tool to `af-bootstrap-core`: bootstrap creates fresh, migrate brings legacy in line.
 
 ## When to invoke
 
@@ -50,13 +50,15 @@ If `af_version == "0.3"` AND all four axes are populated, stop with:
 
 ### Step 2 — normalise v0.1/v0.2 shape via `af manifest migrate`
 
-If `af_version` is `"0.1"` or `"0.2"`, run:
+If `af_version` is `"0.1"`, run the currently supported migration:
 
 ```bash
-cargo run --quiet -p af-cli --bin af -- manifest migrate <core_dir>/af-core.toml --write --json
+cargo run --quiet -p af-cli --bin af -- manifest migrate \
+  --from 0.1 --to 0.2 <core_dir>/af-core.toml --write --json
 ```
 
-This calls `normalize_manifest_value` (`crates/af-manifest/src/lib.rs:1207-1226`) and rewrites:
+This parses the manifest through `CoreManifest::from_path`, normalizes supported
+legacy shapes, sets `af_version = "0.2"`, and rewrites:
 
 - legacy `[name]` table → root-level `name`/`vendor`/`library`/`core`/`version`
 - legacy `[[sources]]` array → `[sources]` table with `files`/`include_dirs`/`roles`/`file_types`
@@ -68,6 +70,10 @@ This calls `normalize_manifest_value` (`crates/af-manifest/src/lib.rs:1207-1226`
 It does **not** bump `af_version` to `"0.3"` and does **not** set manifesto axes — that is step 3 and 4.
 
 If `--write` is `false` (dry-run), instead run without `--write`; the command writes `af-core.toml.migrated-0.2.toml` next to the original. Read it from there for the next steps. Do not delete the original yet.
+
+If `af_version` is `"0.2"` or `"0.3"` but any manifesto axis is missing, skip
+`af manifest migrate`; the built-in CLI does not support `0.2 -> 0.3`.
+Proceed directly to registry lookup and the metadata-only axes step.
 
 ### Step 3 — look up manifesto axes from the cores registry
 
@@ -102,7 +108,10 @@ Write the file back.
 
 ### Step 5 — clean up scratch artefacts
 
-If step 2 produced `af-core.toml.migrated-0.2.toml` (because the user ran `af manifest migrate --write` and the file was already at the canonical path) — that scratch file is rare but possible. Check for it; if present and content matches the now-current `af-core.toml`, remove it. Do not remove if content diverges.
+If dry-run mode produced `af-core.toml.migrated-0.2.toml`, keep it and report
+the path. In write mode the source manifest is overwritten and no scratch file
+is expected. If a stale scratch file already exists, remove it only when its
+content matches the now-current `af-core.toml`; do not remove divergent files.
 
 ### Step 6 — prove the migration
 
@@ -171,7 +180,7 @@ and cite the closest existing coverage.
 | Situation | Treatment |
 |---|---|
 | `af_version` is already `0.3` but axes empty | Skip step 2; do steps 3–6 only |
-| Manifest is v0.2 in canonical form but missing axes | `af manifest migrate` is a no-op (still safe to run); proceed |
+| Manifest is v0.2 in canonical form but missing axes | Do not run `af manifest migrate`; proceed directly to registry lookup and axes insertion. |
 | Registry entry has `reference_path` pointing elsewhere | Do not redirect; the user's `<core_dir>` is authoritative |
 | Two registry entries collide (should not happen — `cores_registry::check` rejects duplicates) | Stop, surface `AF_CORES_REGISTRY_DUPLICATE_ID`, do not migrate |
 | Manifest declares manifesto axes that contradict registry | Keep manifest; emit divergence warning |
@@ -183,7 +192,7 @@ and cite the closest existing coverage.
 User: `migrate examples/af-pdm-rx`
 
 1. `af manifest validate examples/af-pdm-rx/af-core.toml --json` → `af_version = "0.1"`, no axes.
-2. `af manifest migrate examples/af-pdm-rx/af-core.toml --write --json` → canonical v0.2 shape written.
+2. `af manifest migrate --from 0.1 --to 0.2 examples/af-pdm-rx/af-core.toml --write --json` → canonical v0.2 shape written.
 3. `jq '.cores[] | select(.core_id == "af_pdm_rx")' registries/cores.registry.json` → `portability_level = "U0"`, `priority = "P2"`, `maturity = "preview"`, `verification_required = ["simulation", "board-demo"]`.
 4. Edit `af-core.toml`: set `af_version = "0.3"`, `category = "audio"`, axes from step 3.
 5. `core check` → passed. `architecture check` → warning (2× `AF_VERIFICATION_EVIDENCE_PLANNED`).

@@ -1,0 +1,4 @@
+interface:
+  display_name: "AF Heal"
+  short_description: "Repair af drift and stale governance"
+  default_prompt: "Use $af-heal to repair drift, stale artifacts, and governance mismatches in af."

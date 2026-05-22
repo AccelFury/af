@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: CERN-OHL-S-2.0
+`timescale 1ns/1ps
 module af_reset_sync (
   input  logic clk,
   input  logic i_async_rst_n,

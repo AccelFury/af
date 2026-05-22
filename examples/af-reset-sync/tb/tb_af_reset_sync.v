@@ -56,18 +56,18 @@ module tb_af_reset_sync;
         @(negedge clk);
         src_rst_n = 1'b1;
 
-        forever begin
-            @(posedge clk);
-            cycles_after_release = cycles_after_release + 1;
-            if (dst_rst_n === 1'b1) disable observation;
-            if (cycles_after_release > STAGES + 4) begin
-                $display("FAIL: dst_rst_n did not release within STAGES+4 cycles");
-                errors = errors + 1;
-                disable observation;
+        begin : observation
+            forever begin
+                @(posedge clk);
+                cycles_after_release = cycles_after_release + 1;
+                if (dst_rst_n === 1'b1) disable observation;
+                if (cycles_after_release > STAGES + 4) begin
+                    $display("FAIL: dst_rst_n did not release within STAGES+4 cycles");
+                    errors = errors + 1;
+                    disable observation;
+                end
             end
         end
-
-        observation: ;
         if (cycles_after_release < STAGES) begin
             $display("FAIL: dst_rst_n released too early after %0d cycles (STAGES=%0d)",
                      cycles_after_release, STAGES);

@@ -19,6 +19,10 @@ Implemented and verified in the codebase:
   `af wrapper generate`, and `af ci generate`.
 - Manifest-first validation for source files, include dirs, testbenches, top
   module text, ports, clocks and resets.
+- v0.3 optional semantic contracts for FIFO/reset/generic protocol behavior,
+  manifest-vs-RTL parameterized port width checks, same-workspace dependency
+  path resolution, stream-FIFO adapter hints, generic protocol adapter hints,
+  and generated ready/valid FIFO wrappers.
 - Verilator lint/smoke path with structured `BackendUnavailable`.
 - FuseSoC `.core` export.
 - LiteX wrapper skeleton/reference dry-run.

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-use af_manifest::{CoreManifest, ManifestError, StreamInterface};
+use af_manifest::{CoreManifest, ManifestError, ProtocolContract, StreamInterface};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use thiserror::Error;
@@ -84,6 +84,8 @@ pub fn check_compatibility(
         constructor,
         checks: vec![
             "protocol kind".to_string(),
+            "generic protocol contract".to_string(),
+            "fifo semantic contract".to_string(),
             "data width".to_string(),
             "clock domain".to_string(),
             "reset polarity".to_string(),
@@ -113,6 +115,8 @@ pub fn check_compatibility(
         let (_, left) = &pair[0];
         let (_, right) = &pair[1];
         compare_streams(left, right, &mut report);
+        compare_protocol_contracts(left, right, &mut report);
+        compare_fifo_stream_contracts(left, right, &mut report);
         compare_resets(left, right, &mut report);
     }
 
@@ -189,6 +193,208 @@ fn compare_width(
     }
 }
 
+fn compare_fifo_stream_contracts(
+    left: &CoreManifest,
+    right: &CoreManifest,
+    report: &mut CompatibilityReport,
+) {
+    suggest_stream_fifo_adapter(left, right, report);
+    suggest_stream_fifo_adapter(right, left, report);
+}
+
+fn compare_protocol_contracts(
+    left: &CoreManifest,
+    right: &CoreManifest,
+    report: &mut CompatibilityReport,
+) {
+    let Some((left_protocol, right_protocol)) = first_protocol_pair(left, right) else {
+        return;
+    };
+
+    if left_protocol.kind != right_protocol.kind
+        || left_protocol.interface != right_protocol.interface
+    {
+        report.issues.push(issue(
+            "AF_COMPAT_PROTOCOL_MISMATCH",
+            format!(
+                "`{}` protocol `{}/{}` differs from `{}` protocol `{}/{}`",
+                left.core,
+                left_protocol.kind,
+                left_protocol.interface,
+                right.core,
+                right_protocol.kind,
+                right_protocol.interface
+            ),
+            "Insert a protocol adapter or select cores with matching contracts.protocols entries.",
+        ));
+        report.adapters.push(CompatibilityAdapter {
+            kind: "protocol_adapter".to_string(),
+            reason: "generic protocol kind/interface differ".to_string(),
+            status: "suggested".to_string(),
+        });
+    }
+
+    compare_protocol_width(left, right, left_protocol, right_protocol, report);
+    compare_protocol_clock(left, right, left_protocol, right_protocol, report);
+    compare_protocol_reset(left, right, left_protocol, right_protocol, report);
+}
+
+fn first_protocol_pair<'a>(
+    left: &'a CoreManifest,
+    right: &'a CoreManifest,
+) -> Option<(&'a ProtocolContract, &'a ProtocolContract)> {
+    for left_protocol in &left.contracts.protocols {
+        if let Some(right_protocol) = right
+            .contracts
+            .protocols
+            .iter()
+            .find(|protocol| protocol.name == left_protocol.name)
+        {
+            return Some((left_protocol, right_protocol));
+        }
+    }
+    left.contracts
+        .protocols
+        .first()
+        .zip(right.contracts.protocols.first())
+}
+
+fn compare_protocol_width(
+    left: &CoreManifest,
+    right: &CoreManifest,
+    left_protocol: &ProtocolContract,
+    right_protocol: &ProtocolContract,
+    report: &mut CompatibilityReport,
+) {
+    let Some(left_width) = left_protocol.data_width.as_deref() else {
+        return;
+    };
+    let Some(right_width) = right_protocol.data_width.as_deref() else {
+        return;
+    };
+    if left_width != right_width {
+        report.issues.push(issue(
+            "AF_COMPAT_PROTOCOL_MISMATCH",
+            format!(
+                "`{}` protocol `{}` width `{}` differs from `{}` protocol `{}` width `{}`",
+                left.core,
+                left_protocol.name,
+                left_width,
+                right.core,
+                right_protocol.name,
+                right_width
+            ),
+            "Insert a width adapter if the protocol permits packing/unpacking.",
+        ));
+        report.adapters.push(CompatibilityAdapter {
+            kind: "protocol_width_adapter".to_string(),
+            reason: "generic protocol data widths differ".to_string(),
+            status: "suggested".to_string(),
+        });
+    }
+}
+
+fn compare_protocol_clock(
+    left: &CoreManifest,
+    right: &CoreManifest,
+    left_protocol: &ProtocolContract,
+    right_protocol: &ProtocolContract,
+    report: &mut CompatibilityReport,
+) {
+    let Some(left_clock) = left_protocol.clock.as_deref() else {
+        return;
+    };
+    let Some(right_clock) = right_protocol.clock.as_deref() else {
+        return;
+    };
+    if left_clock != right_clock {
+        report.issues.push(issue(
+            "AF_COMPAT_CLOCK_MISMATCH",
+            format!(
+                "`{}` protocol `{}` clock `{}` differs from `{}` protocol `{}` clock `{}`",
+                left.core,
+                left_protocol.name,
+                left_clock,
+                right.core,
+                right_protocol.name,
+                right_clock
+            ),
+            "Insert a CDC adapter and record the crossing in af-arch.toml.",
+        ));
+        report.adapters.push(CompatibilityAdapter {
+            kind: "async_fifo_cdc".to_string(),
+            reason: "generic protocol clocks differ".to_string(),
+            status: "suggested".to_string(),
+        });
+    }
+}
+
+fn compare_protocol_reset(
+    left: &CoreManifest,
+    right: &CoreManifest,
+    left_protocol: &ProtocolContract,
+    right_protocol: &ProtocolContract,
+    report: &mut CompatibilityReport,
+) {
+    let Some(left_reset) = left_protocol.reset.as_deref() else {
+        return;
+    };
+    let Some(right_reset) = right_protocol.reset.as_deref() else {
+        return;
+    };
+    if left_reset != right_reset {
+        report.issues.push(issue(
+            "AF_COMPAT_CLOCK_MISMATCH",
+            format!(
+                "`{}` protocol `{}` reset `{}` differs from `{}` protocol `{}` reset `{}`",
+                left.core,
+                left_protocol.name,
+                left_reset,
+                right.core,
+                right_protocol.name,
+                right_reset
+            ),
+            "Insert a reset adapter and document reset-domain behavior.",
+        ));
+        report.adapters.push(CompatibilityAdapter {
+            kind: "reset_polarity_adapter".to_string(),
+            reason: "generic protocol reset bindings differ".to_string(),
+            status: "suggested".to_string(),
+        });
+    }
+}
+
+fn suggest_stream_fifo_adapter(
+    maybe_fifo: &CoreManifest,
+    maybe_stream: &CoreManifest,
+    report: &mut CompatibilityReport,
+) {
+    let Some(fifo) = maybe_fifo.contracts.fifo.as_ref() else {
+        return;
+    };
+    if fifo.interface.as_deref() != Some("wr_rd_control") {
+        return;
+    }
+    let Some(stream) = maybe_stream.stream_interfaces.first() else {
+        return;
+    };
+    if stream.kind != "ready_valid" {
+        return;
+    }
+    report.adapters.push(CompatibilityAdapter {
+        kind: "stream_fifo_adapter".to_string(),
+        reason: format!(
+            "`{}` exposes raw FIFO control while `{}` exposes ready/valid stream",
+            maybe_fifo.core, maybe_stream.core
+        ),
+        status: "suggested".to_string(),
+    });
+    report.warnings.push(format!(
+        "AF_COMPAT_STREAM_FIFO_ADAPTER: use `af wrapper generate {} --target stream-fifo` or an equivalent checked wrapper before composing `{}` with ready/valid stream `{}`.",
+        maybe_fifo.core, maybe_fifo.core, maybe_stream.core
+    ));
+}
+
 fn compare_resets(left: &CoreManifest, right: &CoreManifest, report: &mut CompatibilityReport) {
     let left_reset = left
         .resets
@@ -210,10 +416,29 @@ fn compare_resets(left: &CoreManifest, right: &CoreManifest, report: &mut Compat
             ));
             report.adapters.push(CompatibilityAdapter {
                 kind: "reset_polarity_adapter".to_string(),
-                reason: "reset polarity differs".to_string(),
+                reason: reset_adapter_reason(left, right, right_reset),
                 status: "suggested".to_string(),
             });
         }
+    }
+}
+
+fn reset_adapter_reason(left: &CoreManifest, right: &CoreManifest, needed_active: &str) -> String {
+    if left.contracts.reset_modes.iter().any(|mode| {
+        mode.active.as_deref() == Some(needed_active)
+            && !mode.parameter_overrides.is_empty()
+            && mode.reset.as_deref().is_none_or(|reset| {
+                left.resets.iter().any(|declared| {
+                    declared.name == reset || declared.port.as_deref() == Some(reset)
+                })
+            })
+    }) {
+        format!(
+            "reset polarity differs; `{}` declares a parameterized reset mode compatible with `{}`",
+            left.core, right.core
+        )
+    } else {
+        "reset polarity differs".to_string()
     }
 }
 
@@ -355,6 +580,74 @@ mod tests {
             .warnings
             .iter()
             .any(|warning| warning.contains("AF_COMPATIBILITY_OVERPROMISING_CLAIM")));
+    }
+
+    #[test]
+    fn suggests_stream_fifo_adapter_for_raw_fifo_contract() {
+        let dir = tempdir().unwrap();
+        let fifo = dir.path().join("fifo");
+        let stream = dir.path().join("stream");
+        write_fifo_core(&fifo);
+        write_core(&stream, "stream_core", "ready_valid", "32", "clk", "high");
+
+        let report = check_compatibility(&[fifo, stream], false).unwrap();
+
+        assert!(report
+            .adapters
+            .iter()
+            .any(|adapter| adapter.kind == "stream_fifo_adapter"));
+        assert!(report
+            .warnings
+            .iter()
+            .any(|warning| warning.contains("AF_COMPAT_STREAM_FIFO_ADAPTER")));
+    }
+
+    #[test]
+    fn reports_generic_protocol_contract_adapter_hints() {
+        let dir = tempdir().unwrap();
+        let left = dir.path().join("packet-source");
+        let right = dir.path().join("packet-sink");
+        write_protocol_core(
+            &left,
+            "packet_source",
+            "stream",
+            "valid_only",
+            "32",
+            "clk_a",
+            "rst_a",
+        );
+        write_protocol_core(
+            &right,
+            "packet_sink",
+            "stream",
+            "ready_valid",
+            "64",
+            "clk_b",
+            "rst_b",
+        );
+
+        let report = check_compatibility(&[left, right], false).unwrap();
+
+        assert_eq!(report.status, "failed");
+        assert!(report
+            .checks
+            .contains(&"generic protocol contract".to_string()));
+        assert!(report
+            .adapters
+            .iter()
+            .any(|adapter| adapter.kind == "protocol_adapter"));
+        assert!(report
+            .adapters
+            .iter()
+            .any(|adapter| adapter.kind == "protocol_width_adapter"));
+        assert!(report
+            .adapters
+            .iter()
+            .any(|adapter| adapter.kind == "async_fifo_cdc"));
+        assert!(report
+            .adapters
+            .iter()
+            .any(|adapter| adapter.kind == "reset_polarity_adapter"));
     }
 
     fn write_core_with_description(dir: &Path, core: &str, description: &str) {
@@ -516,6 +809,133 @@ valid = "valid"
 ready = "ready"
 data_width = "{width}"
 "#,
+            ),
+        )
+        .unwrap();
+    }
+
+    fn write_fifo_core(dir: &Path) {
+        fs::create_dir_all(dir).unwrap();
+        fs::write(
+            dir.join("af-core.toml"),
+            r#"
+af_version = "0.3"
+name = "fifo_core"
+vendor = "accelfury"
+library = "ip"
+core = "fifo_core"
+version = "0.1.0"
+
+[rtl]
+top = "fifo_core"
+language = "verilog-2001"
+
+[sources]
+files = ["rtl/fifo_core.v"]
+
+[[parameters]]
+name = "DATA_BITS"
+value = "32"
+
+[[clocks]]
+name = "clk"
+port = "clk"
+
+[[resets]]
+name = "rst"
+port = "rst"
+active = "high"
+
+[[ports]]
+name = "clk"
+direction = "input"
+width = 1
+
+[[ports]]
+name = "rst"
+direction = "input"
+width = 1
+
+[[ports]]
+name = "wr_data"
+direction = "input"
+width = "DATA_BITS"
+
+[contracts.fifo]
+kind = "single_clock"
+interface = "wr_rd_control"
+read_mode = "first_word_fall_through"
+full_write_policy = "accept_when_full_with_read"
+clear_behavior = "sync_flush"
+overflow_policy = "backpressure_no_drop"
+"#,
+        )
+        .unwrap();
+    }
+
+    fn write_protocol_core(
+        dir: &Path,
+        core: &str,
+        kind: &str,
+        interface: &str,
+        width: &str,
+        clock: &str,
+        reset: &str,
+    ) {
+        fs::create_dir_all(dir).unwrap();
+        fs::write(
+            dir.join("af-core.toml"),
+            format!(
+                r#"
+af_version = "0.3"
+name = "{core}"
+vendor = "accelfury"
+library = "ip"
+core = "{core}"
+version = "0.1.0"
+
+[rtl]
+top = "{core}"
+language = "verilog-2001"
+
+[sources]
+files = ["rtl/{core}.v"]
+
+[[parameters]]
+name = "DATA_WIDTH"
+value = "{width}"
+
+[[clocks]]
+name = "{clock}"
+port = "clk"
+
+[[resets]]
+name = "{reset}"
+port = "rst"
+active = "high"
+clock_domain = "{clock}"
+
+[[ports]]
+name = "clk"
+direction = "input"
+width = 1
+
+[[ports]]
+name = "rst"
+direction = "input"
+width = 1
+
+[[contracts.protocols]]
+name = "packet"
+kind = "{kind}"
+interface = "{interface}"
+clock = "{clock}"
+reset = "{reset}"
+data_width = "{width}"
+
+[contracts.protocols.semantics]
+payload = "packet_word"
+"#
             ),
         )
         .unwrap();

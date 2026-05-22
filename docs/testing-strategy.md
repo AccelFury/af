@@ -73,6 +73,12 @@ generation, Yosys checks, solver visibility, manifest migration and report
 generation. The LiteX Python package is optional in the default image because
 MVP LiteX support does not execute a LiteX SoC build.
 
+`scripts/oss-hdl-smoke.sh` is the local non-Docker OSS backend matrix. It runs
+real Verilator, Icarus, Yosys and SBY command paths over the in-tree examples,
+including backend-specific testbench selection and explicit skipped lanes. Use
+it when those tools are installed locally; default CI may keep this behind an
+OSS-toolchain job rather than the host-only Rust job.
+
 Vendor and hardware checks are gated/manual. Public CI may ingest fixture
 reports for `synthesis-report`, `pnr-report`, `programming-log`, and
 `hardware-measurement`, but it must not launch proprietary tools or claim board

@@ -152,6 +152,14 @@ sources = ["tb/tb_af_pdm_rx.sv"]
 rtl_sources = ["rtl/af_pdm_rx.sv"]
 expected = "pass"
 
+[[testbenches]]
+name = "icarus_smoke"
+backend = "icarus"
+top = "tb_af_pdm_rx"
+sources = ["tb/tb_af_pdm_rx.sv"]
+rtl_sources = ["rtl/af_pdm_rx.sv"]
+expected = "pass"
+
 [formal]
 name = "basic_handshake"
 backend = "sby"

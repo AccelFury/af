@@ -456,6 +456,64 @@ fn wrapper_generate_ipxact_writes_skeleton() {
 }
 
 #[test]
+fn wrapper_generate_stream_fifo_writes_ready_valid_adapter() {
+    let fixture = tempdir().unwrap();
+    let core = fixture.path().join("af-sync-fifo");
+    write_fifo_core_fixture(&core);
+    let build = tempdir().unwrap();
+
+    let mut cmd = Command::cargo_bin("af").unwrap();
+    cmd.arg("--build-root")
+        .arg(build.path())
+        .args(["wrapper", "generate"])
+        .arg(&core)
+        .args(["--target", "stream-fifo", "--json"])
+        .assert()
+        .success()
+        .stdout(contains("af_sync_fifo_stream_fifo.v"));
+
+    let wrapper = build.path().join("stream-fifo/af_sync_fifo_stream_fifo.v");
+    assert!(wrapper.is_file());
+    let text = std::fs::read_to_string(wrapper).unwrap();
+    assert!(text.contains("assign s_ready      = !fifo_full_w || fifo_rd_en_w;"));
+}
+
+#[test]
+fn manifest_validate_and_core_report_resolve_workspace_dependencies() {
+    let fixture = tempdir().unwrap();
+    std::fs::write(fixture.path().join("Cargo.toml"), "[workspace]\n").unwrap();
+    let projects = fixture.path().join("projects");
+    let producer = projects.join("producer");
+    let consumer = projects.join("consumer");
+    write_simple_core_fixture(&producer, "producer", None);
+    write_simple_core_fixture(&consumer, "consumer", Some("../producer"));
+    let build = tempdir().unwrap();
+
+    let mut validate = Command::cargo_bin("af").unwrap();
+    validate
+        .arg("--build-root")
+        .arg(build.path())
+        .args(["manifest", "validate"])
+        .arg(consumer.join("af-core.toml"))
+        .arg("--json")
+        .assert()
+        .success()
+        .stdout(contains("\"dependency_resolutions\""))
+        .stdout(contains("accelfury:ip:producer:0.1.0"));
+
+    let mut report = Command::cargo_bin("af").unwrap();
+    report
+        .arg("--build-root")
+        .arg(build.path())
+        .args(["core", "report"])
+        .arg(&consumer)
+        .arg("--json")
+        .assert()
+        .success()
+        .stdout(contains("dependency:accelfury:ip:producer:0.1.0"));
+}
+
+#[test]
 fn board_check_and_backend_list_work() {
     let root = repo_root();
     let mut board = Command::cargo_bin("af").unwrap();
@@ -1106,7 +1164,7 @@ fn write_compat_core(
     std::fs::write(
         dir.join("rtl").join(format!("{core}.v")),
         format!(
-            "`default_nettype none\nmodule {core} (\n  input  wire clk,\n  input  wire rst_n,\n  input  wire [31:0] data,\n  input  wire valid,\n  output wire ready\n);\n  assign ready = 1'b1;\nendmodule\n`default_nettype wire\n",
+            "`default_nettype none\nmodule {core} #(\n  parameter DATA_WIDTH = {width}\n) (\n  input  wire clk,\n  input  wire rst_n,\n  input  wire [DATA_WIDTH-1:0] data,\n  input  wire valid,\n  output wire ready\n);\n  assign ready = 1'b1;\nendmodule\n`default_nettype wire\n",
         ),
     )
     .unwrap();
@@ -1183,6 +1241,225 @@ ready = "ready"
 data_width = "{width}"
 "#,
         ),
+    )
+    .unwrap();
+}
+
+fn write_simple_core_fixture(dir: &Path, core: &str, dependency_path: Option<&str>) {
+    std::fs::create_dir_all(dir.join("rtl")).unwrap();
+    write_legal_files(dir);
+    std::fs::write(
+        dir.join("rtl").join(format!("{core}.v")),
+        format!(
+            "`default_nettype none\nmodule {core}(input wire clk, input wire rst); endmodule\n`default_nettype wire\n"
+        ),
+    )
+    .unwrap();
+    let dependency = dependency_path
+        .map(|path| {
+            format!(
+                r#"
+[[dependencies.cores]]
+name = "producer"
+version = ">=0.1.0"
+role = "test_dependency"
+path = "{path}"
+"#
+            )
+        })
+        .unwrap_or_default();
+    std::fs::write(
+        dir.join("af-core.toml"),
+        format!(
+            r#"
+af_version = "0.3"
+name = "{core}"
+vendor = "accelfury"
+library = "ip"
+core = "{core}"
+version = "0.1.0"
+known_limitations = ["test limitation"]
+
+[metadata]
+license = "AccelFury Source Available License v1.0"
+
+[rtl]
+top = "{core}"
+language = "verilog-2001"
+
+[sources]
+files = ["rtl/{core}.v"]
+
+{dependency}
+[[clocks]]
+name = "clk"
+port = "clk"
+
+[[resets]]
+name = "rst"
+port = "rst"
+active = "high"
+
+[[ports]]
+name = "clk"
+direction = "input"
+width = 1
+
+[[ports]]
+name = "rst"
+direction = "input"
+width = 1
+"#
+        ),
+    )
+    .unwrap();
+}
+
+fn write_fifo_core_fixture(dir: &Path) {
+    std::fs::create_dir_all(dir.join("rtl")).unwrap();
+    write_legal_files(dir);
+    std::fs::write(
+        dir.join("af-core.toml"),
+        r#"
+af_version = "0.3"
+name = "af-sync-fifo"
+vendor = "accelfury"
+library = "ip"
+core = "af_sync_fifo"
+version = "0.1.0"
+
+[metadata]
+license = "AccelFury Source Available License v1.0"
+
+[rtl]
+top = "af_sync_fifo"
+language = "verilog-2001"
+
+[sources]
+files = ["rtl/af_sync_fifo.v"]
+
+[[parameters]]
+name = "DATA_BITS"
+value = "32"
+
+[[parameters]]
+name = "FIFO_ADDR_BITS"
+value = "4"
+
+[[parameters]]
+name = "ALMOST_FULL_TH"
+value = "(1 << FIFO_ADDR_BITS) - 2"
+
+[[clocks]]
+name = "clk"
+port = "clk"
+
+[[resets]]
+name = "rst"
+port = "rst"
+active = "high"
+
+[[ports]]
+name = "clk"
+direction = "input"
+width = 1
+
+[[ports]]
+name = "rst"
+direction = "input"
+width = 1
+
+[[ports]]
+name = "clear"
+direction = "input"
+width = 1
+
+[[ports]]
+name = "wr_en"
+direction = "input"
+width = 1
+
+[[ports]]
+name = "wr_data"
+direction = "input"
+width = "DATA_BITS"
+
+[[ports]]
+name = "full"
+direction = "output"
+width = 1
+
+[[ports]]
+name = "almost_full"
+direction = "output"
+width = 1
+
+[[ports]]
+name = "rd_en"
+direction = "input"
+width = 1
+
+[[ports]]
+name = "rd_data"
+direction = "output"
+width = "DATA_BITS"
+
+[[ports]]
+name = "empty"
+direction = "output"
+width = 1
+
+[[ports]]
+name = "level"
+direction = "output"
+width = "FIFO_ADDR_BITS + 1"
+
+[contracts.fifo]
+kind = "single_clock"
+interface = "wr_rd_control"
+read_mode = "first_word_fall_through"
+full_write_policy = "accept_when_full_with_read"
+clear_behavior = "sync_flush"
+overflow_policy = "backpressure_no_drop"
+"#,
+    )
+    .unwrap();
+    std::fs::write(
+        dir.join("rtl/af_sync_fifo.v"),
+        r#"`default_nettype none
+module af_sync_fifo #(
+    parameter DATA_BITS = 32,
+    parameter FIFO_ADDR_BITS = 4,
+    parameter ALMOST_FULL_TH = (1 << FIFO_ADDR_BITS) - 2
+) (
+    input wire clk,
+    input wire rst,
+    input wire clear,
+    input wire wr_en,
+    input wire [DATA_BITS-1:0] wr_data,
+    output wire full,
+    output wire almost_full,
+    input wire rd_en,
+    output wire [DATA_BITS-1:0] rd_data,
+    output wire empty,
+    output wire [FIFO_ADDR_BITS:0] level
+);
+endmodule
+`default_nettype wire
+"#,
+    )
+    .unwrap();
+}
+
+fn write_legal_files(dir: &Path) {
+    std::fs::write(
+        dir.join("LICENSE"),
+        "AccelFury Source Available License v1.0\n\nCopyright (c) 2026 AccelFury.\n",
+    )
+    .unwrap();
+    std::fs::write(
+        dir.join("COMMERCIAL-LICENSE.md"),
+        "# Commercial Licensing\n\nClosed-source and commercial use requires a separate paid commercial license from AccelFury.\nCommercial triggers include closed-source FPGA products and proprietary repositories.\nContact AccelFury for commercial terms, support, warranty options, and custom integration work.\n",
     )
     .unwrap();
 }

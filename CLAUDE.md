@@ -145,6 +145,7 @@ Located under `.claude/`:
 Subagents (`.claude/agents/`):
 
 - `af-error-explainer.md` — translate a structured `af` failure into a 1–3 step fix. Invoke proactively on non-zero exit.
+- `af-issue-author.md` — prepare GitHub issue bodies/URLs/CLI commands for human submission after an `af` failure or agent-raised request.
 - `af-registry-curator.md` — cross-validation between `registries/cores.registry.json`, in-tree manifests, `ip_categories.json`, and `boards.registry.json`. Read-only audit.
 - `af-report-reader.md` — turn an `af core report --json` payload into a tier-agnostic action plan grouped by effort.
 
@@ -153,12 +154,18 @@ Skills (`.claude/skills/`):
 - `af-bootstrap-core/` — `af core new` + `check` + `architecture check` + `report`, with tier-readiness preview.
 - `af-migrate-manifest/` — v0.1/v0.2 → v0.3 plus manifesto-axes seeded from the cores registry.
 - `af-debug-portable-violation/` — locate offending line(s) for any `AF_PORTABLE_*` issue and propose the minimal layer-boundary refactor.
-- `af-evidence-refresh/` — re-run the open-source evidence cascade (lint/sim/synth/wrapper/optional CI-ingest) and archive `SHA256SUMS`.
+- `af-evidence-refresh/` — re-run the open-source evidence cascade (checks/lint/sim/formal/wrappers/optional CI-record ingest) and archive `SHA256SUMS`.
 - `af-verify-tier/` — `af core verify --tier <t>` plus per-missing-row closing commands.
 - `af-cli-contract-guard/` — pre-commit contract guard for CLI/JSON/error/manifest/registry surfaces.
 - `af-add-subcommand/` — four-place CLI scaffolder (clap enum + lifecycle name + docs + tests). Compiles a TODO-stub handler.
 - `af-add-evidence-row/` — four-place evidence-row scaffolder (row builder + tier mapping + docs + tests).
+- `scripts/check-af-skills.sh` — read-only freshness guard for active Claude/Codex skill, agent, and rule surfaces.
 - `af-error-explainer/test.sh` — regression test for the explainer subagent (enumerates AF_* codes; asserts origin + hint + no-hardcoding).
+
+Project Codex skills (`skills/`):
+
+- `skills/af-heal/`, `skills/af-update/`, `skills/af-upgrade/` — golden standard for installable Codex `af-*` skills.
+- `scripts/install-af-codex-skills.sh` — installs project `skills/af-*` into `${CODEX_HOME:-$HOME/.codex}/skills`.
 
 ## Documentation Map
 

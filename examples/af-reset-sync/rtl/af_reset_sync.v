@@ -15,6 +15,7 @@
 //   RESET_POLARITY  0 = active-low (src_rst_n / dst_rst_n);
 //                   1 = active-high (src_rst / dst_rst).
 
+`timescale 1ns/1ps
 `default_nettype none
 
 module af_reset_sync #(

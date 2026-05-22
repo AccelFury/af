@@ -1,0 +1,4 @@
+interface:
+  display_name: "AF Upgrade"
+  short_description: "Improve af tool maturity safely"
+  default_prompt: "Use $af-upgrade to improve af functional maturity with scoped code, tests, docs, and governance updates."
