@@ -24,6 +24,9 @@ Active lifecycle-tool gaps discovered while hardening generated cores.
   paraphrase or upgrade it. Tracking: `af registry check --json` reports these
   entries under `catalog_readiness.core_licenses`.
 
+
+- AF.TODO.CLOCKLESS-NORESET-CORE-MANIFESTS — `af` v0.3 manifests currently force at least one `[[clocks]]`, one `[[resets]]` and one `[[ports]]`, and `af core check` requires declared clocks/resets to bind to RTL ports. This blocks honest generic portable cores that are purely combinational (`af-mux-tree`, `af-adder-tree`) or clocked without reset (`af-ram-1r1w`, `af-ram-tdp`, `af-rom`) unless authors add fake reset/clock ports or downgrade to `af_version = "0.1"`. Impact: reusable atomic cores either grow misleading protocol glue or lose v0.3 contract features. Required behavior: v0.3 should support `rtl.clocking = "none"` / `rtl.reset = "none"` or explicit `clockless = true` / `resetless = true`, skip clock/reset binding checks only for those declared modes, keep port and width checks active, and report adapter hints when a composite shell expects clock/reset semantics. Verification: add manifest parser tests, rtl-inspector tests for clockless and resetless cores, compatibility adapter diagnostics, and a wrapper-generation refusal test that fails closed instead of fabricating dummy ports.
+
 ## Recently closed
 
 - AF.TODO.MANIFEST-VALIDATE-CWD-PARITY — `af manifest validate af-core.toml`
