@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- `af registry check --json` now includes advisory `catalog_readiness` for
+  fpga.chat v1 export blockers, including missing board revisions/source
+  locators and non-OSI core licenses, without turning structural registry
+  validity failures into catalog-policy failures.
+- `af manifest validate af-core.toml` now resolves same-workspace core
+  dependencies the same way when invoked from inside a core directory as
+  `af manifest validate projects/<core>/af-core.toml` does from the workspace
+  root. Closes `AF.TODO.MANIFEST-VALIDATE-CWD-PARITY`.
 - Manifest v0.3 now supports optional FIFO and reset semantic contracts,
   same-workspace dependency paths with parameter overrides, stricter
   manifest-vs-RTL port-width checking, `af compatibility` stream FIFO adapter

@@ -85,6 +85,50 @@ fn registry_check_against_in_repo_root_passes() {
 }
 
 #[test]
+fn registry_check_reports_catalog_readiness_blockers_without_failing() {
+    let (exit, value) = run(&["registry", "check"]);
+
+    assert_eq!(exit, 0);
+    assert_eq!(value["status"].as_str(), Some("passed"));
+    assert_eq!(
+        value["catalog_readiness"]["target"].as_str(),
+        Some("fpga.chat-v1")
+    );
+    assert_eq!(
+        value["catalog_readiness"]["status"].as_str(),
+        Some("blocked")
+    );
+    assert!(
+        value["catalog_readiness"]["board_records"]["blocked_count"]
+            .as_u64()
+            .unwrap()
+            > 0
+    );
+    assert!(
+        value["catalog_readiness"]["core_licenses"]["blocked_count"]
+            .as_u64()
+            .unwrap()
+            > 0
+    );
+
+    let board_blockers = value["catalog_readiness"]["board_records"]["blockers"]
+        .as_array()
+        .expect("board blockers");
+    assert!(board_blockers.iter().any(|blocker| {
+        blocker["code"].as_str() == Some("AF_CATALOG_BOARD_REVISION_MISSING")
+            && blocker["reason"].as_str() == Some("revision_missing_from_upstream")
+    }));
+
+    let core_blockers = value["catalog_readiness"]["core_licenses"]["blockers"]
+        .as_array()
+        .expect("core license blockers");
+    assert!(core_blockers.iter().any(|blocker| {
+        blocker["code"].as_str() == Some("AF_CATALOG_CORE_LICENSE_NON_OSI")
+            && blocker["reason"].as_str() == Some("non_osi_license")
+    }));
+}
+
+#[test]
 fn board_list_returns_known_boards() {
     let (exit, value) = run(&["board", "list"]);
     assert_eq!(exit, 0);

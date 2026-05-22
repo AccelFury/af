@@ -88,6 +88,11 @@ See docs/af-ci.md for behavior and docs/af-ci-security.md for policy.
 for stable automation over workflow, artifact, policy, board, and documentation
 contract failures.
 
+`af manifest validate` accepts either a manifest path from the workspace root,
+such as `af manifest validate projects/<core>/af-core.toml`, or `af-core.toml`
+from inside the core directory. Same-workspace `[[dependencies.cores]]` path
+resolution is identical for both invocation forms.
+
 Automation and LLM operators should prefer `--json`, keep generated outputs
 under an explicit build root, and avoid inventing unsupported command flags or
 signoff claims. Private notes and scratch artifacts belong under ignored
@@ -409,6 +414,13 @@ af core registry list --portability U0
 `af registry check` validates the board registry and the cores registry in
 one pass; warnings include `AF_CORES_REGISTRY_REFERENCE_MISSING` for entries
 whose `reference_path` is not yet present in-tree.
+
+`af registry check --json` also emits an advisory `catalog_readiness` block for
+fpga.chat v1 export readiness. Structural registry validity and catalog
+readiness are intentionally separate: a registry can return `status = "passed"`
+while `catalog_readiness.status = "blocked"` names publish blockers such as
+missing board `revision` / `revision_source_locator` fields or non-OSI core
+licenses.
 
 ## Agent issue interface (for LLM / AI agents)
 

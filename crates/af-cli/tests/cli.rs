@@ -514,6 +514,42 @@ fn manifest_validate_and_core_report_resolve_workspace_dependencies() {
 }
 
 #[test]
+fn manifest_validate_resolves_workspace_dependencies_from_core_cwd() {
+    let fixture = tempdir().unwrap();
+    std::fs::write(fixture.path().join("Cargo.toml"), "[workspace]\n").unwrap();
+    let projects = fixture.path().join("projects");
+    let producer = projects.join("producer");
+    let consumer = projects.join("consumer");
+    write_simple_core_fixture(&producer, "producer", None);
+    write_simple_core_fixture(&consumer, "consumer", Some("../producer"));
+    let build = tempdir().unwrap();
+
+    let run_manifest_validate = |cwd: &Path, manifest_path: &str| -> serde_json::Value {
+        let output = Command::cargo_bin("af")
+            .unwrap()
+            .current_dir(cwd)
+            .arg("--build-root")
+            .arg(build.path())
+            .args(["manifest", "validate", manifest_path, "--json"])
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "manifest validate {manifest_path} from {} failed\nstdout:\n{}\nstderr:\n{}",
+            cwd.display(),
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        serde_json::from_slice(&output.stdout).unwrap()
+    };
+
+    let from_workspace = run_manifest_validate(fixture.path(), "projects/consumer/af-core.toml");
+    let from_core = run_manifest_validate(&consumer, "af-core.toml");
+
+    assert_eq!(from_workspace, from_core);
+}
+
+#[test]
 fn board_check_and_backend_list_work() {
     let root = repo_root();
     let mut board = Command::cargo_bin("af").unwrap();

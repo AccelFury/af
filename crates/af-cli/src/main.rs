@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 mod agent;
+mod catalog_readiness;
 mod ci;
 mod commands;
 mod cores_registry;
@@ -1649,7 +1650,7 @@ fn doctor(build_root: &Path) -> Result<CliOutput, CliError> {
 
 fn manifest_validate(path: &Path) -> Result<CliOutput, CliError> {
     let manifest = CoreManifest::from_path(path)?;
-    let core_dir = path.parent().unwrap_or_else(|| Path::new("."));
+    let core_dir = manifest_dependency_core_dir(path);
     let (dependency_resolutions, dependency_issues) =
         resolve_workspace_dependencies(core_dir, &manifest);
     if !dependency_issues.is_empty() {
@@ -1680,6 +1681,12 @@ fn manifest_validate(path: &Path) -> Result<CliOutput, CliError> {
             "dependency_resolutions": dependency_resolutions,
         }),
     })
+}
+
+fn manifest_dependency_core_dir(path: &Path) -> &Path {
+    path.parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."))
 }
 
 fn manifest_migrate(path: &Path, from: &str, to: &str, write: bool) -> Result<CliOutput, CliError> {
@@ -2035,6 +2042,7 @@ fn dependency_graph(core_dir: &Path, format: &str) -> Result<CliOutput, CliError
 fn registry_check(root: &Path) -> Result<CliOutput, CliError> {
     let board_report = af_board_db::check_registry(root)?;
     let cores_report = cores_registry::check(root);
+    let catalog_readiness = catalog_readiness::check(root);
 
     let mut human_lines = Vec::new();
     human_lines.push(format!(
@@ -2056,6 +2064,7 @@ fn registry_check(root: &Path) -> Result<CliOutput, CliError> {
         "status": if all_valid { "passed" } else { "failed" },
         "registry": board_report,
         "cores_registry": cores_report,
+        "catalog_readiness": catalog_readiness,
     });
 
     if all_valid {
@@ -2338,6 +2347,8 @@ endmodule
         constraint_format: constraint_format.to_string(),
         board_dir: format!("boards/{vendor}/{board_id}"),
         exact_pinout_status: "draft_placeholder".to_string(),
+        revision: None,
+        revision_source_locator: None,
         safe_for_beginner: false,
         suggested_ip_classes: Vec::new(),
         excluded_ip_classes: Vec::new(),

@@ -141,6 +141,10 @@ pub struct BoardEntry {
     pub constraint_format: String,
     pub board_dir: String,
     pub exact_pinout_status: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub revision: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub revision_source_locator: Option<String>,
     pub safe_for_beginner: bool,
     #[serde(default)]
     pub suggested_ip_classes: Vec<String>,
