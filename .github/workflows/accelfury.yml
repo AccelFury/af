@@ -98,6 +98,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ -d .af-build/docker-smoke ]; then
+            sudo chown -R "$(id -u):$(id -g)" .af-build/docker-smoke
             mapfile -d '' files < <(find .af-build/docker-smoke -type f -print0 | sort -z)
             if ((${#files[@]})); then
               sha256sum "${files[@]}" > .af-build/docker-smoke/SHA256SUMS

@@ -70,6 +70,7 @@ jobs:
             -e CARGO_TARGET_DIR=/tmp/af-target \
             "${IMAGE}@${DIGEST}" scripts/docker-smoke.sh
           if [ -d .af-build/release/docker-smoke ]; then
+            sudo chown -R "$(id -u):$(id -g)" .af-build/release/docker-smoke
             mapfile -d '' files < <(find .af-build/release/docker-smoke -type f -print0 | sort -z)
             if ((${#files[@]})); then
               sha256sum "${files[@]}" > .af-build/release/docker-smoke/SHA256SUMS
