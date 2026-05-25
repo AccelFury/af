@@ -5,8 +5,8 @@ licenses, EULAs, USB drivers, and account downloads are outside the lifecycle
 that `af` can safely own. The CLI therefore treats tools such as `gw_sh` and
 `programmer_cli` as detect-only/manual dependencies.
 
-Use this runbook when `af tooling check --profile vendor --json` reports
-missing Gowin tools.
+Use this runbook when `af tooling check --profile vendor --json` reports missing
+Gowin tools.
 
 ## Policy
 

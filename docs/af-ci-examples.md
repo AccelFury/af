@@ -11,7 +11,8 @@ af ci init \
   --provider github
 ```
 
-Результат: workflow, `docs/ci.md`, `af-ci.toml`, PR template и `artifacts/.../af-ci-init-report.json`.
+Результат: workflow, `docs/ci.md`, `af-ci.toml`, PR template и
+`artifacts/.../af-ci-init-report.json`.
 
 ## С существующим `sim/Makefile`
 
@@ -66,12 +67,18 @@ af ci doctor --repo .
 ```
 
 Команда возвращает:
+
 - `pass` / `warning` / `fail` в JSON и код завершения,
 - список blocking errors и warnings,
 - перечень next_actions.
 
 ## OSS CAD Suite / toolchain
 
-- `af ci` использует локально установленные утилиты (`make`, `yosys`, `iverilog`, `vvp`, `sby`, `xmllint`, `fusesoc`) и SMT solvers для formal flows (`boolector`, `z3`, `yices-smt2`, `bitwuzla`, `cvc5`); Edalize проверяется как Python module для package/export flows,
-- для обновления версий зависимостей используйте локальную инфраструктуру установки toolchain в вашем окружении,
-- vendor-tool flows (например, прямой `vivado/diamond`) в первом релизе не включаются автоматически.
+- `af ci` использует локально установленные утилиты (`make`, `yosys`,
+  `iverilog`, `vvp`, `sby`, `xmllint`, `fusesoc`) и SMT solvers для formal flows
+  (`boolector`, `z3`, `yices-smt2`, `bitwuzla`, `cvc5`); Edalize проверяется как
+  Python module для package/export flows,
+- для обновления версий зависимостей используйте локальную инфраструктуру
+  установки toolchain в вашем окружении,
+- vendor-tool flows (например, прямой `vivado/diamond`) в первом релизе не
+  включаются автоматически.

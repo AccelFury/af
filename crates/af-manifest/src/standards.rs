@@ -75,10 +75,15 @@ impl StandardsProfile {
             "Profile `{}` version `{}`; standards snapshot `{}`.\n\n",
             self.id, self.version, self.snapshot_date
         ));
-        out.push_str(
-            "| # | Item | Category | Tier relevance | Maps to standard | Required evidence artefact |\n",
-        );
-        out.push_str("|---|---|---|---|---|---|\n");
+        let headers = [
+            "#",
+            "Item",
+            "Category",
+            "Tier relevance",
+            "Maps to standard",
+            "Required evidence artefact",
+        ];
+        let mut rows = Vec::new();
         for item in &self.items {
             let standards = item
                 .standards
@@ -86,16 +91,16 @@ impl StandardsProfile {
                 .map(|s| format!("{} {}", s.name, s.edition))
                 .collect::<Vec<_>>()
                 .join("; ");
-            out.push_str(&format!(
-                "| {} | {} | {} | {} | {} | {} |\n",
-                item.id,
+            rows.push([
+                item.id.to_string(),
                 markdown_cell(&item.item),
                 markdown_cell(&item.category),
                 markdown_cell(&item.tier_relevance),
                 markdown_cell(&standards),
                 markdown_cell(&item.required_evidence),
-            ));
+            ]);
         }
+        out.push_str(&markdown_table(&headers, &rows));
         out
     }
 
@@ -172,6 +177,47 @@ impl StandardsProfile {
             "rows": rows,
         })
     }
+}
+
+fn markdown_table(headers: &[&str; 6], rows: &[[String; 6]]) -> String {
+    let mut widths = headers.map(|header| header.len());
+    for row in rows {
+        for (idx, cell) in row.iter().enumerate() {
+            widths[idx] = widths[idx].max(cell.len());
+        }
+    }
+
+    let mut out = String::new();
+    out.push('|');
+    for (idx, header) in headers.iter().enumerate() {
+        out.push(' ');
+        out.push_str(&pad_cell(header, widths[idx]));
+        out.push_str(" |");
+    }
+    out.push('\n');
+
+    out.push('|');
+    for width in widths {
+        out.push(' ');
+        out.push_str(&"-".repeat(width));
+        out.push_str(" |");
+    }
+    out.push('\n');
+
+    for row in rows {
+        out.push('|');
+        for (idx, cell) in row.iter().enumerate() {
+            out.push(' ');
+            out.push_str(&pad_cell(cell, widths[idx]));
+            out.push_str(" |");
+        }
+        out.push('\n');
+    }
+    out
+}
+
+fn pad_cell(cell: &str, width: usize) -> String {
+    format!("{cell:<width$}")
 }
 
 fn markdown_cell(value: &str) -> String {

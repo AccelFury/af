@@ -6,7 +6,11 @@ allowed-tools: Bash, Read, Edit, Write, Grep
 
 # af-add-subcommand
 
-Rule #5 of `CLAUDE.md` says every new CLI surface touches **four** surfaces together: the clap enum, the lifecycle-name function, `docs/cli-reference.md`, and an integration test. Forgetting any of the four creates a regression that `af-cli-contract-guard` will catch — but it is cheaper to wire all four up at the same time. This skill is the deterministic scaffolder.
+Rule #5 of `CLAUDE.md` says every new CLI surface touches **four** surfaces
+together: the clap enum, the lifecycle-name function, `docs/cli-reference.md`,
+and an integration test. Forgetting any of the four creates a regression that
+`af-cli-contract-guard` will catch — but it is cheaper to wire all four up at
+the same time. This skill is the deterministic scaffolder.
 
 ## When to invoke
 
@@ -19,18 +23,31 @@ User says:
 
 Do NOT invoke for:
 
-- editing/renaming an existing subcommand (use `af-cli-contract-guard` to plan that as a breaking change first)
-- adding flags to an existing subcommand (different scope; smaller skill possible later)
+- editing/renaming an existing subcommand (use `af-cli-contract-guard` to plan
+  that as a breaking change first)
+- adding flags to an existing subcommand (different scope; smaller skill
+  possible later)
 - generating actual business logic (handler is a TODO stub; user fills it)
 
 ## Required inputs
 
-1. **`namespace`** — top-level command. One of the existing groups (`core`, `manifest`, `project`, `architecture`, `resource`, `compatibility`, `constructor`, `signoff`, `dependency`, `registry`, `board`, `backend`, `evidence`, `vectors`, `wrapper`, `ci`, `tooling`, `self`) **or** the literal `top` for a new root subcommand.
-2. **`name`** — the new subcommand name. Verilog-friendly snake-case is preferred (`verify`, `audit`, `migrate`); clap will convert to kebab-case for `--`-flags automatically.
-3. **`description`** — one-line description (becomes clap `about` and the cli-reference.md row).
-4. **Optional positional / flag specs** — e.g. `core_dir: PathBuf`, `--tier: String`. If omitted, skill stubs a minimal handler that takes no args beyond globals.
+1. **`namespace`** — top-level command. One of the existing groups (`core`,
+   `manifest`, `project`, `architecture`, `resource`, `compatibility`,
+   `constructor`, `signoff`, `dependency`, `registry`, `board`, `backend`,
+   `evidence`, `vectors`, `wrapper`, `ci`, `tooling`, `self`) **or** the literal
+   `top` for a new root subcommand.
+2. **`name`** — the new subcommand name. Verilog-friendly snake-case is
+   preferred (`verify`, `audit`, `migrate`); clap will convert to kebab-case for
+   `--`-flags automatically.
+3. **`description`** — one-line description (becomes clap `about` and the
+   cli-reference.md row).
+4. **Optional positional / flag specs** — e.g. `core_dir: PathBuf`,
+   `--tier: String`. If omitted, skill stubs a minimal handler that takes no
+   args beyond globals.
 
-If `namespace` is occupied but `<namespace> <name>` is free, the skill extends the existing `<Namespace>Command` enum. If the namespace itself does not exist, the skill refuses with: "create the parent command group first, then re-invoke".
+If `namespace` is occupied but `<namespace> <name>` is free, the skill extends
+the existing `<Namespace>Command` enum. If the namespace itself does not exist,
+the skill refuses with: "create the parent command group first, then re-invoke".
 
 ## Procedure
 
@@ -41,9 +58,12 @@ cargo run --quiet -p af-cli --bin af -- --help 2>&1 | grep -E '^\s+(<namespace>|
 cargo run --quiet -p af-cli --bin af -- <namespace> --help 2>&1 | head -20
 ```
 
-If `af <namespace> <name>` already exists in clap's help output, refuse: `"AF_CORE_NEW_SUBCOMMAND_TAKEN: af <namespace> <name> already registered"`. Do not overwrite.
+If `af <namespace> <name>` already exists in clap's help output, refuse:
+`"AF_CORE_NEW_SUBCOMMAND_TAKEN: af <namespace> <name> already registered"`. Do
+not overwrite.
 
-If the namespace does not exist (`af --help` does not list it), refuse with the parent-first message.
+If the namespace does not exist (`af --help` does not list it), refuse with the
+parent-first message.
 
 ### Step 2 — locate the four touch-points
 
@@ -59,16 +79,17 @@ grep -n '^enum <PascalCase namespace>Command' crates/af-cli/src/main.rs
 
 For top-level subcommands, find `enum Commands` (line ~73).
 
-Insert the new variant just before the closing brace. Use this template (with `<Name>` PascalCase and `name_snake` snake_case):
+Insert the new variant just before the closing brace. Use this template (with
+`<Name>` PascalCase and `name_snake` snake_case):
 
 ```rust
-    <Name> {
-        // TODO: positional / flag args
-        // Example:
-        // core_dir: PathBuf,
-        // #[arg(long)]
-        // tier: String,
-    },
+<Name> {
+    // TODO: positional / flag args
+    // Example:
+    // core_dir: PathBuf,
+    // #[arg(long)]
+    // tier: String,
+},
 ```
 
 For namespaces already using tuple argument structs in
@@ -77,7 +98,7 @@ and any future extracted module), define the args in the owning module and make
 the clap variant a tuple variant:
 
 ```rust
-    <Name>(commands::<module_name>::<Name>Args),
+<Name>(commands::<module_name>::<Name>Args),
 ```
 
 #### 2b. Dispatch (`crates/af-cli/src/main.rs` or the owning command module)
@@ -94,14 +115,14 @@ Commands::<Namespace> { command } => match command {
 Insert a new arm calling a placeholder handler:
 
 ```rust
-    <Namespace>Command::<Name> { /* args */ } => <namespace>_<name_snake>(/* args */, &cli.build_root),
+<Namespace>Command::<Name> { /* args */ } => <namespace>_<name_snake>(/* args */, &cli.build_root),
 ```
 
 For tuple variants backed by `crates/af-cli/src/commands/<module_name>.rs`,
 dispatch through that module instead:
 
 ```rust
-    <Namespace>Command::<Name>(args) => commands::<module_name>::run(args),
+<Namespace>Command::<Name>(args) => commands::<module_name>::run(args),
 ```
 
 Define the handler stub near the other `<namespace>_*` functions:
@@ -122,11 +143,13 @@ For module-backed commands, define the stub in the owning module and return the
 same `CliError` shape from `run`. Keep `crates/af-cli/src/main.rs` limited to
 the enum, command-name arm, and dispatch arm for that command.
 
-The error code follows the project convention `AF_<DOMAIN>_<CONDITION>` (rule #3 in CLAUDE.md). Use exit code 1 (generic) until the real semantics are known.
+The error code follows the project convention `AF_<DOMAIN>_<CONDITION>` (rule #3
+in CLAUDE.md). Use exit code 1 (generic) until the real semantics are known.
 
 #### 2c. Lifecycle name (`crates/af-cli/src/main.rs`)
 
-Find `<namespace>_command_name` (e.g. `core_command_name`, `manifest_command_name`):
+Find `<namespace>_command_name` (e.g. `core_command_name`,
+`manifest_command_name`):
 
 ```bash
 grep -n 'fn <namespace>_command_name' crates/af-cli/src/main.rs
@@ -135,18 +158,19 @@ grep -n 'fn <namespace>_command_name' crates/af-cli/src/main.rs
 Add the new arm:
 
 ```rust
-        <Namespace>Command::<Name> { .. } => "<name>",
+<Namespace>Command::<Name> { .. } => "<name>",
 ```
 
-(Use the same kebab-case form as the clap variant — for nested commands like `core registry list`, the lifecycle function returns `"registry list"`.)
+(Use the same kebab-case form as the clap variant — for nested commands like
+`core registry list`, the lifecycle function returns `"registry list"`.)
 
 #### 2d. CLI reference (`docs/cli-reference.md`)
 
 Find the canonical command block:
 
-```bash
+````bash
 grep -n '```bash' docs/cli-reference.md | head -3
-```
+````
 
 Insert a new line in the block, alphabetically within the namespace group:
 
@@ -154,7 +178,9 @@ Insert a new line in the block, alphabetically within the namespace group:
 af <namespace> <name> [<args>]                # one-line description
 ```
 
-If the description is non-trivial (more than a single flag), add a one-paragraph description after the table-style blocks, near the other `<namespace>` paragraphs.
+If the description is non-trivial (more than a single flag), add a one-paragraph
+description after the table-style blocks, near the other `<namespace>`
+paragraphs.
 
 #### 2e. Integration test (`crates/af-cli/tests/cli.rs`)
 
@@ -182,7 +208,8 @@ fn <namespace>_<name_snake>_stub_returns_unimplemented_error() {
 }
 ```
 
-(Adjust the second test if the user specified args that change the failure path.)
+(Adjust the second test if the user specified args that change the failure
+path.)
 
 ### Step 3 — compile + clap-help smoke
 
@@ -190,7 +217,8 @@ fn <namespace>_<name_snake>_stub_returns_unimplemented_error() {
 cargo build -p af-cli
 ```
 
-If build fails, surface the compiler error verbatim and abort. The most common cause is a typo in the namespace's PascalCase.
+If build fails, surface the compiler error verbatim and abort. The most common
+cause is a typo in the namespace's PascalCase.
 
 If build succeeds:
 
@@ -198,7 +226,8 @@ If build succeeds:
 cargo run --quiet -p af-cli --bin af -- <namespace> <name> --help
 ```
 
-This must succeed (exit 0 from clap-help). If clap rejects the subcommand, the enum variant was inserted incorrectly — surface the clap error.
+This must succeed (exit 0 from clap-help). If clap rejects the subcommand, the
+enum variant was inserted incorrectly — surface the clap error.
 
 ### Step 4 — integration test smoke
 
@@ -206,7 +235,8 @@ This must succeed (exit 0 from clap-help). If clap rejects the subcommand, the e
 cargo test -p af-cli --test cli <namespace>_<name_snake>_subcommand_is_registered
 ```
 
-Must pass. If it does not, the dispatch arm or the lifecycle name function is missing the arm.
+Must pass. If it does not, the dispatch arm or the lifecycle name function is
+missing the arm.
 
 ### Step 5 — clippy/fmt sanity
 
@@ -215,11 +245,12 @@ cargo fmt --all -- --check
 cargo clippy -p af-cli -- -D warnings
 ```
 
-If clippy flags the TODO stub (e.g. "unused variable"), address it by prefixing args with `_` (as in the template).
+If clippy flags the TODO stub (e.g. "unused variable"), address it by prefixing
+args with `_` (as in the template).
 
 ## Required output
 
-```
+````
 ## Added `af <namespace> <name>`
 
 Four touch-points wired:
@@ -235,7 +266,7 @@ Handler stub at `crates/af-cli/src/main.rs:<line>`:
 fn <namespace>_<name_snake>(...) -> Result<CliOutput, CliError> {
     Err(CliError::new("AF_<NAMESPACE>_<NAME>_UNIMPLEMENTED", ...))
 }
-```
+````
 
 ## Smoke checks
 
@@ -247,11 +278,16 @@ fn <namespace>_<name_snake>(...) -> Result<CliOutput, CliError> {
 
 ## Next
 
-Implement the body of `<namespace>_<name_snake>` in `crates/af-cli/src/main.rs`. After implementation, replace `<namespace>_<name_snake>_stub_returns_unimplemented_error` with real behavior coverage and add the appropriate `command_payload` variant in `crates/af-report/src/lib.rs` if the subcommand emits structured JSON.
+Implement the body of `<namespace>_<name_snake>` in `crates/af-cli/src/main.rs`.
+After implementation, replace
+`<namespace>_<name_snake>_stub_returns_unimplemented_error` with real behavior
+coverage and add the appropriate `command_payload` variant in
+`crates/af-report/src/lib.rs` if the subcommand emits structured JSON.
 
-If the subcommand's surface or output changes the contract (new flag default, new JSON shape, new error code), run `af-cli-contract-guard` before commit.
+If the subcommand's surface or output changes the contract (new flag default,
+new JSON shape, new error code), run `af-cli-contract-guard` before commit.
+
 ```
-
 ## Test Design Obligation
 
 When this skill modifies `af`, it must add thoughtful tests for the touched
@@ -297,3 +333,4 @@ User: `add af core audit subcommand for read-only audit of a core`.
 12. `cargo fmt --check` ✓; `cargo clippy -p af-cli -- -D warnings` ✓.
 
 Output as per template.
+```

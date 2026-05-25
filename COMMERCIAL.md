@@ -22,10 +22,10 @@ Attribution is required through `NOTICE` and contribution process requires
 ## Tiers (cross-link)
 
 See [docs/licensing.md — Commercial tiers](docs/licensing.md#commercial-tiers)
-for the `community` / `verified-package` / `enterprise` tier definitions and
-the `af core report` evidence rows each tier requires. A `verified-package`
-claim must be backed by an archived `af core report` JSON output covering
+for the `community` / `verified-package` / `enterprise` tier definitions and the
+`af core report` evidence rows each tier requires. A `verified-package` claim
+must be backed by an archived `af core report` JSON output covering
 `manifest_contract`, `source_portability`, `open_source_tool_evidence`,
-`wrapper_package_compatibility`, and `docker_ci_cd_evidence`. The
-`enterprise` tier additionally requires `vendor_tool_evidence`,
-`board_hardware_evidence`, and `release_support_legal_evidence`.
+`wrapper_package_compatibility`, and `docker_ci_cd_evidence`. The `enterprise`
+tier additionally requires `vendor_tool_evidence`, `board_hardware_evidence`,
+and `release_support_legal_evidence`.

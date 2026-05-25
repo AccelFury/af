@@ -1,18 +1,20 @@
 # Docker Runtime
 
-The project uses a Docker open-source runtime to make `af` validation
-repeatable when the host does not have FPGA tools in `PATH`.
+The project uses a Docker open-source runtime to make `af` validation repeatable
+when the host does not have FPGA tools in `PATH`.
 
 The runtime installs:
 
 - Rust stable for building the CLI inside the container;
 - Verilator for `af core lint` and `af core sim`;
 - xmllint for XML/IP-XACT/package metadata checks;
-- FuseSoC and Edalize for package visibility checks and `.core` integration workflows;
-- optional LiteX Python package when built with `--build-arg AF_INSTALL_LITEX=true`;
+- FuseSoC and Edalize for package visibility checks and `.core` integration
+  workflows;
+- optional LiteX Python package when built with
+  `--build-arg AF_INSTALL_LITEX=true`;
 - Yosys for syntax/synthesis smoke checks;
-- SMT solvers for formal/SymbiYosys flows: Boolector, Z3, Yices
-  (`yices-smt2`), Bitwuzla and cvc5;
+- SMT solvers for formal/SymbiYosys flows: Boolector, Z3, Yices (`yices-smt2`),
+  Bitwuzla and cvc5;
 - optional distro packages for SymbiYosys and openFPGALoader when available.
 
 Generated files remain limited to wrappers, manifest/package exports, build
@@ -49,10 +51,10 @@ Run the full Docker smoke:
 make docker-smoke
 ```
 
-The Makefile mounts the host Cargo registry and a `/tmp/af-docker-target`
-target cache. This keeps the in-container Rust build deterministic without
-runtime `rustup` channel sync and without repeated crates.io downloads after
-the first cached build.
+The Makefile mounts the host Cargo registry and a `/tmp/af-docker-target` target
+cache. This keeps the in-container Rust build deterministic without runtime
+`rustup` channel sync and without repeated crates.io downloads after the first
+cached build.
 
 The smoke covers:
 

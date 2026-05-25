@@ -1,13 +1,14 @@
 # AF CI: Быстрый справочник
 
-`af ci` формирует и проверяет CI-конфигурации для HDL/IP проектов на открытом стеке.
-Первый релиз ориентирован на:
+`af ci` формирует и проверяет CI-конфигурации для HDL/IP проектов на открытом
+стеке. Первый релиз ориентирован на:
 
 - Verilog-2001/2005 ядра,
 - `iverilog + make` симуляцию (если есть `sim/Makefile`),
 - Yosys JSON синтез,
 - optional formal через `.sby`,
-- optional board-level P&R (Open-Source nextpnr flow, только при наличии полного профиля).
+- optional board-level P&R (Open-Source nextpnr flow, только при наличии полного
+  профиля).
 
 ## Что CI проверяет
 
@@ -20,7 +21,8 @@
 
 - `CI` не доказывает vendor-tool implementation, timing signoff и CDC signoff.
 - `CI` не заменяет in-field review и не является гарантом `hardware-ready`.
-- Наличие артефактов означает факт прохождения шагов пайплайна, а не корректность изделия в производстве.
+- Наличие артефактов означает факт прохождения шагов пайплайна, а не
+  корректность изделия в производстве.
 
 ## Команды
 
@@ -61,6 +63,7 @@ Icarus Makefile profile it also requires both `iverilog` and `vvp` in `PATH`.
 - `artifacts/openfpga-ci/reports/af-ci-init-report.json`
 
 Дополнительно смотрите:
+
 - `docs/af-ci-config.md`
 - `docs/af-ci-targets.md`
 - `docs/af-ci-security.md`

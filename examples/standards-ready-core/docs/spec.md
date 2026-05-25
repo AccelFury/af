@@ -37,8 +37,7 @@ stream. `cfg_enable` gates acceptance. `status_busy` reports backpressure.
 
 ## 8. Architecture
 
-One output holding register stores the accepted word until downstream
-`m_ready`.
+One output holding register stores the accepted word until downstream `m_ready`.
 
 ## 9. Datapath / Control FSM
 
@@ -65,8 +64,8 @@ Latency is one cycle from accepted input to valid output.
 
 ## 14. Corner Cases
 
-Backpressure holds `m_valid` and `m_data` stable. Disabled input keeps
-`s_ready` low.
+Backpressure holds `m_valid` and `m_data` stable. Disabled input keeps `s_ready`
+low.
 
 ## 24. IP-XACT Packaging
 

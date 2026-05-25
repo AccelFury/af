@@ -2,8 +2,8 @@
 
 ## Alpha readiness
 
-Current alpha-readiness scope is MVP-0/MVP-1: manifest validation, core
-checks, report contracts, wrapper generation, CI generation, and structured
+Current alpha-readiness scope is MVP-0/MVP-1: manifest validation, core checks,
+report contracts, wrapper generation, CI generation, and structured
 backend-unavailable behavior. MVP-2+ features remain staged until their
 artifacts and evidence gates are promoted.
 
@@ -18,8 +18,8 @@ board/toolchain policy surfaces.
 
 ## MVP-2
 
-Yosys syntax/synthesis smoke, SymbiYosys small formal checks, and
-openFPGALoader programming once bitstream artifacts exist.
+Yosys syntax/synthesis smoke, SymbiYosys small formal checks, and openFPGALoader
+programming once bitstream artifacts exist.
 
 ## MVP-3
 

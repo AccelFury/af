@@ -7,7 +7,8 @@ description: Use when improving AccelFury af tool maturity, reliability, usabili
 
 ## Inputs
 
-- maturity gap from `TODO.md`, `docs/dev-roadmap.md`, `docs/testing-strategy.md`, or a concrete audit finding
+- maturity gap from `TODO.md`, `docs/dev-roadmap.md`,
+  `docs/testing-strategy.md`, or a concrete audit finding
 - current implementation and validation state
 - target user outcome for the `af` tool
 
@@ -35,20 +36,33 @@ description: Use when improving AccelFury af tool maturity, reliability, usabili
 
 ## Workflow
 
-1. Select one maturity gap and state its user-visible outcome before editing. Prefer a tracked gap from `TODO.md`, `docs/dev-roadmap.md`, `docs/testing-strategy.md`, or a concrete audit finding.
-2. Classify affected surfaces from current repo ownership (`crates/**`, `docs/**`, `.claude/**`, `skills/af-*`, `registries/**`, `boards/**`). Keep tool-wide improvements separate from one-off example-core cleanup unless the example is the acceptance fixture.
-3. Implement the smallest coherent improvement that changes real behavior, diagnostics, automation, or verification depth.
-4. Update public interfaces together: CLI args, JSON output, error codes, manifest/report schemas, docs, and tests must agree.
-5. Add or adjust tests in the crate that owns the behavior. Broaden testing only when the change crosses crate or CLI boundaries.
-6. Close or update the originating TODO/governance item only after validation proves the acceptance criteria.
-7. Run `af-heal` logic after the upgrade if the change creates derived-surface drift.
+1. Select one maturity gap and state its user-visible outcome before editing.
+   Prefer a tracked gap from `TODO.md`, `docs/dev-roadmap.md`,
+   `docs/testing-strategy.md`, or a concrete audit finding.
+2. Classify affected surfaces from current repo ownership (`crates/**`,
+   `docs/**`, `.claude/**`, `skills/af-*`, `registries/**`, `boards/**`). Keep
+   tool-wide improvements separate from one-off example-core cleanup unless the
+   example is the acceptance fixture.
+3. Implement the smallest coherent improvement that changes real behavior,
+   diagnostics, automation, or verification depth.
+4. Update public interfaces together: CLI args, JSON output, error codes,
+   manifest/report schemas, docs, and tests must agree.
+5. Add or adjust tests in the crate that owns the behavior. Broaden testing only
+   when the change crosses crate or CLI boundaries.
+6. Close or update the originating TODO/governance item only after validation
+   proves the acceptance criteria.
+7. Run `af-heal` logic after the upgrade if the change creates derived-surface
+   drift.
 
 ## Failure Semantics
 
-- Do not close maturity work with docs-only edits unless the gap was documentation-only.
+- Do not close maturity work with docs-only edits unless the gap was
+  documentation-only.
 - Do not mix unrelated TODO items into one broad upgrade.
-- Do not create a second policy path when an existing crate, doc, or registry owns the behavior.
-- Do not ignore known test failures; classify unrelated failures separately from upgrade regressions.
+- Do not create a second policy path when an existing crate, doc, or registry
+  owns the behavior.
+- Do not ignore known test failures; classify unrelated failures separately from
+  upgrade regressions.
 - Do not weaken structured errors, hints, or JSON contracts to make tests pass.
 
 ## Completion Criteria

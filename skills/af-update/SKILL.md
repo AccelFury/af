@@ -9,7 +9,8 @@ description: Use when a canonical AccelFury af CLI, manifest, registry, doc, `.c
 
 - canonical surface that changed
 - derived surface or installed destination that may be stale
-- optional destination: repo-derived outputs, project Codex skills, installed Codex skills, Cursor/Claude skills, or optional runtime bundle if present
+- optional destination: repo-derived outputs, project Codex skills, installed
+  Codex skills, Cursor/Claude skills, or optional runtime bundle if present
 
 ## Read Surfaces
 
@@ -32,19 +33,36 @@ description: Use when a canonical AccelFury af CLI, manifest, registry, doc, `.c
 
 ## Workflow
 
-1. Identify the canonical source and all derived targets from current repo ownership. Use `docs/agent-workflow.md`, `.claude/skills/**`, `.claude/agents/**`, project `skills/af-*`, and optional runtime registries only when present.
-2. Prefer canonical commands for deterministic outputs. Examples: `af board matrix --output docs/board_matrix.md --json`, `af vectors generate --json`, `af wrapper generate ... --json`, or report generation through the CLI command that owns the report.
-3. Update hand-authored public docs only to describe existing behavior or behavior changed in the same task. Do not invent capabilities to make docs look current.
-4. For project `skills/af-*` changes, compare repo-canonical surfaces against installed `~/.codex/skills/af-*` mirrors when available. Installed homes are derived convenience surfaces, not a second source of truth. Treat `runtime/**` as optional and inspect it only if present.
-5. If the current sandbox cannot write `~/.codex/skills` or `~/.cursor/skills`, leave an explicit `blocked-external` or `needs-permission` runtime parity verdict.
-6. Record what was refreshed, what source drove it, and which validators were rerun.
+1. Identify the canonical source and all derived targets from current repo
+   ownership. Use `docs/agent-workflow.md`, `.claude/skills/**`,
+   `.claude/agents/**`, project `skills/af-*`, and optional runtime registries
+   only when present.
+2. Prefer canonical commands for deterministic outputs. Examples:
+   `af board matrix --output docs/board_matrix.md --json`,
+   `af vectors generate --json`, `af wrapper generate ... --json`, or report
+   generation through the CLI command that owns the report.
+3. Update hand-authored public docs only to describe existing behavior or
+   behavior changed in the same task. Do not invent capabilities to make docs
+   look current.
+4. For project `skills/af-*` changes, compare repo-canonical surfaces against
+   installed `~/.codex/skills/af-*` mirrors when available. Installed homes are
+   derived convenience surfaces, not a second source of truth. Treat
+   `runtime/**` as optional and inspect it only if present.
+5. If the current sandbox cannot write `~/.codex/skills` or `~/.cursor/skills`,
+   leave an explicit `blocked-external` or `needs-permission` runtime parity
+   verdict.
+6. Record what was refreshed, what source drove it, and which validators were
+   rerun.
 
 ## Failure Semantics
 
 - Do not let derived outputs become authoritative.
-- Do not manually patch a generated artifact when a deterministic generator exists.
-- Do not claim installed skill sync completed when installed home writes are blocked.
-- Do not update broad documentation without checking the CLI, schema, or registry behavior it describes.
+- Do not manually patch a generated artifact when a deterministic generator
+  exists.
+- Do not claim installed skill sync completed when installed home writes are
+  blocked.
+- Do not update broad documentation without checking the CLI, schema, or
+  registry behavior it describes.
 
 ## Completion Criteria
 

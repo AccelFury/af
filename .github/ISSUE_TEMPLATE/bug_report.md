@@ -23,7 +23,7 @@ af agent context --from-error <error.json>
 - **Expected:**
 - **Actual:**
 - Exit code:
-- `code` / `message` / `hint` (if structured): 
+- `code` / `message` / `hint` (if structured):
 
 ## Environment
 

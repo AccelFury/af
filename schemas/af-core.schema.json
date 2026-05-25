@@ -3,11 +3,27 @@
   "title": "AccelFury af-core.toml v0.1/v0.2/v0.3/v0.4",
   "description": "Manifest for a single AccelFury core. Mirrors the CoreManifest struct in crates/af-manifest. New v0.4 surfaces include standards evidence declarations and explicit clockless/resetless RTL modes.",
   "type": "object",
-  "required": ["name", "vendor", "library", "core", "version", "rtl", "sources"],
+  "required": [
+    "name",
+    "vendor",
+    "library",
+    "core",
+    "version",
+    "rtl",
+    "sources"
+  ],
   "properties": {
     "af_version": { "type": "string", "enum": ["0.1", "0.2", "0.3", "0.4"] },
-    "schema_version": { "type": "string", "enum": ["0.1", "0.2", "0.3", "0.4"], "description": "Deprecated alias for af_version." },
-    "manifest_version": { "type": "string", "enum": ["0.1", "0.2", "0.3", "0.4"], "description": "Deprecated alias for af_version." },
+    "schema_version": {
+      "type": "string",
+      "enum": ["0.1", "0.2", "0.3", "0.4"],
+      "description": "Deprecated alias for af_version."
+    },
+    "manifest_version": {
+      "type": "string",
+      "enum": ["0.1", "0.2", "0.3", "0.4"],
+      "description": "Deprecated alias for af_version."
+    },
     "kind": { "type": "string", "enum": ["accelfury.core"] },
     "name": { "type": "string" },
     "vendor": { "type": "string" },
@@ -46,7 +62,9 @@
       "required": ["top"],
       "properties": {
         "top": { "type": "string" },
-        "language": { "enum": ["systemverilog", "verilog", "verilog-2001", "vhdl"] },
+        "language": {
+          "enum": ["systemverilog", "verilog", "verilog-2001", "vhdl"]
+        },
         "systemverilog_subset": { "type": "boolean" },
         "clocking": { "type": "string", "enum": ["none"] },
         "reset": { "type": "string", "enum": ["none"] },
@@ -67,8 +85,17 @@
       "properties": {
         "files": { "type": "array", "items": { "type": "string" } },
         "include_dirs": { "type": "array", "items": { "type": "string" } },
-        "roles": { "type": "object", "additionalProperties": { "type": "string", "enum": ["rtl", "generated", "testbench", "constraint"] } },
-        "file_types": { "type": "object", "additionalProperties": { "type": "string" } }
+        "roles": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "enum": ["rtl", "generated", "testbench", "constraint"]
+          }
+        },
+        "file_types": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        }
       }
     },
     "include_dirs": {
@@ -77,7 +104,11 @@
       "items": {
         "oneOf": [
           { "type": "string" },
-          { "type": "object", "required": ["path"], "properties": { "path": { "type": "string" } } }
+          {
+            "type": "object",
+            "required": ["path"],
+            "properties": { "path": { "type": "string" } }
+          }
         ]
       }
     },
@@ -181,8 +212,14 @@
         }
       }
     },
-    "csr": { "type": "object", "properties": { "present": { "type": "boolean" } } },
-    "interrupts": { "type": "object", "properties": { "present": { "type": "boolean" } } },
+    "csr": {
+      "type": "object",
+      "properties": { "present": { "type": "boolean" } }
+    },
+    "interrupts": {
+      "type": "object",
+      "properties": { "present": { "type": "boolean" } }
+    },
     "testbenches": {
       "type": "array",
       "items": {
@@ -260,7 +297,15 @@
       "type": "object",
       "required": ["class"],
       "properties": {
-        "class": { "enum": ["simple-portable", "composite-portable", "complex-vendor-aware", "system-platform", "product-stack"] },
+        "class": {
+          "enum": [
+            "simple-portable",
+            "composite-portable",
+            "complex-vendor-aware",
+            "system-platform",
+            "product-stack"
+          ]
+        },
         "score": { "type": "integer", "minimum": 0, "maximum": 20 },
         "decision": { "type": "string" },
         "triggers": { "type": "array", "items": { "type": "string" } }
@@ -310,7 +355,9 @@
               "width": { "type": "integer", "minimum": 1 },
               "depth": { "type": "integer", "minimum": 1 },
               "latency_cycles": { "type": "integer", "minimum": 0 },
-              "backend_policy": { "enum": ["portable", "prefer_vendor", "require_vendor"] }
+              "backend_policy": {
+                "enum": ["portable", "prefer_vendor", "require_vendor"]
+              }
             }
           }
         },
@@ -323,7 +370,9 @@
               "name": { "type": "string" },
               "kind": { "type": "string" },
               "count": { "type": "integer", "minimum": 1 },
-              "backend_policy": { "enum": ["portable", "prefer_vendor", "require_vendor"] }
+              "backend_policy": {
+                "enum": ["portable", "prefer_vendor", "require_vendor"]
+              }
             }
           }
         }
@@ -356,7 +405,14 @@
       "items": {
         "oneOf": [
           { "type": "string" },
-          { "type": "object", "required": ["text"], "properties": { "id": { "type": "string" }, "text": { "type": "string" } } }
+          {
+            "type": "object",
+            "required": ["text"],
+            "properties": {
+              "id": { "type": "string" },
+              "text": { "type": "string" }
+            }
+          }
         ]
       }
     },
@@ -378,7 +434,10 @@
               "synthesis-report"
             ]
           },
-          "evidence": { "type": "string", "description": "Relative path under the core directory." },
+          "evidence": {
+            "type": "string",
+            "description": "Relative path under the core directory."
+          },
           "description": { "type": "string" }
         }
       }
@@ -401,8 +460,21 @@
           "type": "object",
           "required": ["tool", "report_path", "conclusion"],
           "properties": {
-            "tool": { "enum": ["vivado", "quartus", "gowin", "efinity", "libero", "radiant", "diamond"] },
-            "report_path": { "type": "string", "description": "Relative path under the core directory." },
+            "tool": {
+              "enum": [
+                "vivado",
+                "quartus",
+                "gowin",
+                "efinity",
+                "libero",
+                "radiant",
+                "diamond"
+              ]
+            },
+            "report_path": {
+              "type": "string",
+              "description": "Relative path under the core directory."
+            },
             "conclusion": { "type": "string" }
           }
         },

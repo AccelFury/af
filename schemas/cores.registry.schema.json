@@ -12,7 +12,14 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["core_id", "category", "priority", "portability_level", "maturity", "summary"],
+        "required": [
+          "core_id",
+          "category",
+          "priority",
+          "portability_level",
+          "maturity",
+          "summary"
+        ],
         "properties": {
           "core_id": {
             "type": "string",

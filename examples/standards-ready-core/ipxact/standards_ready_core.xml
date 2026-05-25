@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<ipxact:component xmlns:ipxact="http://www.accellera.org/XMLSchema/IPXACT/1685-2022" xmlns:af="https://accelfury.dev/ipxact/vendor-extensions/1.0">
+<ipxact:component
+  xmlns:ipxact="http://www.accellera.org/XMLSchema/IPXACT/1685-2022"
+  xmlns:af="https://accelfury.dev/ipxact/vendor-extensions/1.0"
+>
   <ipxact:vendor>accelfury</ipxact:vendor>
   <ipxact:library>examples</ipxact:library>
   <ipxact:name>standards_ready_core</ipxact:name>
@@ -27,17 +30,50 @@
       </ipxact:view>
     </ipxact:views>
     <ipxact:ports>
-      <ipxact:port><ipxact:name>clk</ipxact:name><ipxact:wire><ipxact:direction>input</ipxact:direction></ipxact:wire></ipxact:port>
-      <ipxact:port><ipxact:name>rst</ipxact:name><ipxact:wire><ipxact:direction>input</ipxact:direction></ipxact:wire></ipxact:port>
-      <ipxact:port><ipxact:name>s_valid</ipxact:name><ipxact:wire><ipxact:direction>input</ipxact:direction></ipxact:wire></ipxact:port>
-      <ipxact:port><ipxact:name>s_ready</ipxact:name><ipxact:wire><ipxact:direction>output</ipxact:direction></ipxact:wire></ipxact:port>
-      <ipxact:port><ipxact:name>s_data</ipxact:name><ipxact:wire><ipxact:direction>input</ipxact:direction></ipxact:wire></ipxact:port>
-      <ipxact:port><ipxact:name>m_valid</ipxact:name><ipxact:wire><ipxact:direction>output</ipxact:direction></ipxact:wire></ipxact:port>
-      <ipxact:port><ipxact:name>m_ready</ipxact:name><ipxact:wire><ipxact:direction>input</ipxact:direction></ipxact:wire></ipxact:port>
-      <ipxact:port><ipxact:name>m_data</ipxact:name><ipxact:wire><ipxact:direction>output</ipxact:direction></ipxact:wire></ipxact:port>
-      <ipxact:port><ipxact:name>cfg_enable</ipxact:name><ipxact:wire><ipxact:direction>input</ipxact:direction></ipxact:wire></ipxact:port>
-      <ipxact:port><ipxact:name>status_busy</ipxact:name><ipxact:wire><ipxact:direction>output</ipxact:direction></ipxact:wire></ipxact:port>
-      <ipxact:port><ipxact:name>counter_words</ipxact:name><ipxact:wire><ipxact:direction>output</ipxact:direction></ipxact:wire></ipxact:port>
+      <ipxact:port>
+        <ipxact:name>clk</ipxact:name>
+        <ipxact:wire><ipxact:direction>input</ipxact:direction></ipxact:wire>
+      </ipxact:port>
+      <ipxact:port>
+        <ipxact:name>rst</ipxact:name>
+        <ipxact:wire><ipxact:direction>input</ipxact:direction></ipxact:wire>
+      </ipxact:port>
+      <ipxact:port>
+        <ipxact:name>s_valid</ipxact:name>
+        <ipxact:wire><ipxact:direction>input</ipxact:direction></ipxact:wire>
+      </ipxact:port>
+      <ipxact:port>
+        <ipxact:name>s_ready</ipxact:name>
+        <ipxact:wire><ipxact:direction>output</ipxact:direction></ipxact:wire>
+      </ipxact:port>
+      <ipxact:port>
+        <ipxact:name>s_data</ipxact:name>
+        <ipxact:wire><ipxact:direction>input</ipxact:direction></ipxact:wire>
+      </ipxact:port>
+      <ipxact:port>
+        <ipxact:name>m_valid</ipxact:name>
+        <ipxact:wire><ipxact:direction>output</ipxact:direction></ipxact:wire>
+      </ipxact:port>
+      <ipxact:port>
+        <ipxact:name>m_ready</ipxact:name>
+        <ipxact:wire><ipxact:direction>input</ipxact:direction></ipxact:wire>
+      </ipxact:port>
+      <ipxact:port>
+        <ipxact:name>m_data</ipxact:name>
+        <ipxact:wire><ipxact:direction>output</ipxact:direction></ipxact:wire>
+      </ipxact:port>
+      <ipxact:port>
+        <ipxact:name>cfg_enable</ipxact:name>
+        <ipxact:wire><ipxact:direction>input</ipxact:direction></ipxact:wire>
+      </ipxact:port>
+      <ipxact:port>
+        <ipxact:name>status_busy</ipxact:name>
+        <ipxact:wire><ipxact:direction>output</ipxact:direction></ipxact:wire>
+      </ipxact:port>
+      <ipxact:port>
+        <ipxact:name>counter_words</ipxact:name>
+        <ipxact:wire><ipxact:direction>output</ipxact:direction></ipxact:wire>
+      </ipxact:port>
     </ipxact:ports>
   </ipxact:model>
   <ipxact:fileSets>

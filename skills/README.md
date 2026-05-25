@@ -1,14 +1,14 @@
 # AccelFury af Codex Skills
 
-This directory is the project-local golden source for installable Codex
-`af-*` skills.
+This directory is the project-local golden source for installable Codex `af-*`
+skills.
 
 ## Contents
 
 - `af-heal`: repair drift across `af` docs, governance, generated outputs,
   installed mirrors, and stale active guidance.
-- `af-update`: synchronize canonical `af` surfaces into derived docs,
-  generated outputs, and installed skill mirrors.
+- `af-update`: synchronize canonical `af` surfaces into derived docs, generated
+  outputs, and installed skill mirrors.
 - `af-upgrade`: improve `af` functional maturity, reliability, usability,
   verification depth, and agent operability.
 

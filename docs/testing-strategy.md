@@ -16,23 +16,24 @@ changed behavior. The required layers are:
 - functional CLI tests with `assert_cmd` for public subcommands, `--json`
   output, stable error envelopes, exit codes, no ANSI in JSON, and broken
   fixture handling;
-- integration tests for end-to-end workflows such as `core new -> manifest
+- integration tests for end-to-end workflows such as
+  `core new -> manifest
   validate -> core check -> wrapper generate -> package -> report -> verify`;
 - snapshot/golden tests for generated JSON, Markdown, FuseSoC, LiteX, IP-XACT,
   schemas, and deterministic reports;
-- property and fuzz tests for parsers, path normalization, registry loaders,
-  RTL text inspection, vector generation, and CI/workflow input surfaces;
+- property and fuzz tests for parsers, path normalization, registry loaders, RTL
+  text inspection, vector generation, and CI/workflow input surfaces;
 - repository self-checks from `af-selfcheck.toml` for required examples and
   locally available optional standalone core projects;
 - fake backend tests that prove commands are argv arrays, never shell strings.
 
 ## Coverage rules
 
-Changes to public behavior require both a success case and at least one
-negative case. A negative case should assert the exact `AF_*` code, hint-bearing
-error envelope, and documented exit code. If the behavior writes files, tests
-must assert the files stay under `--build-root` or the explicitly requested
-output path.
+Changes to public behavior require both a success case and at least one negative
+case. A negative case should assert the exact `AF_*` code, hint-bearing error
+envelope, and documented exit code. If the behavior writes files, tests must
+assert the files stay under `--build-root` or the explicitly requested output
+path.
 
 Changes to deterministic output must include byte-stability or topology tests.
 JSON tests should verify sorted/stable fields, no timestamps unless explicitly

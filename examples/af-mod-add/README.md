@@ -9,6 +9,6 @@ The core is kept as a normal AccelFury core package:
 - `ip.manifest.legacy.json` preserves the source template manifest shape.
 - `rtl/`, `tb/`, and `vectors/` are relative to this core directory.
 
-RTL and gateware files in this package keep their original
-`CERN-OHL-S-2.0` licensing. Rust and TypeScript tooling imported from
-`core-template` keeps `AGPL-3.0-or-later` licensing.
+RTL and gateware files in this package keep their original `CERN-OHL-S-2.0`
+licensing. Rust and TypeScript tooling imported from `core-template` keeps
+`AGPL-3.0-or-later` licensing.

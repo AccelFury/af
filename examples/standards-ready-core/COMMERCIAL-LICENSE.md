@@ -2,8 +2,8 @@
 
 # Commercial Licensing
 
-`standards-ready-core` is available for closed-source and commercial use under
-a separate paid commercial license from AccelFury.
+`standards-ready-core` is available for closed-source and commercial use under a
+separate paid commercial license from AccelFury.
 
 You need a commercial license if you use the core in any of these ways:
 

@@ -19,7 +19,8 @@ af ci add-board \
 
 ### Поддерживаемые board профили (минимальный релиз)
 
-- **Gowin**: `family=gowin`, `top`, `device`, `nextpnr_family`, `pack_device`, `constraints`.
+- **Gowin**: `family=gowin`, `top`, `device`, `nextpnr_family`, `pack_device`,
+  `constraints`.
 - **iCE40**: `family=ice40`, `top`, `device`, `pack_device`, `constraints`.
 - **ECP5**: `family=ecp5`, `top`, `device`, `pack_device`, `constraints`.
 
@@ -38,4 +39,5 @@ af ci add-board \
 
 ## Чтение top candidates
 
-Сканер собирает имена модулей из `.v/.sv` и требует явный `--top`, если найдено более одной кандидатной top-конфига.
+Сканер собирает имена модулей из `.v/.sv` и требует явный `--top`, если найдено
+более одной кандидатной top-конфига.

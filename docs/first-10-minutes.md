@@ -62,6 +62,5 @@ af ci init \
   --standards-core-dir ./work/af-demo
 ```
 
-The result is not a timing, CDC/RDC, vendor, board, safety, or security
-signoff. It is a reproducible starting point with explicit evidence and
-limitations.
+The result is not a timing, CDC/RDC, vendor, board, safety, or security signoff.
+It is a reproducible starting point with explicit evidence and limitations.

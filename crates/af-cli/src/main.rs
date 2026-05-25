@@ -3577,7 +3577,7 @@ fn core_standards_export(
     output: Option<&Path>,
 ) -> Result<CliOutput, CliError> {
     let profile = load_standards_profile(profile_id)?;
-    let rendered = match format {
+    let mut rendered = match format {
         "json" => to_pretty_json(&profile.compliance_json()),
         "checklist" | "markdown" | "md" => profile.checklist_markdown(),
         "csv" | "matrix" => profile.compliance_csv(),
@@ -3590,6 +3590,9 @@ fn core_standards_export(
             ));
         }
     };
+    if !rendered.ends_with('\n') {
+        rendered.push('\n');
+    }
     if let Some(output) = output {
         write_text_file_creating_parent(output, &rendered)?;
     }

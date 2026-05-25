@@ -8,27 +8,25 @@
 
 - Added the fail-closed `af release check --json` production gate, release
   readiness report payload, GitHub release workflow, external CI evidence
-  bundle, Docker digest evidence, and release artifact checksum validation.
-  New additive error code: `AF_RELEASE_READINESS_BLOCKED`.
+  bundle, Docker digest evidence, and release artifact checksum validation. New
+  additive error code: `AF_RELEASE_READINESS_BLOCKED`.
 - Added reproducible build and first-10-minutes documentation, GitHub private
   vulnerability reporting policy, supported-version/deprecation policy, and an
   examples overview including the generated `vendor-aware-skeleton` reference.
 - Added the opt-in `fpga-ip-core-v1` standards profile, `af core standards`
   check/export commands, generated checklist/compliance matrix artifacts,
-  manifest `[standards]` evidence declarations, and `spdx-hbom` package
-  output. New additive error codes: `AF_STANDARDS_ARTIFACT_ITEM_INVALID`,
+  manifest `[standards]` evidence declarations, and `spdx-hbom` package output.
+  New additive error codes: `AF_STANDARDS_ARTIFACT_ITEM_INVALID`,
   `AF_STANDARDS_COLLECT_COPY_FAILED`, `AF_STANDARDS_EXPORT_FORMAT_UNSUPPORTED`,
-  `AF_STANDARDS_PROFILE_UNKNOWN`, and
-  `AF_STANDARDS_SAFETY_DOMAIN_UNSUPPORTED`.
+  `AF_STANDARDS_PROFILE_UNKNOWN`, and `AF_STANDARDS_SAFETY_DOMAIN_UNSUPPORTED`.
 - `af core standards check` now fail-closes malformed standards artifacts with
   row-level `validation_status`/`artifact_validations`, and generated
   `spdx-hbom` packages include SHA-256 checksums for declared source files.
 - `af core standards scaffold` now creates missing `fpga-ip-core-v1` evidence
   placeholders without overwriting local files, can append idempotent
   `[standards]`/`[[standards.artifacts]]` manifest declarations with
-  `--declare`, and
-  `af core standards check --strict` fail-closes selected rows when required
-  external validators such as `xmllint`, `peakrdl`, or
+  `--declare`, and `af core standards check --strict` fail-closes selected rows
+  when required external validators such as `xmllint`, `peakrdl`, or
   `verible-verilog-lint` are unavailable.
 - Added standards evidence utilities for the FPGA/IP commercial baseline:
   `af core standards doctor`, `drift`, `spdx-audit`, `collect`, plus
@@ -51,19 +49,19 @@
   provenance.
 - Manifest v0.4 now supports explicit `rtl.clocking = "none"` and
   `rtl.reset = "none"` for clockless/resetless atomic cores without fake
-  clock/reset ports. New additive error codes:
-  `AF_RTL_CLOCKING_MODE_INVALID` and `AF_RTL_RESET_MODE_INVALID`.
+  clock/reset ports. New additive error codes: `AF_RTL_CLOCKING_MODE_INVALID`
+  and `AF_RTL_RESET_MODE_INVALID`.
 - Documented the alpha-readiness scope and gates: the supported CLI surface is
   the manifest-first loop (`doctor`, `self check`, `manifest validate`,
-  `core check/lint/sim/report`, `wrapper generate`, `ci generate`), while
-  timing closure, CDC/RDC signoff, vendor production bitstreams, and hardware
+  `core check/lint/sim/report`, `wrapper generate`, `ci generate`), while timing
+  closure, CDC/RDC signoff, vendor production bitstreams, and hardware
   programming remain staged or out of scope.
 - Added production-readiness contract guidance, claims matrix, and CI/release
   gate expectations for promoting `af` as a CLI/toolchain without overstating
   timing, CDC/RDC, vendor bitstream, or hardware-ready claims.
-- Docker smoke now installs Icarus Verilog (`iverilog`/`vvp`) and runs an
-  Icarus lint/simulation path on the Verilog-2001 `af-reset-sync` example,
-  while Verilator/Yosys/FuseSoC/LiteX smoke remains on `af-pdm-rx`.
+- Docker smoke now installs Icarus Verilog (`iverilog`/`vvp`) and runs an Icarus
+  lint/simulation path on the Verilog-2001 `af-reset-sync` example, while
+  Verilator/Yosys/FuseSoC/LiteX smoke remains on `af-pdm-rx`.
 - The CLI contract guard now compares error-code inventories from
   `crates/**/src/**/*.rs` on both sides of the diff, avoiding false additive
   warnings from test-only `AF_*` strings.
@@ -86,25 +84,50 @@
   `af doctor`, and `af flash` all emit a `command_payload` block with a
   `kind`-discriminated union (`check` / `lint` / `simulation` / `formal` /
   `build` / `package` / `report` / `tooling` / `doctor` / `flash`). LLM/CI
-  consumers can dispatch on `command_payload.kind` without sniffing the
-  schema. Documented in `docs/cli-reference.md`.
+  consumers can dispatch on `command_payload.kind` without sniffing the schema.
+  Documented in `docs/cli-reference.md`.
 - M3 reproducibility metadata (`host_os`, `host_arch`, `environment_hash`,
   `af_version`) and stdout/stderr log artifacts referenced from each
   `CommandRecord.stdout_log` / `stderr_log` field are also documented.
 - Decomposition: `commands::self_check` (~280 LOC) extracted from
-  `crates/af-cli/src/main.rs`. Cumulative reduction since the audit cycle
-  began: 5,299 → 3,464 LOC (-35%).
+  `crates/af-cli/src/main.rs`. Cumulative reduction since the audit cycle began:
+  5,299 → 3,464 LOC (-35%).
 - Dead code removed: `af_backend::ExecutedCommand` and the
   `BackendReport.commands_executed` field. Their stdout_log / stderr_log
   responsibility was migrated to `CommandRecord` in an earlier commit.
-- `af compatibility check`, `af signoff plan`, and `af dependency graph` now run structural manifest+RTL inspection (via the new `af_core::load_validated_manifest`) on each core input; broken manifests or missing source files fail with `AF_CORE_CHECK_FAILED` (exit 2) instead of returning a misleading `"passed"` / `"planned"` report.
-- `af project classify --from-spec <path>` returns `AF_COMPLEXITY_SPEC_EMPTY` (exit 2) when the spec is empty or whitespace-only, instead of silently defaulting to `simple-portable`.
-- `af board list` (human output) prefixes each entry with `[VERIFIED]` or `[DRAFT]` based on its registry `exact_pinout_status`. JSON output is unchanged.
-- `af wrapper generate --board <id>` adds a warning to `wrapper.warnings` when the board is not `verified_on_hardware` (placeholder pinout), or when the id is not in the registry.
-- `af core report` `board_hardware_evidence` maturity row now enumerates each declared board with a `(draft)` / `(verified-or-unknown)` tag and appends a specific limitation listing the placeholder board ids. New `MaturityInputs.placeholder_boards` field carries this signal.
-- `af core report` `docker_ci_cd_evidence` row is now fail-closed: it requires an attributable CI run record (commit_sha matching the current HEAD, `conclusion = "success"`, plus workflow_run_url / artifact_bundle / sha256sums) ingested via the new `af evidence ingest --kind ci-run`. A workflow file alone, stale evidence, or a non-success conclusion all keep the row `blocked` with a specific limitation. Closes `AF.TODO.CI-CURRENT-TREE-EVIDENCE-GATE`.
-- `af evidence ingest --kind ci-run` accepts a JSON input describing a single GitHub Actions style run; the report writes the normalized record under `.af-build/reports/evidence/ci_run_report-*.json` and `core report` consumes it.
-- `af core new` now generates AccelFury Source Available License v1.0 legal artifacts (`LICENSE`, `COMMERCIAL-LICENSE.md`, `NOTICE`) for reusable IP cores, and `af core check` fails closed on placeholder or mismatched legal policy.
+- `af compatibility check`, `af signoff plan`, and `af dependency graph` now run
+  structural manifest+RTL inspection (via the new
+  `af_core::load_validated_manifest`) on each core input; broken manifests or
+  missing source files fail with `AF_CORE_CHECK_FAILED` (exit 2) instead of
+  returning a misleading `"passed"` / `"planned"` report.
+- `af project classify --from-spec <path>` returns `AF_COMPLEXITY_SPEC_EMPTY`
+  (exit 2) when the spec is empty or whitespace-only, instead of silently
+  defaulting to `simple-portable`.
+- `af board list` (human output) prefixes each entry with `[VERIFIED]` or
+  `[DRAFT]` based on its registry `exact_pinout_status`. JSON output is
+  unchanged.
+- `af wrapper generate --board <id>` adds a warning to `wrapper.warnings` when
+  the board is not `verified_on_hardware` (placeholder pinout), or when the id
+  is not in the registry.
+- `af core report` `board_hardware_evidence` maturity row now enumerates each
+  declared board with a `(draft)` / `(verified-or-unknown)` tag and appends a
+  specific limitation listing the placeholder board ids. New
+  `MaturityInputs.placeholder_boards` field carries this signal.
+- `af core report` `docker_ci_cd_evidence` row is now fail-closed: it requires
+  an attributable CI run record (commit_sha matching the current HEAD,
+  `conclusion = "success"`, plus workflow_run_url / artifact_bundle /
+  sha256sums) ingested via the new `af evidence ingest --kind ci-run`. A
+  workflow file alone, stale evidence, or a non-success conclusion all keep the
+  row `blocked` with a specific limitation. Closes
+  `AF.TODO.CI-CURRENT-TREE-EVIDENCE-GATE`.
+- `af evidence ingest --kind ci-run` accepts a JSON input describing a single
+  GitHub Actions style run; the report writes the normalized record under
+  `.af-build/reports/evidence/ci_run_report-*.json` and `core report` consumes
+  it.
+- `af core new` now generates AccelFury Source Available License v1.0 legal
+  artifacts (`LICENSE`, `COMMERCIAL-LICENSE.md`, `NOTICE`) for reusable IP
+  cores, and `af core check` fails closed on placeholder or mismatched legal
+  policy.
 - Added complexity-aware `af` project classes, v0.3 manifest fields, class-aware
   core/project scaffolds, offline architecture/resource/compatibility/
   constructor/signoff/dependency commands, and planned vendor backend scaffolds.

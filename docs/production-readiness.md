@@ -1,9 +1,12 @@
 # Production Readiness
 
 `af` production readiness means the CLI/toolchain contract is stable enough for
-CI and automation. It does not mean FPGA timing closure, CDC/RDC signoff,
-vendor production bitstreams, board bring-up, or hardware programming are
-supported without separate evidence.
+CI and automation. It does not mean FPGA timing closure, CDC/RDC signoff, vendor
+production bitstreams, board bring-up, or hardware programming are supported
+without separate evidence.
+
+Boundary: `vendor production bitstreams` are not claimed without separate
+evidence.
 
 ## Supported Production Contract
 
@@ -43,18 +46,18 @@ not production evidence.
 
 ## Claims Matrix
 
-| Claim | Production status | Required evidence |
-| --- | --- | --- |
-| CLI contract stability | Supported when release gates pass | Contract guard, tests, docs, changelog |
-| Manifest validation | Supported for documented `af_version` values | Parser tests and CLI smoke |
-| JSON/error contract | Supported for production commands | Envelope tests and schema snapshots |
-| Open-source smoke | Supported through Docker runtime | `make smoke` artifacts and checksums |
-| FuseSoC export | Supported as deterministic wrapper generation | Generated `.core` artifact |
-| LiteX support | Skeleton/reference only | Generated skeleton plus limitation |
-| Timing closure | Not claimed | Vendor timing report required |
-| CDC/RDC signoff | Not claimed | Dedicated CDC/RDC evidence required |
-| Vendor bitstream | Not claimed | Vendor build and bitstream evidence required |
-| Hardware-ready | Not claimed | Board/reference evidence and bring-up logs required |
+| Claim                  | Production status                             | Required evidence                                   |
+| ---------------------- | --------------------------------------------- | --------------------------------------------------- |
+| CLI contract stability | Supported when release gates pass             | Contract guard, tests, docs, changelog              |
+| Manifest validation    | Supported for documented `af_version` values  | Parser tests and CLI smoke                          |
+| JSON/error contract    | Supported for production commands             | Envelope tests and schema snapshots                 |
+| Open-source smoke      | Supported through Docker runtime              | `make smoke` artifacts and checksums                |
+| FuseSoC export         | Supported as deterministic wrapper generation | Generated `.core` artifact                          |
+| LiteX support          | Skeleton/reference only                       | Generated skeleton plus limitation                  |
+| Timing closure         | Not claimed                                   | Vendor timing report required                       |
+| CDC/RDC signoff        | Not claimed                                   | Dedicated CDC/RDC evidence required                 |
+| Vendor bitstream       | Not claimed                                   | Vendor build and bitstream evidence required        |
+| Hardware-ready         | Not claimed                                   | Board/reference evidence and bring-up logs required |
 
 ## Support Discipline
 

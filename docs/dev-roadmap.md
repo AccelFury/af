@@ -11,20 +11,21 @@ functional maturity.
 Status: **Alpha readiness target: MVP-0/MVP-1 baseline operational; MVP-2+
 surfaces staged**.
 
-The alpha-supported CLI surface is intentionally limited to the
-manifest-first development loop: `af doctor`, `af self check`,
-`af manifest validate`, `af core check`, `af core lint`, `af core sim`,
-`af core report`, `af wrapper generate`, and `af ci generate`. Other command
-families can be useful, but their flags, report details, and backend coverage
-remain staged until a later readiness gate promotes them.
+The alpha-supported CLI surface is intentionally limited to the manifest-first
+development loop: `af doctor`, `af self check`, `af manifest validate`,
+`af core check`, `af core lint`, `af core sim`, `af core report`,
+`af wrapper generate`, and `af ci generate`. Other command families can be
+useful, but their flags, report details, and backend coverage remain staged
+until a later readiness gate promotes them.
 
 Implemented and verified in the codebase:
 
 - Rust workspace with CLI, manifest, RTL inspector, backend, report, security,
   board DB, wrapper and CI crates.
-- `af doctor`, `af manifest validate/migrate`, `af core check/lint/sim/formal/package/report`,
-  `af board list/check/matrix`, `af build`, `af flash`, `af backend list/run`,
-  `af wrapper generate`, and `af ci generate`.
+- `af doctor`, `af manifest validate/migrate`,
+  `af core check/lint/sim/formal/package/report`, `af board list/check/matrix`,
+  `af build`, `af flash`, `af backend list/run`, `af wrapper generate`, and
+  `af ci generate`.
 - Manifest-first validation for source files, include dirs, testbenches, top
   module text, ports, clocks and resets.
 - v0.3 optional semantic contracts for FIFO/reset/generic protocol behavior,
@@ -95,8 +96,8 @@ Goal: remove external host blockers for normal development.
 
 Work:
 
-- keep `Dockerfile`, `docker-compose.yml`, devcontainer and CI Docker job as
-  the canonical OSS runtime;
+- keep `Dockerfile`, `docker-compose.yml`, devcontainer and CI Docker job as the
+  canonical OSS runtime;
 - pin or lock Python packages for FuseSoC/LiteX when release reproducibility
   matters;
 - add Docker smoke artifacts to CI uploads;
@@ -134,8 +135,8 @@ Work:
 
 - introduce typed `simulation_report`, `lint_report`, `build_report` and
   `package_report` structs;
-- add `started_at`, `duration_ms`, reproducibility, host OS and environment
-  hash fields;
+- add `started_at`, `duration_ms`, reproducibility, host OS and environment hash
+  fields;
 - write stdout/stderr logs as artifacts and reference them from reports;
 - add resource/timing summaries as explicit `available=false` blocks until real
   vendor reports are parsed.
@@ -186,17 +187,17 @@ delivery commitment, and the only authoritative status is what
 
 ### Field arithmetic lineage
 
-The `af_mod_add` example seeds a longer field-arithmetic line that the
-manifesto explicitly names as a commercially-relevant target:
+The `af_mod_add` example seeds a longer field-arithmetic line that the manifesto
+explicitly names as a commercially-relevant target:
 
-`af_mod_add` → `af_mod_sub` → `af_mod_mul` → `af_mod_reduce` →
-`af_ntt` → `af_msm` → `af_poseidon` → `af_merkle` → PLONK-like building blocks.
+`af_mod_add` → `af_mod_sub` → `af_mod_mul` → `af_mod_reduce` → `af_ntt` →
+`af_msm` → `af_poseidon` → `af_merkle` → PLONK-like building blocks.
 
 Each step keeps the same v0.3 manifest shape, adds `portability_level`,
 `priority`, `maturity`, and at least one entry under
 `[[verification_required]]`. Promotion from `experimental` to `preview` to
-`beta`/`stable` is gated by `af core report` evidence rows, not by
-narrative commits.
+`beta`/`stable` is gated by `af core report` evidence rows, not by narrative
+commits.
 
 The first six lineage cores (`af_mod_sub`, `af_mod_mul`, `af_mod_reduce`,
 `af_ntt`, `af_msm`, `af_poseidon`) are registered as tracked-only entries in
@@ -207,15 +208,15 @@ The first six lineage cores (`af_mod_sub`, `af_mod_mul`, `af_mod_reduce`,
 af core registry list --json | jq '.cores[] | select(.category == "field_arithmetic" or .category == "ntt_fft" or .category == "hash" or .category == "msm_toy")'
 ```
 
-to inspect them. They surface in `af core registry list` with priority/portability
-defaults; promote them to in-tree examples (with manifest + RTL + tb) as RTL
-work lands.
+to inspect them. They surface in `af core registry list` with
+priority/portability defaults; promote them to in-tree examples (with manifest +
+RTL + tb) as RTL work lands.
 
 ### Stream / memory / peripheral lineage
 
 The P0/P1 cores listed in `registries/cores.registry.json` cover the
-non-arithmetic core set: `af_stream_skid`, `af_stream_pipeline`,
-`af_sync_fifo`, `af_async_fifo`, `af_ram_sdp`, `af_reset_sync`,
-`af_pulse_sync`, `af_cdc_handshake`, `af_gpio`, `af_timer`, `af_watchdog`,
-`af_uart`, `af_spi_master`. `af_reset_sync` is the first one wired up as a
-standalone in-tree example (`examples/af-reset-sync/`).
+non-arithmetic core set: `af_stream_skid`, `af_stream_pipeline`, `af_sync_fifo`,
+`af_async_fifo`, `af_ram_sdp`, `af_reset_sync`, `af_pulse_sync`,
+`af_cdc_handshake`, `af_gpio`, `af_timer`, `af_watchdog`, `af_uart`,
+`af_spi_master`. `af_reset_sync` is the first one wired up as a standalone
+in-tree example (`examples/af-reset-sync/`).

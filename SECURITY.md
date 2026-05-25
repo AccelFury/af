@@ -6,8 +6,8 @@ closure, CDC/RDC signoff, vendor bitstream signoff, or board hardware readiness.
 
 ## Reporting Vulnerabilities
 
-Report security issues privately through GitHub private vulnerability
-reporting / GitHub Security Advisories for this repository.
+Report security issues privately through GitHub private vulnerability reporting
+/ GitHub Security Advisories for this repository.
 
 Do not open a public issue for a vulnerability before maintainers have triaged
 it. Include:
@@ -19,10 +19,10 @@ it. Include:
 
 ## Supported Versions
 
-| Version line | Support status |
-| --- | --- |
-| `0.2.0-rc.x` | Supported for release-candidate security fixes. |
-| `0.1.x` | Best-effort until 2026-08-23. |
+| Version line             | Support status                                                 |
+| ------------------------ | -------------------------------------------------------------- |
+| `0.2.0-rc.x`             | Supported for release-candidate security fixes.                |
+| `0.1.x`                  | Best-effort until 2026-08-23.                                  |
 | Older / untagged commits | Not supported; reproduce on a supported tag or current `main`. |
 
 ## Deprecation Window

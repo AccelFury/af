@@ -31,7 +31,8 @@ include_dirs = []
 Supported arrays:
 
 - `[[parameters]]`: `name`, `value`, optional `description`
-- `[[ports]]`: `name`, `direction`, optional `width`, `clock`, `reset`, `description`
+- `[[ports]]`: `name`, `direction`, optional `width`, `clock`, `reset`,
+  `description`
 - `[[clocks]]`: `name`, optional `frequency_hz`
 - `[[resets]]`: `name`, optional `active`, `asynchronous`
 - `[[interfaces]]`: `name`, `kind`, optional `clock`, `reset`
@@ -182,8 +183,7 @@ Validation rules:
 - all source, include, evidence and artifact manifest paths must be relative and
   must not contain `..`;
 - port widths must be positive integers, parameter names, or simple
-  parameter/integer expressions such as `"DATA_BITS"` or
-  `"FIFO_ADDR_BITS + 1"`;
+  parameter/integer expressions such as `"DATA_BITS"` or `"FIFO_ADDR_BITS + 1"`;
 - port/interface clock and reset references must be declared;
 - `contracts.protocols[].clock` and `reset` must reference declared clocks,
   resets, or bound ports;
@@ -231,8 +231,8 @@ evidence = "reports/smoke.log"   # optional, relative to the core directory
 
 - `AF_VERIFICATION_EVIDENCE_MISSING` (issue) when `evidence` points at a path
   that does not exist;
-- `AF_VERIFICATION_EVIDENCE_PLANNED` (warning) when a gate is declared
-  without `evidence`.
+- `AF_VERIFICATION_EVIDENCE_PLANNED` (warning) when a gate is declared without
+  `evidence`.
 
 `af registry check` cross-validates these axes against
 `registries/cores.registry.json`. Use `af core registry list` to query the
@@ -244,8 +244,8 @@ When a `ReusableCoreMaturity` row would otherwise be reconstructed only from
 `--build-root/reports/*` (CI, vendor synthesis, board bring-up), the manifest
 may declare the evidence directly. This is structured **input**, not a
 fabricated assertion: the matching row only flips to `supported` when the
-declared `commit_sha` matches HEAD and `conclusion == "success"`; otherwise
-the row stays `planned` with a reason.
+declared `commit_sha` matches HEAD and `conclusion == "success"`; otherwise the
+row stays `planned` with a reason.
 
 ```toml
 [evidence.docker_ci_cd]
@@ -265,8 +265,8 @@ report_path = "reports/board/tang_smoke.json"
 date        = "2026-05-17"
 ```
 
-All `report_path` values are validated through the same relative-path rules
-as `[sources]` (no `..`, no absolute prefix). `tool` is bounded by a closed
+All `report_path` values are validated through the same relative-path rules as
+`[sources]` (no `..`, no absolute prefix). `tool` is bounded by a closed
 vocabulary. Unrecognised values raise `AF_EVIDENCE_VENDOR_TOOL_INVALID` or
 `AF_EVIDENCE_CONCLUSION_INVALID`.
 
@@ -274,8 +274,8 @@ vocabulary. Unrecognised values raise `AF_EVIDENCE_VENDOR_TOOL_INVALID` or
 
 `[standards]` lets a core opt in to a machine-readable evidence profile without
 making the whole `af` manifest FPGA-standards-only. The first built-in profile
-is `fpga-ip-core-v1`; it backs `af core standards check`, the additive
-standards summary in `af core report`, and the generated root `CHECKLIST.md`,
+is `fpga-ip-core-v1`; it backs `af core standards check`, the additive standards
+summary in `af core report`, and the generated root `CHECKLIST.md`,
 `compliance_matrix.csv`, and `compliance_matrix.json`.
 
 ```toml
@@ -324,29 +324,34 @@ evidence; it is not a certification claim.
 tree for existing cores. It never overwrites existing evidence files; the
 generated content is a placeholder that must be filled before release claims.
 Add `--declare` to append `[standards]` and `[[standards.artifacts]]` entries
-for generated or already-present conventional files. `af core new
---standards-profile fpga-ip-core-v1` uses the same declaration path at scaffold
-time, so newly created opt-in cores are immediately checkable by manifest
-evidence rather than only by path convention.
+for generated or already-present conventional files.
+`af core new
+--standards-profile fpga-ip-core-v1` uses the same declaration path
+at scaffold time, so newly created opt-in cores are immediately checkable by
+manifest evidence rather than only by path convention.
 `af core standards check --strict` opportunistically runs external validators
-for selected artifacts: `xmllint` for IP-XACT and `peakrdl` for SystemRDL.
-If those tools are unavailable, the built-in semantic result is kept and the row
+for selected artifacts: `xmllint` for IP-XACT and `peakrdl` for SystemRDL. If
+those tools are unavailable, the built-in semantic result is kept and the row
 records a limitation; if an available validator rejects the artifact, the row
 fails closed. `af core standards doctor` exposes the same local tool
 availability probe plus install/container hints, while `af core standards
-drift` reports whether the profile snapshot date needs manual refresh for
-fast-moving pins such as SPDX and CWE.
+drift`
+reports whether the profile snapshot date needs manual refresh for fast-moving
+pins such as SPDX and CWE.
 
 `af core regs scaffold --declare` appends a `systemrdl` artifact declaration for
 `regs/<core>.rdl`. `af core standards spdx-audit --declare` appends
-`spdx-header-audit` evidence for item 21. `af core standards collect
---build-root <path> --declare` links known CI/package outputs, such as
-`reports/standards/core-lint.json`, `reports/standards/core-sim.json`,
-`reports/standards/core-formal.json`, and `hbom/<core>.spdx.json`, without
-adding duplicate manifest entries.
+`spdx-header-audit` evidence for item 21.
+`af core standards collect
+--build-root <path> --declare` links known CI/package
+outputs, such as `reports/standards/core-lint.json`,
+`reports/standards/core-sim.json`, `reports/standards/core-formal.json`, and
+`hbom/<core>.spdx.json`, without adding duplicate manifest entries.
 
 `af ci init --standards --standards-core-dir <path>` writes an `[standards]`
 section to `af-ci.toml` for CI workflow rendering. The generated CI job runs
-native lint and SPDX/HBOM packaging, then calls `af core standards collect
---declare` and `af core standards check --strict`. The CI preset assumes an
-`af` binary is available in PATH or an af-enabled container/profile is used.
+native lint and SPDX/HBOM packaging, then calls
+`af core standards collect
+--declare` and `af core standards check --strict`.
+The CI preset assumes an `af` binary is available in PATH or an af-enabled
+container/profile is used.

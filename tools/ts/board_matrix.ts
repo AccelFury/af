@@ -2,7 +2,9 @@
 
 export async function checkBoardMatrix(root = Deno.cwd()): Promise<boolean> {
   const manifest = JSON.parse(
-    await Deno.readTextFile(`${root}/examples/af-mod-add/ip.manifest.legacy.json`),
+    await Deno.readTextFile(
+      `${root}/examples/af-mod-add/ip.manifest.legacy.json`,
+    ),
   );
   const boards: string[] = manifest.boards ?? [];
 

@@ -6,7 +6,11 @@ allowed-tools: Bash, Read, Edit, Write, Grep
 
 # af-add-evidence-row
 
-`af core report::ReusableCoreMaturity` carries 11 evidence rows that together describe what a core has proven. Adding a new row is structural — every consumer (`af core verify`, `af-report-reader`, `af-verify-tier`, docs/licensing.md) depends on the row vocabulary and the matching artifact substrings. This skill makes the addition consistent in one pass.
+`af core report::ReusableCoreMaturity` carries 11 evidence rows that together
+describe what a core has proven. Adding a new row is structural — every consumer
+(`af core verify`, `af-report-reader`, `af-verify-tier`, docs/licensing.md)
+depends on the row vocabulary and the matching artifact substrings. This skill
+makes the addition consistent in one pass.
 
 ## When to invoke
 
@@ -18,9 +22,11 @@ User says:
 
 Do NOT invoke for:
 
-- modifying an existing row's matcher or limitations (breaking change; route through `af-cli-contract-guard`)
+- modifying an existing row's matcher or limitations (breaking change; route
+  through `af-cli-contract-guard`)
 - changing `tier_required_rows` mapping for an existing row (breaking — same)
-- adding evidence ingestion *commands* (different scope — that is a separate `af evidence ingest --kind <kind>` extension)
+- adding evidence ingestion _commands_ (different scope — that is a separate
+  `af evidence ingest --kind <kind>` extension)
 
 ## Required inputs
 
@@ -34,31 +40,32 @@ Do NOT invoke for:
 2. **`evidence_source`** — how the row is populated:
    - `artifact_substrings`: list of substrings the matcher looks for in
      `artifacts[]` (e.g. `["cocotb", "uvm"]`).
-   - `manifest_field`: a specific manifest field whose presence/value drives
-     the row (e.g. `metadata.repository` for a hypothetical `provenance_evidence`).
+   - `manifest_field`: a specific manifest field whose presence/value drives the
+     row (e.g. `metadata.repository` for a hypothetical `provenance_evidence`).
    - `custom`: a Rust function call — user must write the helper themselves;
      skill stubs the entry point only.
 
-3. **`limitations`** — one-line text for the `blocked` status (`"No cocotb run discovered under .af-build/."`).
+3. **`limitations`** — one-line text for the `blocked` status
+   (`"No cocotb run discovered under .af-build/."`).
 
 4. **`tier_membership`** — optional. If the row is required for one of the
    existing tiers (`verified-package`, `enterprise`), name which. The skill
-   refuses to add a row to `community` (community is intentionally minimal:
-   only `manifest_contract` + `source_portability`).
+   refuses to add a row to `community` (community is intentionally minimal: only
+   `manifest_contract` + `source_portability`).
 
 ## Touch-points
 
-1. **Row builder** — `crates/af-report/src/lib.rs::reusable_core_maturity`,
-   the function that pushes `MaturityRow`s onto `rows`.
-2. **Tier mapping** — `crates/af-cli/src/main.rs::tier_required_rows`, the
-   match arms returning `&[&str]` lists.
+1. **Row builder** — `crates/af-report/src/lib.rs::reusable_core_maturity`, the
+   function that pushes `MaturityRow`s onto `rows`.
+2. **Tier mapping** — `crates/af-cli/src/main.rs::tier_required_rows`, the match
+   arms returning `&[&str]` lists.
 3. **Docs** — `docs/licensing.md::Commercial tiers` table.
 4. **Tests**:
    - `crates/af-report/src/lib.rs::tests` (unit-level — supported/blocked
      scenarios for the new row).
-   - `crates/af-cli/tests/cli.rs` if the row is part of a tier (integration
-     test for `af core verify --tier <t>` covering the new row's blocked
-     state on a baseline example).
+   - `crates/af-cli/tests/cli.rs` if the row is part of a tier (integration test
+     for `af core verify --tier <t>` covering the new row's blocked state on a
+     baseline example).
 
 ## Procedure
 
@@ -76,18 +83,23 @@ AF_EVIDENCE_ROW_TAKEN: area `<area>` already exists at crates/af-report/src/lib.
 
 ### Step 2 — choose insertion point
 
-Order in `rows.push(...)` calls determines presentation order in `af core report` output. Keep ordering meaningful:
+Order in `rows.push(...)` calls determines presentation order in
+`af core report` output. Keep ordering meaningful:
 
-- input rows first, grouped by closeness to the toolchain (`manifest_contract` → `source_portability` → tool/wrapper/CI evidence)
+- input rows first, grouped by closeness to the toolchain (`manifest_contract` →
+  `source_portability` → tool/wrapper/CI evidence)
 - vendor/board rows after open-source rows
 - legal evidence near the end
 - aggregation rows (`*_readiness`) last
 
-A reasonable default for a new input row: insert immediately before `vendor_tool_evidence` (the last open-source-tool block) unless the user specifies otherwise.
+A reasonable default for a new input row: insert immediately before
+`vendor_tool_evidence` (the last open-source-tool block) unless the user
+specifies otherwise.
 
 ### Step 3 — wire the row builder
 
-Read the current `reusable_core_maturity` function. For each `evidence_source` mode:
+Read the current `reusable_core_maturity` function. For each `evidence_source`
+mode:
 
 #### `artifact_substrings`
 
@@ -105,7 +117,8 @@ rows.push(row(
 ));
 ```
 
-`matching_artifacts` is already defined in the same file. Substrings are case-sensitive substring matches against artifact paths.
+`matching_artifacts` is already defined in the same file. Substrings are
+case-sensitive substring matches against artifact paths.
 
 #### `manifest_field`
 
@@ -128,7 +141,8 @@ rows.push(row(
 
 #### `custom`
 
-Insert a TODO placeholder calling a user-defined helper, with the row defaulting to `planned`:
+Insert a TODO placeholder calling a user-defined helper, with the row defaulting
+to `planned`:
 
 ```rust
 rows.push(row(
@@ -179,10 +193,10 @@ AF_EVIDENCE_ROW_COMMUNITY_FORBIDDEN: community tier is intentionally minimal (ma
 ### Step 5 — wire docs
 
 In `docs/licensing.md::Commercial tiers` there is a Markdown table with three
-rows (`community`, `verified-package`, `enterprise`) and a cell describing
-the required evidence rows. Update the matching cells to include the new
-row name. Maintain alphabetical or logical order within each cell — match
-the existing style.
+rows (`community`, `verified-package`, `enterprise`) and a cell describing the
+required evidence rows. Update the matching cells to include the new row name.
+Maintain alphabetical or logical order within each cell — match the existing
+style.
 
 ### Step 6 — wire unit test (`crates/af-report/src/lib.rs::tests`)
 
@@ -226,13 +240,14 @@ fn <area>_blocked_when_absent() {
 }
 ```
 
-If `sample_manifest()` does not exist in the tests module, build a minimal `CoreManifest` inline or use one of the existing test helpers.
+If `sample_manifest()` does not exist in the tests module, build a minimal
+`CoreManifest` inline or use one of the existing test helpers.
 
 ### Step 7 — wire integration test (only if `tier_membership` is non-empty)
 
 In `crates/af-cli/tests/cli.rs`, add a test ensuring the existing
-`af-reset-sync` example (or the most basic example) **fails** the affected
-tier specifically because of the new row:
+`af-reset-sync` example (or the most basic example) **fails** the affected tier
+specifically because of the new row:
 
 ```rust
 #[test]
@@ -250,7 +265,8 @@ fn <area>_blocks_<tier>_tier_on_reset_sync() {
 }
 ```
 
-This anchors the new row to a stable example and proves the tier mapping is wired correctly.
+This anchors the new row to a stable example and proves the tier mapping is
+wired correctly.
 
 ### Step 8 — compile + test
 
@@ -262,7 +278,8 @@ cargo fmt --all -- --check
 cargo clippy --workspace --all-targets -- -D warnings
 ```
 
-If any step fails, surface the failure and stop. Do not "fix" by deleting the new row — that erases the patch.
+If any step fails, surface the failure and stop. Do not "fix" by deleting the
+new row — that erases the patch.
 
 ### Step 9 — pre-existing examples sanity
 
@@ -270,9 +287,9 @@ If any step fails, surface the failure and stop. Do not "fix" by deleting the ne
 cargo run --quiet -p af-cli --bin af -- core verify examples/af-reset-sync --tier community --json
 ```
 
-`community` tier must still pass (its mapping was not changed). If it fails,
-the row's matcher is unexpectedly catching `examples/af-reset-sync` for
-`community` — back out and review the matcher substrings.
+`community` tier must still pass (its mapping was not changed). If it fails, the
+row's matcher is unexpectedly catching `examples/af-reset-sync` for `community`
+— back out and review the matcher substrings.
 
 For `verified-package`/`enterprise`, the test in step 7 already covers the
 expected new failure.
@@ -328,43 +345,59 @@ maturity.
 
 When this skill modifies `af`, it must add thoughtful tests for the touched
 behavior. Cover success, failure, deterministic JSON/error output, and evidence
-boundaries where applicable; if no direct test is possible, state the reason
-and cite the closest existing coverage.
+boundaries where applicable; if no direct test is possible, state the reason and
+cite the closest existing coverage.
 
 ## Hard rules
 
-- **Never modify an existing row.** This skill only adds. Modifications go through `af-cli-contract-guard` as a breaking change.
-- **Never add to `community` tier.** Community is intentionally minimal. New rows go to `verified-package`, `enterprise`, or stay tier-agnostic.
-- **Row name is snake_case, lowercase, no spaces.** Verifying via `^[a-z][a-z0-9_]*$`.
-- **`matching_artifacts` is case-sensitive substring match.** Pick substrings that map to *real* artifact paths under `.af-build/`. The user must demonstrate one if asked.
-- **Aggregation rows are off-limits.** `evidence_portability`, `buyer_grade_readiness`, `enterprise_grade_readiness` are computed from other rows. Do not insert anything that aggregates.
-- **All five touch-points (or four when tier-agnostic) or none.** If any compile/test step fails, revert.
-- **Update `CHANGELOG.md` only with explicit confirmation.** The skill suggests; the user writes the entry.
-- **Stay within `af-report` and `af-cli`.** No new crates, no library reshuffles.
+- **Never modify an existing row.** This skill only adds. Modifications go
+  through `af-cli-contract-guard` as a breaking change.
+- **Never add to `community` tier.** Community is intentionally minimal. New
+  rows go to `verified-package`, `enterprise`, or stay tier-agnostic.
+- **Row name is snake_case, lowercase, no spaces.** Verifying via
+  `^[a-z][a-z0-9_]*$`.
+- **`matching_artifacts` is case-sensitive substring match.** Pick substrings
+  that map to _real_ artifact paths under `.af-build/`. The user must
+  demonstrate one if asked.
+- **Aggregation rows are off-limits.** `evidence_portability`,
+  `buyer_grade_readiness`, `enterprise_grade_readiness` are computed from other
+  rows. Do not insert anything that aggregates.
+- **All five touch-points (or four when tier-agnostic) or none.** If any
+  compile/test step fails, revert.
+- **Update `CHANGELOG.md` only with explicit confirmation.** The skill suggests;
+  the user writes the entry.
+- **Stay within `af-report` and `af-cli`.** No new crates, no library
+  reshuffles.
 
 ## Edge cases
 
-| Situation | Treatment |
-|---|---|
-| Existing example would silently lose tier eligibility | Always flag in the "Impact" section. The user decides whether to downgrade the example's `maturity` or produce real evidence. |
-| User wants the row tier-agnostic | Skip step 4 and 7; the row appears in `af core report` but no tier requires it (informational only). |
-| User wants the row in multiple tiers | Add to the most permissive (`verified-package`) and let inheritance carry it to `enterprise`. |
-| User wants a `planned` default instead of `blocked` | Use the `planned` branch in the row builder; `planned` indicates "work declared, evidence pending". |
-| `matching_artifacts` already matches existing rows' substrings | Pick more specific substrings; substring collisions create false-supports for unrelated rows. |
+| Situation                                                          | Treatment                                                                                                                                                       |
+| ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Existing example would silently lose tier eligibility              | Always flag in the "Impact" section. The user decides whether to downgrade the example's `maturity` or produce real evidence.                                   |
+| User wants the row tier-agnostic                                   | Skip step 4 and 7; the row appears in `af core report` but no tier requires it (informational only).                                                            |
+| User wants the row in multiple tiers                               | Add to the most permissive (`verified-package`) and let inheritance carry it to `enterprise`.                                                                   |
+| User wants a `planned` default instead of `blocked`                | Use the `planned` branch in the row builder; `planned` indicates "work declared, evidence pending".                                                             |
+| `matching_artifacts` already matches existing rows' substrings     | Pick more specific substrings; substring collisions create false-supports for unrelated rows.                                                                   |
 | The new row should also pull from `manifest.verification_required` | That is a different pattern — declare a kind in `VerificationKind` enum first, then this row mirrors gate completion. Coordinate with `af-architecture` checks. |
 
 ## Example session
 
-User: `add cocotb_evidence row, triggered by artifacts containing 'cocotb', required by verified-package`.
+User:
+`add cocotb_evidence row, triggered by artifacts containing 'cocotb', required by verified-package`.
 
 1. Collision check: `cocotb_evidence` not in `rows.push(...)` inventory. Free.
 2. Insertion point: before `vendor_tool_evidence`.
 3. Wire row builder with `matching_artifacts(artifacts, &["cocotb"])`.
-4. Wire tier mapping: append `"cocotb_evidence"` to `verified-package` and `enterprise` arrays.
+4. Wire tier mapping: append `"cocotb_evidence"` to `verified-package` and
+   `enterprise` arrays.
 5. Update `docs/licensing.md` "verified-package" and "enterprise" cells.
 6. Two unit tests (supported when `["cocotb_run.log"]`; blocked when empty).
-7. Integration test `cocotb_evidence_blocks_verified_package_tier_on_reset_sync`.
-8. `cargo test -p af-report` and `cargo test -p af-cli --test cli cocotb_evidence_` both pass.
-9. `examples/af-reset-sync` for `community` still passes; for `verified-package` now also fails on `cocotb_evidence` (in addition to existing blockers).
+7. Integration test
+   `cocotb_evidence_blocks_verified_package_tier_on_reset_sync`.
+8. `cargo test -p af-report` and
+   `cargo test -p af-cli --test cli cocotb_evidence_` both pass.
+9. `examples/af-reset-sync` for `community` still passes; for `verified-package`
+   now also fails on `cocotb_evidence` (in addition to existing blockers).
 
-Output as per template, with explicit CHANGELOG suggestion since this is a breaking change for any consumer currently verifying at `verified-package`.
+Output as per template, with explicit CHANGELOG suggestion since this is a
+breaking change for any consumer currently verifying at `verified-package`.

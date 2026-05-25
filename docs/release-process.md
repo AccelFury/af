@@ -13,8 +13,8 @@ Before marking the repository alpha-ready:
 - run `cargo test --workspace`;
 - run `af self check --json`;
 - run CLI smoke on `examples/af-pdm-rx` for `doctor`, `manifest validate`,
-  `core check`, `core report`, `core lint --backend native`,
-  `wrapper generate`, and `ci generate`;
+  `core check`, `core report`, `core lint --backend native`, `wrapper generate`,
+  and `ci generate`;
 - run `af core sim examples/af-reset-sync --backend icarus --json` as the
   host-side simulation smoke;
 - verify optional HDL backend absence returns structured unavailable or
@@ -27,8 +27,8 @@ structured `BackendUnavailable` state.
 
 ## Production release gate
 
-Before marking `af` production-ready as a CLI/toolchain, the authoritative
-gate is:
+Before marking `af` production-ready as a CLI/toolchain, the authoritative gate
+is:
 
 ```bash
 af release check --json
@@ -48,8 +48,8 @@ release:
 - run `cargo test --workspace`;
 - run `.claude/skills/af-cli-contract-guard/check.sh`;
 - run host CLI smoke for `doctor`, `self check`, `manifest validate`,
-  `core check`, `core report`, `core lint --backend native`,
-  `wrapper generate`, and `ci generate`;
+  `core check`, `core report`, `core lint --backend native`, `wrapper generate`,
+  and `ci generate`;
 - run `make smoke` so Docker covers Verilator, Yosys, FuseSoC, LiteX skeleton,
   SMT solver visibility, package/report contracts, and migration dry-run;
 - capture `SHA256SUMS` for release artifacts and smoke reports;
@@ -63,9 +63,9 @@ release:
 The repeatable GitHub path is `.github/workflows/release.yml`: provide the
 release tag, target ref, and a successful `AccelFury CI` run id for the same
 commit. The workflow downloads the exact-run CI evidence, builds the release
-binary, publishes `ghcr.io/<owner>/af:<tag>`, records the immutable digest,
-runs Docker smoke, calls `af release check --json`, uploads the readiness
-bundle, then creates the tag and GitHub Release from `CHANGELOG.md` notes.
+binary, publishes `ghcr.io/<owner>/af:<tag>`, records the immutable digest, runs
+Docker smoke, calls `af release check --json`, uploads the readiness bundle,
+then creates the tag and GitHub Release from `CHANGELOG.md` notes.
 
 Production-ready `af` does not promote timing closure, CDC/RDC signoff, vendor
 bitstream production, board-ready, hardware-ready, or security-certification

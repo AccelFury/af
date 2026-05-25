@@ -159,9 +159,9 @@ flags, JSON shapes, or issue templates.
 
 ## Publication Boundaries
 
-Keep generated outputs under `.af-build/` or another explicit build root. Do
-not commit `target/`, `.af-build/`, per-core `artifacts/`, local agent state,
-IDE state, secrets, or raw scratch logs; keep these in an ignored workspace.
+Keep generated outputs under `.af-build/` or another explicit build root. Do not
+commit `target/`, `.af-build/`, per-core `artifacts/`, local agent state, IDE
+state, secrets, or raw scratch logs; keep these in an ignored workspace.
 
 ## What `af` Does Not Prove
 
