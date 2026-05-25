@@ -25,7 +25,10 @@ conflict.
 4. **Stable contract.** CLI command names, JSON shapes,
    `AF_<DOMAIN>_<CONDITION>` error codes, exit codes, manifest fields, and
    registry schemas are part of the public API. Removing or renaming any of them
-   is breaking and requires a `CHANGELOG.md` entry.
+   is breaking and requires a `CHANGELOG.md` entry. See
+   [docs/semver-policy.md](docs/semver-policy.md) for the full
+   MAJOR/MINOR/PATCH rules across the CLI, manifest, report schema, error
+   codes, and per-core `version`.
 
 ## Before opening a PR
 

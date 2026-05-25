@@ -172,11 +172,30 @@ Optional metadata:
 
 ```toml
 [metadata]
-license = "Apache-2.0"
-authors = ["Example"]
-repository = "https://example.invalid/repo"
-description = "Core description"
+display_name = "Example Core"
+summary      = "One-line marketplace summary."
+license      = "Apache-2.0"
+authors      = ["Example"]
+repository   = "https://example.invalid/repo"
+homepage     = "https://example.invalid/cores/example_core"
+description  = "Long-form description, may span several lines."
+
+# Structured maintainers — coexists with `authors`. Useful for marketplace
+# listings and audit trails. All fields except `name` are optional.
+[[metadata.maintainers]]
+name     = "Example Maintainer"
+email    = "core-maint@example.invalid"
+role     = "rtl-lead"        # free-form (e.g. rtl-lead, releases, security)
+homepage = "https://example.invalid/people/maintainer"
 ```
+
+`summary` is the short, marketplace-card form; `description` stays the
+long-form narrative. `homepage` is the public product page (distinct from
+`repository`, which is the source URL). `maintainers` is additive and does
+not replace `authors`; tools may render either or both.
+
+See [docs/semver-policy.md](semver-policy.md) for how additions and removals
+to this block flow into the public contract.
 
 Validation rules:
 

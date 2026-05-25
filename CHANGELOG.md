@@ -2,7 +2,17 @@
 
 ## Unreleased
 
-- No changes yet.
+- Added optional, additive marketplace-listing fields under `[metadata]` in
+  `af-core.toml`: `summary` (one-line), `homepage`, and
+  `[[metadata.maintainers]]` (structured `name`/`email`/`role`/`homepage`).
+  These coexist with the existing `description`, `repository`, and
+  `authors[]` fields; existing manifests parse unchanged. Schema mirror
+  added to `schemas/af-core.schema.json`. No `af_version` bump (non-breaking
+  addition).
+- Added `docs/semver-policy.md` documenting MAJOR/MINOR/PATCH rules for the
+  CLI surface, manifest `af_version`, report `schema_version`/`report_version`,
+  per-core `version`, and `AF_*` error codes. Referenced from
+  `CONTRIBUTING.md` and `docs/manifest-reference.md`.
 
 ## 0.2.0-rc.1 - 2026-05-25
 
