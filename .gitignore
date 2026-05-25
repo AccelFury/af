@@ -13,12 +13,15 @@
 /.af-build/
 **/.af-build/
 /.af-tools/
+/registry/
 
 # --- evidence / per-core scratch artefacts ---------------------------------
+**/artifacts/
 **/artifacts/openfpga-ci/logs/*.txt
 **/artifacts/openfpga-ci/reports/*.json
 
 # --- general scratch --------------------------------------------------------
+*.log
 *.tmp
 *.bak
 archive/

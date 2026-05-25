@@ -5,7 +5,7 @@ use af_backend::{
 };
 use af_manifest::{CoreManifest, Testbench};
 use af_security::SecurityError;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 #[derive(Clone, Debug)]
 pub struct IcarusBackend<R = ProcessCommandRunner> {
@@ -202,7 +202,8 @@ where
             message: format!("failed to create `{}`: {err}", out_dir.display()),
         })?;
         let vvp_path = out_dir.join(format!("{}.vvp", manifest.core));
-        let compile = icarus_sim_compile_command(manifest, core_dir, &vvp_path);
+        let command_vvp_path = command_visible_path(&vvp_path);
+        let compile = icarus_sim_compile_command(manifest, core_dir, &command_vvp_path);
         let compile_output = self.runner.run(&compile)?;
         let compile_passed = compile_output.exit_code == Some(0);
         report.commands.push(CommandRecord::from(compile_output));
@@ -216,7 +217,7 @@ where
         }
 
         let run = CommandSpec::new("vvp")
-            .arg(vvp_path.display().to_string())
+            .arg(command_vvp_path.display().to_string())
             .cwd(core_dir);
         let run_output = self.runner.run(&run)?;
         let run_passed = run_output.exit_code == Some(0);
@@ -231,6 +232,15 @@ where
         }
         Ok(report)
     }
+}
+
+fn command_visible_path(path: &Path) -> PathBuf {
+    if path.is_absolute() {
+        return path.to_path_buf();
+    }
+    std::env::current_dir()
+        .map(|cwd| cwd.join(path))
+        .unwrap_or_else(|_| path.to_path_buf())
 }
 
 pub fn icarus_lint_command(manifest: &CoreManifest, core_dir: &Path) -> CommandSpec {
@@ -335,7 +345,6 @@ fn first_non_empty_line(text: &str) -> Option<&str> {
 mod tests {
     use super::*;
     use af_security::{CommandOutput, SecurityError};
-    use std::path::PathBuf;
     use std::sync::{Arc, Mutex};
 
     #[derive(Clone)]
@@ -416,6 +425,62 @@ rtl_sources = ["rtl/demo.v"]
         assert_eq!(spec.program, "iverilog");
         assert!(spec.args.contains(&"tb_demo".to_string()));
         assert!(spec.args.contains(&"tb/tb_demo.v".to_string()));
+    }
+
+    #[test]
+    fn sim_with_relative_build_root_passes_absolute_vvp_path_to_commands() {
+        let iverilog = CommandOutput {
+            spec: CommandSpec::new("iverilog"),
+            exit_code: Some(0),
+            stdout: "Icarus Verilog version 12.0".to_string(),
+            stderr: String::new(),
+        };
+        let vvp = CommandOutput {
+            spec: CommandSpec::new("vvp"),
+            exit_code: Some(0),
+            stdout: "Icarus Verilog runtime version 12.0".to_string(),
+            stderr: String::new(),
+        };
+        let compile = CommandOutput {
+            spec: CommandSpec::new("iverilog"),
+            exit_code: Some(0),
+            stdout: String::new(),
+            stderr: String::new(),
+        };
+        let run = CommandOutput {
+            spec: CommandSpec::new("vvp"),
+            exit_code: Some(0),
+            stdout: String::new(),
+            stderr: String::new(),
+        };
+        let backend = IcarusBackend::new(FakeRunner::new(vec![iverilog, vvp, compile, run]));
+        let build_root = PathBuf::from(format!(
+            ".af-build/test-icarus-relative-build-root-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&build_root);
+
+        let report = backend
+            .sim(&manifest(), Path::new("core"), &build_root)
+            .unwrap();
+
+        assert_eq!(report.status, BackendStatus::Passed);
+        let compile_args = &report.commands[2].args;
+        let output_arg = compile_args
+            .iter()
+            .position(|arg| arg == "-o")
+            .and_then(|index| compile_args.get(index + 1))
+            .expect("compile command carries -o <path>");
+        assert!(
+            Path::new(output_arg).is_absolute(),
+            "relative build roots must be converted before running with core cwd: {output_arg}"
+        );
+        assert!(
+            Path::new(&report.commands[3].args[0]).is_absolute(),
+            "vvp command must receive the same command-visible absolute path"
+        );
+
+        let _ = std::fs::remove_dir_all(&build_root);
     }
 
     #[test]

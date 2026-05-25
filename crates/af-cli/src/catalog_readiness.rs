@@ -216,7 +216,7 @@ fn push_manifest_record(
 
 fn is_osi_license(license: &str) -> bool {
     let license = license.trim();
-    OSI_LICENSES.iter().any(|candidate| *candidate == license)
+    OSI_LICENSES.contains(&license)
 }
 
 fn is_blank(value: Option<&str>) -> bool {

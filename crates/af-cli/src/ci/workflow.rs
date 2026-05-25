@@ -35,6 +35,9 @@ pub fn required_job_names(
         jobs.push(format!("pnr_{idx}"));
     }
     jobs.push("package_artifacts".to_string());
+    if config.standards.enabled {
+        jobs.push("standards_evidence".to_string());
+    }
 
     jobs.sort();
     jobs.dedup();

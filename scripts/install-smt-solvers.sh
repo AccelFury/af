@@ -254,6 +254,7 @@ if ((WITH_BITWUZLA_SOURCE == 1 && bitwuzla_has_package == 0)); then
   add_package libgmp-dev
   add_package libmpfr-dev
   add_package libsymfpu-dev
+  add_package m4
   add_package meson
   add_package ninja-build
   add_package pkg-config
@@ -350,7 +351,9 @@ if ((WITH_YICES_BINARY == 1 && yices_has_package == 0)); then
     echo "error: Yices archive did not contain an executable install-yices script" >&2
     exit 6
   fi
-  run "${sudo_prefix[@]}" "${yices_dir}/install-yices" "${PREFIX}"
+  pushd "${yices_dir}" >/dev/null
+  run "${sudo_prefix[@]}" ./install-yices "${PREFIX}"
+  popd >/dev/null
 fi
 
 if ((WITH_BITWUZLA_SOURCE == 1 && bitwuzla_has_package == 0)); then
@@ -360,6 +363,10 @@ if ((WITH_BITWUZLA_SOURCE == 1 && bitwuzla_has_package == 0)); then
   run git clone --depth 1 --branch "${BITWUZLA_REF}" https://github.com/bitwuzla/bitwuzla.git "${bitwuzla_dir}"
   pushd "${bitwuzla_dir}" >/dev/null
   run python3 ./configure.py --prefix "${PREFIX}"
+  if [[ ! -f build/build.ninja ]]; then
+    echo "error: Bitwuzla configure did not create build/build.ninja" >&2
+    exit 7
+  fi
   run "${sudo_prefix[@]}" ninja -C build install
   popd >/dev/null
 fi

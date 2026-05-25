@@ -3,6 +3,7 @@ use af_backend::{BackendReport, CommandRecord, ToolVersion};
 use af_manifest::CoreManifest;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -137,6 +138,8 @@ pub struct AfReport {
     pub limitations: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub maturity: Option<ReusableCoreMaturity>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub standards: Option<Value>,
     /// M3 reproducibility metadata. Populated via `with_reproducibility()`
     /// when the producer has finished merging tool_versions. Deterministic by
     /// construction (no timestamps).
@@ -260,6 +263,7 @@ impl AfReport {
             warnings: Vec::new(),
             limitations: Vec::new(),
             maturity: None,
+            standards: None,
             reproducibility: None,
             command_payload: None,
         }
@@ -549,6 +553,8 @@ pub fn reusable_core_maturity(inputs: &MaturityInputs<'_>) -> ReusableCoreMaturi
         limitations.to_vec(),
     ));
 
+    rows.extend(standards_profile_rows(manifest, artifacts));
+
     rows.push(row(
         "buyer_grade_readiness",
         "blocked",
@@ -584,6 +590,118 @@ pub fn reusable_core_maturity(inputs: &MaturityInputs<'_>) -> ReusableCoreMaturi
             "Reusable-core maturity verdict is `{verdict}` with {blocked_count} blocked row(s)."
         ),
         rows,
+    }
+}
+
+fn standards_profile_rows(
+    manifest: Option<&CoreManifest>,
+    artifacts: &[String],
+) -> Vec<MaturityRow> {
+    let Some(manifest) = manifest else {
+        return Vec::new();
+    };
+    let Some(standards) = manifest.standards.as_ref() else {
+        return Vec::new();
+    };
+    let profile = standards
+        .profile
+        .as_deref()
+        .unwrap_or(af_manifest::standards::FPGA_IP_CORE_PROFILE_ID);
+    let declared = standards
+        .artifacts
+        .iter()
+        .map(|artifact| format!("{}:{}", artifact.kind, artifact.path))
+        .collect::<Vec<_>>();
+    let mut rows = Vec::new();
+    rows.push(row(
+        "standards_profile",
+        "supported",
+        vec![format!("standards profile `{profile}` declared")],
+        Vec::new(),
+    ));
+    rows.push(standards_row(
+        "metadata_packaging",
+        &["ip-xact"],
+        &["ipxact", "component.xml"],
+        &declared,
+        artifacts,
+        "Declare or generate an IP-XACT artifact for machine-readable packaging.",
+    ));
+    rows.push(standards_row(
+        "register_map_evidence",
+        &["systemrdl"],
+        &[".rdl", "reg_pkg", "regs.h"],
+        &declared,
+        artifacts,
+        "Declare a SystemRDL artifact when the core exposes CSRs/registers, or document N/A.",
+    ));
+    rows.push(standards_row(
+        "lint_style_evidence",
+        &["verible-lint", "native-lint"],
+        &["verible", "core-lint", "lint_report"],
+        &declared,
+        artifacts,
+        "Run native lint or Verible and declare the lint artifact.",
+    ));
+    rows.push(standards_row(
+        "provenance_hbom",
+        &["spdx-hbom", "cyclonedx-hbom"],
+        &["hbom", "spdx", "cyclonedx"],
+        &declared,
+        artifacts,
+        "Generate a per-core HBOM/SBOM-equivalent artifact.",
+    ));
+    rows.push(standards_row(
+        "security_foundation",
+        &["security-threat-model", "sa-edi", "cwe-coverage"],
+        &["threat_model", "sa-edi", "cwe"],
+        &declared,
+        artifacts,
+        "Security rows are foundation hooks unless a threat model, SA-EDI, or CWE coverage artifact is declared.",
+    ));
+    rows.push(standards_row(
+        "safety_foundation",
+        &["safety-manual"],
+        &["safety_manual", "fmeda", "do254", "iso26262"],
+        &declared,
+        artifacts,
+        "Safety rows are foundation hooks; do not claim certification without a safety manual and supporting evidence.",
+    ));
+    rows.push(standards_row(
+        "asic_power_dft_foundation",
+        &["upf", "power-na", "dft", "jtag-na"],
+        &[".upf", ".ctl", "bsdl", "power", "dft"],
+        &declared,
+        artifacts,
+        "Declare UPF/DFT artifacts or explicit N/A rationale for non-ASIC FPGA-only cores.",
+    ));
+    rows
+}
+
+fn standards_row(
+    area: &str,
+    accepted_kinds: &[&str],
+    artifact_markers: &[&str],
+    declared: &[String],
+    artifacts: &[String],
+    missing: &str,
+) -> MaturityRow {
+    let mut evidence = declared
+        .iter()
+        .filter(|entry| {
+            accepted_kinds
+                .iter()
+                .any(|kind| entry.starts_with(&format!("{kind}:")))
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+    evidence.extend(matching_artifacts(artifacts, artifact_markers));
+    evidence.sort();
+    evidence.dedup();
+    if evidence.is_empty() {
+        row(area, "planned", Vec::new(), vec![missing.to_string()])
+    } else {
+        row(area, "supported", evidence, Vec::new())
     }
 }
 
@@ -913,6 +1031,28 @@ pub fn render_markdown(report: &AfReport) -> String {
                 out.push_str(&format!("; limitations: {}", row.limitations.join(", ")));
             }
             out.push('\n');
+        }
+    }
+    if let Some(standards) = &report.standards {
+        out.push_str("\n## FPGA/IP Standards Evidence\n\n");
+        if let Some(profile) = standards["profile"].as_str() {
+            out.push_str(&format!("- Profile: `{profile}`\n"));
+        }
+        if let Some(summary) = standards.get("summary") {
+            out.push_str(&format!(
+                "- Summary: `{}` supported, `{}` blocked, `{}` planned of `{}` total\n",
+                summary["supported_items"],
+                summary["blocked_items"],
+                summary["planned_items"],
+                summary["total_items"]
+            ));
+        }
+        if let Some(limitations) = standards["limitations"].as_array() {
+            for limitation in limitations {
+                if let Some(text) = limitation.as_str() {
+                    out.push_str(&format!("- Limitation: {text}\n"));
+                }
+            }
         }
     }
     out

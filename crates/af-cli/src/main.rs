@@ -22,14 +22,19 @@ use af_core::{
     check_core, load_manifest_from_core_dir, load_validated_manifest,
     resolve_workspace_dependencies, CoreDependencyResolution, CoreError,
 };
-use af_manifest::{CoreManifest, ManifestError, ManifestValidationReport};
+use af_manifest::{
+    standards::{
+        StandardsArtifact, StandardsChecklistItem, StandardsProfile, FPGA_IP_CORE_PROFILE_ID,
+    },
+    CoreManifest, ManifestError, ManifestValidationReport,
+};
 use af_report::{
     reusable_core_maturity, write_reports, AfReport, BuildPayload, CheckPayload, CiEvidenceRecord,
     CommandPayload, DoctorPayload, FlashPayload, FormalPayload, LintPayload, MaturityInputs,
     PackagePayload, ReportError, ReportPayload, SimulationPayload, ToolingPayload, WrittenReports,
 };
 use af_vectors::{generate_mod_add_vectors, GenerateConfig};
-use af_wrapper_gen::{generate_wrapper, WrapperGenError, WrapperTarget};
+use af_wrapper_gen::{generate_ipxact_skeleton, generate_wrapper, WrapperGenError, WrapperTarget};
 use clap::{ArgAction, Parser, Subcommand, ValueEnum};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -288,6 +293,8 @@ enum CoreCommand {
         #[arg(long, default_value = "stream-ip")]
         profile: String,
         #[arg(long)]
+        standards_profile: Option<String>,
+        #[arg(long)]
         portability_level: Option<String>,
         #[arg(long)]
         priority: Option<String>,
@@ -319,6 +326,14 @@ enum CoreCommand {
         #[arg(long, default_value = "manifest")]
         format: String,
     },
+    Regs {
+        #[command(subcommand)]
+        command: CoreRegsCommand,
+    },
+    Standards {
+        #[command(subcommand)]
+        command: CoreStandardsCommand,
+    },
     Report {
         input: PathBuf,
     },
@@ -330,6 +345,74 @@ enum CoreCommand {
     Registry {
         #[command(subcommand)]
         command: CoreRegistryCommand,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+enum CoreStandardsCommand {
+    Check {
+        core_dir: PathBuf,
+        #[arg(long, default_value = FPGA_IP_CORE_PROFILE_ID)]
+        profile: String,
+        #[arg(long)]
+        strict: bool,
+    },
+    Doctor {
+        #[arg(long, default_value = FPGA_IP_CORE_PROFILE_ID)]
+        profile: String,
+    },
+    Drift {
+        #[arg(long, default_value = FPGA_IP_CORE_PROFILE_ID)]
+        profile: String,
+    },
+    Export {
+        #[arg(long, default_value = FPGA_IP_CORE_PROFILE_ID)]
+        profile: String,
+        #[arg(long, default_value = "json")]
+        format: String,
+        #[arg(long)]
+        output: Option<PathBuf>,
+    },
+    Scaffold {
+        core_dir: PathBuf,
+        #[arg(long, default_value = FPGA_IP_CORE_PROFILE_ID)]
+        profile: String,
+        #[arg(long)]
+        declare: bool,
+        #[arg(long, default_value = "none")]
+        safety_domain: String,
+    },
+    SpdxAudit {
+        core_dir: PathBuf,
+        #[arg(long)]
+        output: Option<PathBuf>,
+        #[arg(long)]
+        declare: bool,
+    },
+    Collect {
+        core_dir: PathBuf,
+        #[arg(long)]
+        build_root: PathBuf,
+        #[arg(long, default_value = FPGA_IP_CORE_PROFILE_ID)]
+        profile: String,
+        #[arg(long)]
+        declare: bool,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+enum CoreRegsCommand {
+    Scaffold {
+        core_dir: PathBuf,
+        #[arg(long)]
+        output: Option<PathBuf>,
+        #[arg(long)]
+        declare: bool,
+    },
+    Check {
+        core_dir: PathBuf,
+        #[arg(long)]
+        path: Option<PathBuf>,
     },
 }
 
@@ -887,8 +970,29 @@ fn core_command_name(command: &CoreCommand) -> &'static str {
         CoreCommand::Registry { command } => core_registry_command_name(command),
         CoreCommand::Tooling { .. } => "tooling",
         CoreCommand::Package { .. } => "package",
+        CoreCommand::Regs { command } => core_regs_command_name(command),
+        CoreCommand::Standards { command } => core_standards_command_name(command),
         CoreCommand::Report { .. } => "report",
         CoreCommand::Verify { .. } => "verify",
+    }
+}
+
+fn core_standards_command_name(command: &CoreStandardsCommand) -> &'static str {
+    match command {
+        CoreStandardsCommand::Check { .. } => "standards check",
+        CoreStandardsCommand::Doctor { .. } => "standards doctor",
+        CoreStandardsCommand::Drift { .. } => "standards drift",
+        CoreStandardsCommand::Export { .. } => "standards export",
+        CoreStandardsCommand::Scaffold { .. } => "standards scaffold",
+        CoreStandardsCommand::SpdxAudit { .. } => "standards spdx-audit",
+        CoreStandardsCommand::Collect { .. } => "standards collect",
+    }
+}
+
+fn core_regs_command_name(command: &CoreRegsCommand) -> &'static str {
+    match command {
+        CoreRegsCommand::Scaffold { .. } => "regs scaffold",
+        CoreRegsCommand::Check { .. } => "regs check",
     }
 }
 
@@ -1067,16 +1171,20 @@ fn execute(cli: &Cli) -> Result<CliOutput, CliError> {
                 library,
                 language,
                 profile,
+                standards_profile,
                 portability_level,
                 priority,
                 maturity,
             } => {
+                if let Some(profile) = standards_profile.as_deref() {
+                    load_standards_profile(profile)?;
+                }
                 let axes = commands::core_new::AxesOverride::from_cli(
                     portability_level.as_deref(),
                     priority.as_deref(),
                     maturity.as_deref(),
                 )?;
-                commands::core_new::core_new(
+                let mut output = commands::core_new::core_new(
                     core_dir,
                     name,
                     class.as_deref(),
@@ -1084,7 +1192,15 @@ fn execute(cli: &Cli) -> Result<CliOutput, CliError> {
                     language,
                     profile,
                     axes,
-                )
+                )?;
+                if let Some(profile) = standards_profile.as_deref() {
+                    let scaffold = core_standards_scaffold(core_dir, profile, true, "none")?;
+                    output.human = format!("{}\n{}", output.human, scaffold.human);
+                    if let Some(object) = output.json.as_object_mut() {
+                        object.insert("standards_scaffold".to_string(), scaffold.json);
+                    }
+                }
+                Ok(output)
             }
             CoreCommand::Lint { core_dir, backend } => {
                 core_lint(core_dir, &cli.build_root, backend)
@@ -1100,6 +1216,47 @@ fn execute(cli: &Cli) -> Result<CliOutput, CliError> {
             CoreCommand::Package { core_dir, format } => {
                 core_package(core_dir, &cli.build_root, format)
             }
+            CoreCommand::Regs { command } => match command {
+                CoreRegsCommand::Scaffold {
+                    core_dir,
+                    output,
+                    declare,
+                } => core_regs_scaffold(core_dir, output.as_deref(), *declare),
+                CoreRegsCommand::Check { core_dir, path } => {
+                    core_regs_check(core_dir, path.as_deref())
+                }
+            },
+            CoreCommand::Standards { command } => match command {
+                CoreStandardsCommand::Check {
+                    core_dir,
+                    profile,
+                    strict,
+                } => core_standards_check(core_dir, profile, *strict),
+                CoreStandardsCommand::Doctor { profile } => core_standards_doctor(profile),
+                CoreStandardsCommand::Drift { profile } => core_standards_drift(profile),
+                CoreStandardsCommand::Export {
+                    profile,
+                    format,
+                    output,
+                } => core_standards_export(profile, format, output.as_deref()),
+                CoreStandardsCommand::Scaffold {
+                    core_dir,
+                    profile,
+                    declare,
+                    safety_domain,
+                } => core_standards_scaffold(core_dir, profile, *declare, safety_domain),
+                CoreStandardsCommand::SpdxAudit {
+                    core_dir,
+                    output,
+                    declare,
+                } => core_standards_spdx_audit(core_dir, output.as_deref(), *declare),
+                CoreStandardsCommand::Collect {
+                    core_dir,
+                    build_root,
+                    profile,
+                    declare,
+                } => core_standards_collect(core_dir, build_root, profile, *declare),
+            },
             CoreCommand::Report { input } => core_report(input, &cli.build_root),
             CoreCommand::Verify { core_dir, tier } => core_verify(core_dir, tier, &cli.build_root),
             CoreCommand::Registry { command } => match command {
@@ -3050,12 +3207,2205 @@ fn core_formal(core_dir: &Path, build_root: &Path, backend: &str) -> Result<CliO
     }
 }
 
+#[derive(Clone, Debug, Serialize)]
+struct StandardsCheckSummary {
+    total_items: usize,
+    supported_items: usize,
+    blocked_items: usize,
+    planned_items: usize,
+    foundation_items: usize,
+}
+
+#[derive(Clone, Debug, Serialize)]
+struct StandardsCheckRow {
+    checklist_item_id: u8,
+    item: String,
+    category: String,
+    status: String,
+    validation_status: String,
+    standards: Vec<af_manifest::standards::StandardMapping>,
+    evidence: Vec<String>,
+    limitations: Vec<String>,
+    required_artifact_kinds: Vec<String>,
+    artifact_validations: Vec<StandardsArtifactValidation>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+struct StandardsArtifactValidation {
+    kind: String,
+    path: String,
+    validation_status: String,
+    evidence: Vec<String>,
+    limitations: Vec<String>,
+}
+
+fn load_standards_profile(profile: &str) -> Result<StandardsProfile, CliError> {
+    StandardsProfile::by_id(profile).ok_or_else(|| {
+        CliError::new(
+            "AF_STANDARDS_PROFILE_UNKNOWN",
+            format!("unknown standards profile `{profile}`"),
+            "Use --profile fpga-ip-core-v1.",
+            2,
+        )
+    })
+}
+
+const STANDARDS_CURRENT_REVIEW_DATE: &str = "2026-05-25";
+
+fn core_standards_doctor(profile_id: &str) -> Result<CliOutput, CliError> {
+    let profile = load_standards_profile(profile_id)?;
+    let tools = standards_tool_availability(&profile);
+    let total_tools = tools.len();
+    let available_tools = tools
+        .iter()
+        .filter(|tool| tool["available"].as_bool().unwrap_or(false))
+        .count();
+    let missing_tools = total_tools.saturating_sub(available_tools);
+    Ok(CliOutput {
+        human: format!(
+            "standards doctor: {available_tools}/{total_tools} tools available for {}",
+            profile.id
+        ),
+        json: json!({
+            "status": "passed",
+            "profile": profile.id,
+            "profile_version": profile.version,
+            "snapshot_date": profile.snapshot_date,
+            "summary": {
+                "total_tools": total_tools,
+                "available_tools": available_tools,
+                "missing_tools": missing_tools,
+                "strict_ready": missing_tools == 0,
+            },
+            "tools": tools,
+            "limitations": [
+                "Tool availability is local PATH probing only; it does not install tools or prove standards conformance.",
+                "Missing optional tools are reported for planning and become blocking only for strict validation or release gates that require them."
+            ],
+        }),
+    })
+}
+
+fn standards_tool_availability(profile: &StandardsProfile) -> Vec<Value> {
+    standards_tool_requirements()
+        .into_iter()
+        .map(|requirement| {
+            let probe = probe_program_version(requirement.program);
+            json!({
+                "program": requirement.program,
+                "available": probe.available,
+                "version": probe.version,
+                "required_for": requirement.required_for,
+                "artifact_kinds": requirement.artifact_kinds,
+                "mode": requirement.mode,
+                "install_hint": standards_tool_install_hint(requirement.program),
+                "container_hint": standards_tool_container_hint(requirement.program),
+                "manual_url_hint": standards_tool_manual_url_hint(requirement.program),
+                "profile": profile.id,
+                "limitations": if probe.available {
+                    Vec::<String>::new()
+                } else {
+                    vec![format!("`{}` was not found in PATH", requirement.program)]
+                },
+            })
+        })
+        .collect()
+}
+
+fn standards_tool_install_hint(program: &str) -> &'static str {
+    match program {
+        "xmllint" => "Install libxml2 tooling, for example: apt install libxml2-utils.",
+        "peakrdl" => "Install the PeakRDL command line tools, for example: pipx install peakrdl.",
+        "verible-verilog-lint" => {
+            "Install Verible from OSS CAD Suite, CHIPS Alliance releases, or your package manager."
+        }
+        "verilator" => "Install Verilator from OSS CAD Suite or your package manager.",
+        "sby" => "Install SymbiYosys from OSS CAD Suite or your package manager.",
+        "reuse" => "Install REUSE tooling, for example: pipx install reuse.",
+        "spdx-sbom-generator" => {
+            "Install spdx-sbom-generator from upstream releases or use a container image that includes it."
+        }
+        _ => "Install the tool through the project container/profile or your package manager.",
+    }
+}
+
+fn standards_tool_container_hint(program: &str) -> &'static str {
+    match program {
+        "xmllint" | "verible-verilog-lint" | "verilator" | "sby" => {
+            "Use an OSS CAD Suite based container/profile when local installation is undesirable."
+        }
+        "peakrdl" | "reuse" | "spdx-sbom-generator" => {
+            "Use a Python/package-tooling container/profile when local installation is undesirable."
+        }
+        _ => "Use an af-enabled container/profile when local installation is undesirable.",
+    }
+}
+
+fn standards_tool_manual_url_hint(program: &str) -> &'static str {
+    match program {
+        "xmllint" => "https://gitlab.gnome.org/GNOME/libxml2",
+        "peakrdl" => "https://peakrdl.readthedocs.io/",
+        "verible-verilog-lint" => "https://github.com/chipsalliance/verible",
+        "verilator" => "https://verilator.org/",
+        "sby" => "https://yosyshq.readthedocs.io/projects/sby/",
+        "reuse" => "https://reuse.software/",
+        "spdx-sbom-generator" => "https://github.com/opensbom-generator/spdx-sbom-generator",
+        _ => "https://accelfury.dev/",
+    }
+}
+
+#[derive(Clone, Copy)]
+struct StandardsToolRequirement {
+    program: &'static str,
+    required_for: &'static [&'static str],
+    artifact_kinds: &'static [&'static str],
+    mode: &'static str,
+}
+
+fn standards_tool_requirements() -> Vec<StandardsToolRequirement> {
+    vec![
+        StandardsToolRequirement {
+            program: "xmllint",
+            required_for: &[
+                "IEEE 1685-2022 IP-XACT validation",
+                "strict standards check",
+            ],
+            artifact_kinds: &["ip-xact"],
+            mode: "strict-validator",
+        },
+        StandardsToolRequirement {
+            program: "peakrdl",
+            required_for: &["SystemRDL semantic validation", "register flow"],
+            artifact_kinds: &["systemrdl"],
+            mode: "strict-validator",
+        },
+        StandardsToolRequirement {
+            program: "verible-verilog-lint",
+            required_for: &["RTL style/lint evidence", "strict standards check"],
+            artifact_kinds: &["verible-lint", "native-lint"],
+            mode: "strict-validator",
+        },
+        StandardsToolRequirement {
+            program: "verilator",
+            required_for: &["open-source lint/simulation CI evidence"],
+            artifact_kinds: &["native-lint", "ci"],
+            mode: "evidence-producer",
+        },
+        StandardsToolRequirement {
+            program: "sby",
+            required_for: &["formal verification evidence"],
+            artifact_kinds: &["formal-plan"],
+            mode: "evidence-producer",
+        },
+        StandardsToolRequirement {
+            program: "reuse",
+            required_for: &["SPDX header audit"],
+            artifact_kinds: &["spdx-header-audit"],
+            mode: "optional-auditor",
+        },
+        StandardsToolRequirement {
+            program: "spdx-sbom-generator",
+            required_for: &["SPDX/HBOM cross-check"],
+            artifact_kinds: &["spdx-hbom"],
+            mode: "optional-auditor",
+        },
+    ]
+}
+
+#[derive(Clone, Debug)]
+struct ToolProbe {
+    available: bool,
+    version: Option<String>,
+}
+
+fn probe_program_version(program: &str) -> ToolProbe {
+    match std::process::Command::new(program)
+        .arg("--version")
+        .output()
+    {
+        Ok(output) => {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            let version = stdout
+                .lines()
+                .chain(stderr.lines())
+                .map(str::trim)
+                .find(|line| !line.is_empty())
+                .map(|line| line.to_string());
+            ToolProbe {
+                available: true,
+                version,
+            }
+        }
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => ToolProbe {
+            available: false,
+            version: None,
+        },
+        Err(err) => ToolProbe {
+            available: false,
+            version: Some(err.to_string()),
+        },
+    }
+}
+
+fn core_standards_drift(profile_id: &str) -> Result<CliOutput, CliError> {
+    let profile = load_standards_profile(profile_id)?;
+    let age_days = ymd_days_between(&profile.snapshot_date, STANDARDS_CURRENT_REVIEW_DATE);
+    let findings = vec![
+        standards_drift_finding(
+            "SPDX License List",
+            "monthly",
+            age_days,
+            45,
+            "Re-pin before commercial releases because SPDX license identifiers drift frequently.",
+        ),
+        standards_drift_finding(
+            "MITRE CWE-1194",
+            "quarterly",
+            age_days,
+            120,
+            "Re-pin CWE snapshots quarterly and whenever MIHW changes.",
+        ),
+        standards_drift_finding(
+            "IEEE standards pins",
+            "release/manual",
+            age_days,
+            365,
+            "Re-check IEEE/ISO/Accellera editions before major releases.",
+        ),
+    ];
+    let status = if findings
+        .iter()
+        .any(|finding| finding["severity"] == "warning")
+    {
+        "warning"
+    } else {
+        "passed"
+    };
+    Ok(CliOutput {
+        human: format!(
+            "standards drift {status}: snapshot {} reviewed against {}",
+            profile.snapshot_date, STANDARDS_CURRENT_REVIEW_DATE
+        ),
+        json: json!({
+            "status": status,
+            "profile": profile.id,
+            "profile_version": profile.version,
+            "snapshot_date": profile.snapshot_date,
+            "review_date": STANDARDS_CURRENT_REVIEW_DATE,
+            "snapshot_age_days": age_days,
+            "findings": findings,
+            "limitations": [
+                "This is an offline freshness check: it compares pinned snapshot dates to review cadences and does not query standards bodies or registries.",
+                "Run a manual standards refresh before each major release or when a buyer requires a specific standard edition."
+            ],
+        }),
+    })
+}
+
+fn standards_drift_finding(
+    standard: &str,
+    cadence: &str,
+    age_days: Option<i64>,
+    max_age_days: i64,
+    recommendation: &str,
+) -> Value {
+    let severity = match age_days {
+        Some(age) if age > max_age_days => "warning",
+        Some(_) => "ok",
+        None => "warning",
+    };
+    json!({
+        "standard": standard,
+        "cadence": cadence,
+        "severity": severity,
+        "max_age_days": max_age_days,
+        "age_days": age_days,
+        "recommendation": recommendation,
+    })
+}
+
+fn ymd_days_between(start: &str, end: &str) -> Option<i64> {
+    let (sy, sm, sd) = parse_ymd(start)?;
+    let (ey, em, ed) = parse_ymd(end)?;
+    Some(days_from_civil(ey, em, ed) - days_from_civil(sy, sm, sd))
+}
+
+fn parse_ymd(input: &str) -> Option<(i32, u32, u32)> {
+    let mut parts = input.split('-');
+    let year = parts.next()?.parse().ok()?;
+    let month = parts.next()?.parse().ok()?;
+    let day = parts.next()?.parse().ok()?;
+    if parts.next().is_some() {
+        return None;
+    }
+    Some((year, month, day))
+}
+
+fn days_from_civil(year: i32, month: u32, day: u32) -> i64 {
+    let year = year - (month <= 2) as i32;
+    let era = if year >= 0 { year } else { year - 399 } / 400;
+    let yoe = year - era * 400;
+    let month = month as i32;
+    let doy = (153 * (month + if month > 2 { -3 } else { 9 }) + 2) / 5 + day as i32 - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    (era * 146097 + doe - 719468) as i64
+}
+
+fn core_standards_export(
+    profile_id: &str,
+    format: &str,
+    output: Option<&Path>,
+) -> Result<CliOutput, CliError> {
+    let profile = load_standards_profile(profile_id)?;
+    let rendered = match format {
+        "json" => to_pretty_json(&profile.compliance_json()),
+        "checklist" | "markdown" | "md" => profile.checklist_markdown(),
+        "csv" | "matrix" => profile.compliance_csv(),
+        other => {
+            return Err(CliError::new(
+                "AF_STANDARDS_EXPORT_FORMAT_UNSUPPORTED",
+                format!("standards export format `{other}` is unsupported"),
+                "Use --format json, checklist, or csv.",
+                2,
+            ));
+        }
+    };
+    if let Some(output) = output {
+        write_text_file_creating_parent(output, &rendered)?;
+    }
+    Ok(CliOutput {
+        human: output
+            .map(|path| format!("standards profile exported: {}", path.display()))
+            .unwrap_or_else(|| rendered.clone()),
+        json: json!({
+            "status": "passed",
+            "profile": profile,
+            "format": format,
+            "output": output,
+            "content": if output.is_none() { Some(rendered) } else { None::<String> },
+        }),
+    })
+}
+
+fn validate_safety_domain(domain: &str) -> Result<(), CliError> {
+    if matches!(domain, "none" | "automotive" | "industrial" | "avionics") {
+        return Ok(());
+    }
+    Err(CliError::new(
+        "AF_STANDARDS_SAFETY_DOMAIN_UNSUPPORTED",
+        format!("unsupported standards safety domain `{domain}`"),
+        "Use --safety-domain none, automotive, industrial, or avionics.",
+        2,
+    ))
+}
+
+fn core_standards_scaffold(
+    core_dir: &Path,
+    profile_id: &str,
+    declare: bool,
+    safety_domain: &str,
+) -> Result<CliOutput, CliError> {
+    let profile = load_standards_profile(profile_id)?;
+    validate_safety_domain(safety_domain)?;
+    let checked = check_core(core_dir)?;
+    let manifest = checked.manifest;
+    let mut written = Vec::new();
+    let mut existing = Vec::new();
+
+    write_scaffold_text_if_missing(
+        &core_dir.join("docs/spec.md"),
+        &standards_spec_scaffold(&profile, &manifest),
+        &mut written,
+        &mut existing,
+    )?;
+    write_scaffold_text_if_missing(
+        &core_dir.join("docs/datasheet.md"),
+        &standards_datasheet_scaffold(&manifest),
+        &mut written,
+        &mut existing,
+    )?;
+    write_scaffold_text_if_missing(
+        &core_dir.join("docs/acceptance.md"),
+        &standards_acceptance_scaffold(&manifest),
+        &mut written,
+        &mut existing,
+    )?;
+    write_scaffold_text_if_missing(
+        &core_dir.join("docs/risks.md"),
+        &standards_risks_scaffold(&manifest),
+        &mut written,
+        &mut existing,
+    )?;
+    write_scaffold_text_if_missing(
+        &core_dir.join("sim/README.md"),
+        &standards_sim_scaffold(&manifest),
+        &mut written,
+        &mut existing,
+    )?;
+    write_scaffold_text_if_missing(
+        &core_dir.join("formal/README.md"),
+        &standards_formal_scaffold(&manifest),
+        &mut written,
+        &mut existing,
+    )?;
+    write_scaffold_text_if_missing(
+        &core_dir.join("synth/results.md"),
+        &standards_synth_scaffold(&manifest),
+        &mut written,
+        &mut existing,
+    )?;
+    write_scaffold_text_if_missing(
+        &core_dir.join("boards/README.md"),
+        &standards_board_scaffold(&manifest),
+        &mut written,
+        &mut existing,
+    )?;
+    write_scaffold_text_if_missing(
+        &core_dir.join(format!("ipxact/{}.xml", manifest.core)),
+        &standards_ipxact_scaffold(&manifest),
+        &mut written,
+        &mut existing,
+    )?;
+    write_scaffold_text_if_missing(
+        &core_dir.join(format!("regs/{}.rdl", manifest.core)),
+        &standards_systemrdl_scaffold(&manifest),
+        &mut written,
+        &mut existing,
+    )?;
+    write_scaffold_text_if_missing(
+        &core_dir.join("power/README.md"),
+        &standards_power_na_scaffold(&manifest),
+        &mut written,
+        &mut existing,
+    )?;
+    write_scaffold_text_if_missing(
+        &core_dir.join("dft/README.md"),
+        &standards_dft_na_scaffold(&manifest),
+        &mut written,
+        &mut existing,
+    )?;
+    write_scaffold_text_if_missing(
+        &core_dir.join(".verible.rules"),
+        &standards_verible_scaffold(),
+        &mut written,
+        &mut existing,
+    )?;
+    write_scaffold_text_if_missing(
+        &core_dir.join(".github/workflows/ci.yml"),
+        &standards_ci_scaffold(&manifest),
+        &mut written,
+        &mut existing,
+    )?;
+    write_scaffold_text_if_missing(
+        &core_dir.join("safety/safety_manual.md"),
+        &standards_safety_scaffold(&manifest, safety_domain),
+        &mut written,
+        &mut existing,
+    )?;
+    write_scaffold_text_if_missing(
+        &core_dir.join("security/threat_model.md"),
+        &standards_threat_model_scaffold(&manifest),
+        &mut written,
+        &mut existing,
+    )?;
+    write_scaffold_text_if_missing(
+        &core_dir.join("security/cwe_coverage.md"),
+        &standards_cwe_scaffold(&manifest),
+        &mut written,
+        &mut existing,
+    )?;
+    write_scaffold_text_if_missing(
+        &core_dir.join("security/sa-edi.json"),
+        &standards_sa_edi_scaffold(&manifest),
+        &mut written,
+        &mut existing,
+    )?;
+    write_scaffold_json_if_missing(
+        &core_dir.join(format!("hbom/{}.spdx.json", manifest.core)),
+        &spdx_hbom_package(core_dir, &manifest, &checked.limitations),
+        &mut written,
+        &mut existing,
+    )?;
+    let manifest_artifacts_added = if declare {
+        declare_standards_artifacts(core_dir, &profile, &manifest)?
+    } else {
+        Vec::new()
+    };
+
+    written.sort();
+    existing.sort();
+    Ok(CliOutput {
+        human: format!(
+            "standards scaffold wrote {} files, left {} existing files unchanged",
+            written.len(),
+            existing.len()
+        ),
+        json: json!({
+            "status": "passed",
+            "profile": profile.id,
+            "profile_version": profile.version,
+            "core": manifest.vlnv(),
+            "written": written,
+            "existing": existing,
+            "declared": declare,
+            "safety_domain": safety_domain,
+            "manifest_artifacts_added": manifest_artifacts_added,
+            "limitations": [
+                "Scaffold files are evidence placeholders; fill in project-specific content before making buyer, safety, or security claims.",
+                "Safety and security scaffold files are hooks only and do not claim certification."
+            ],
+        }),
+    })
+}
+
+fn core_regs_scaffold(
+    core_dir: &Path,
+    output: Option<&Path>,
+    declare: bool,
+) -> Result<CliOutput, CliError> {
+    let profile = load_standards_profile(FPGA_IP_CORE_PROFILE_ID)?;
+    let manifest = load_manifest_from_core_dir(core_dir)?;
+    let output_path = output
+        .map(|path| resolve_core_output_path(core_dir, path))
+        .unwrap_or_else(|| core_dir.join(format!("regs/{}.rdl", manifest.core)));
+    let content = standards_systemrdl_scaffold(&manifest);
+    write_text_file_creating_parent(&output_path, &content)?;
+    let relative = relative_core_path(core_dir, &output_path).unwrap_or_else(|| {
+        output_path
+            .iter()
+            .map(|component| component.to_string_lossy())
+            .collect::<Vec<_>>()
+            .join("/")
+    });
+    let manifest_artifacts_added = if declare {
+        let required_for = required_for_artifact_kind(&profile, "systemrdl");
+        let sha256 = fs::read(&output_path)
+            .map(|bytes| sha256_hex(&bytes))
+            .unwrap_or_default();
+        append_standard_artifacts(
+            core_dir,
+            &profile,
+            &manifest,
+            vec![StandardsArtifactDeclaration {
+                kind: "systemrdl".to_string(),
+                path: relative.clone(),
+                category: category_for_required_for(&profile, &required_for),
+                required_for,
+                conclusion: "present".to_string(),
+                sha256,
+            }],
+        )?
+    } else {
+        Vec::new()
+    };
+    Ok(CliOutput {
+        human: format!("SystemRDL scaffold written: {}", output_path.display()),
+        json: json!({
+            "status": "passed",
+            "core": manifest.vlnv(),
+            "output": output_path,
+            "declared": declare,
+            "manifest_artifacts_added": manifest_artifacts_added,
+            "limitations": [
+                "Generated SystemRDL is a skeleton derived from the manifest; make it the single source of truth before CSR codegen claims."
+            ],
+        }),
+    })
+}
+
+fn core_regs_check(core_dir: &Path, path: Option<&Path>) -> Result<CliOutput, CliError> {
+    let checked = check_core(core_dir)?;
+    let manifest = checked.manifest;
+    let rdl_path = path
+        .map(|path| resolve_core_output_path(core_dir, path))
+        .unwrap_or_else(|| core_dir.join(format!("regs/{}.rdl", manifest.core)));
+    let (validation_status, details) = if rdl_path.is_file() {
+        validate_systemrdl_artifact(&rdl_path)
+    } else {
+        (
+            "missing".to_string(),
+            vec![format!(
+                "SystemRDL file `{}` does not exist",
+                rdl_path.display()
+            )],
+        )
+    };
+    let status = if validation_status == "semantic-valid" {
+        "passed"
+    } else {
+        "blocked"
+    };
+    Ok(CliOutput {
+        human: format!("SystemRDL check {status}: {}", rdl_path.display()),
+        json: json!({
+            "status": status,
+            "core": manifest.vlnv(),
+            "path": rdl_path,
+            "validation_status": validation_status,
+            "details": details,
+        }),
+    })
+}
+
+fn core_standards_spdx_audit(
+    core_dir: &Path,
+    output: Option<&Path>,
+    declare: bool,
+) -> Result<CliOutput, CliError> {
+    let profile = load_standards_profile(FPGA_IP_CORE_PROFILE_ID)?;
+    let manifest = load_manifest_from_core_dir(core_dir)?;
+    let output_path = output
+        .map(|path| resolve_core_output_path(core_dir, path))
+        .unwrap_or_else(|| core_dir.join("reports/spdx-header-audit.json"));
+    let audit = spdx_header_audit_report(core_dir, &manifest);
+    write_json_file_creating_parent(&output_path, &audit)?;
+    let status = audit["status"].as_str().unwrap_or("blocked").to_string();
+    let relative = relative_core_path(core_dir, &output_path).unwrap_or_else(|| {
+        output_path
+            .iter()
+            .map(|component| component.to_string_lossy())
+            .collect::<Vec<_>>()
+            .join("/")
+    });
+    let manifest_artifacts_added = if declare {
+        let required_for = required_for_artifact_kind(&profile, "spdx-header-audit");
+        let sha256 = fs::read(&output_path)
+            .map(|bytes| sha256_hex(&bytes))
+            .unwrap_or_default();
+        append_standard_artifacts(
+            core_dir,
+            &profile,
+            &manifest,
+            vec![StandardsArtifactDeclaration {
+                kind: "spdx-header-audit".to_string(),
+                path: relative.clone(),
+                category: category_for_required_for(&profile, &required_for),
+                required_for,
+                conclusion: status.clone(),
+                sha256,
+            }],
+        )?
+    } else {
+        Vec::new()
+    };
+    Ok(CliOutput {
+        human: format!("SPDX header audit {status}: {}", output_path.display()),
+        json: json!({
+            "status": status,
+            "core": manifest.vlnv(),
+            "output": output_path,
+            "summary": audit["summary"].clone(),
+            "declared": declare,
+            "manifest_artifacts_added": manifest_artifacts_added,
+            "limitations": audit["limitations"].clone(),
+        }),
+    })
+}
+
+fn core_standards_collect(
+    core_dir: &Path,
+    build_root: &Path,
+    profile_id: &str,
+    declare: bool,
+) -> Result<CliOutput, CliError> {
+    let profile = load_standards_profile(profile_id)?;
+    let checked = check_core(core_dir)?;
+    let manifest = checked.manifest;
+    let mut copied = Vec::new();
+    let mut additions = Vec::new();
+    for spec in standards_collect_specs(&manifest) {
+        let source = build_root.join(spec.source);
+        if !source.is_file() {
+            continue;
+        }
+        let destination = core_dir.join(spec.destination);
+        ensure_parent_dir(&destination)?;
+        fs::copy(&source, &destination).map_err(|err| {
+            CliError::new(
+                "AF_STANDARDS_COLLECT_COPY_FAILED",
+                format!(
+                    "failed to copy `{}` to `{}`: {err}",
+                    source.display(),
+                    destination.display()
+                ),
+                "Check filesystem permissions and the selected --build-root.",
+                5,
+            )
+        })?;
+        copied.push(json!({
+            "kind": spec.kind,
+            "source": source,
+            "destination": destination,
+        }));
+        if let Some(relative) = relative_core_path(core_dir, &destination) {
+            let required_for = required_for_artifact_kind(&profile, spec.kind);
+            let sha256 = fs::read(&destination)
+                .map(|bytes| sha256_hex(&bytes))
+                .unwrap_or_default();
+            additions.push(StandardsArtifactDeclaration {
+                kind: spec.kind.to_string(),
+                path: relative,
+                category: category_for_required_for(&profile, &required_for),
+                required_for,
+                conclusion: "present".to_string(),
+                sha256,
+            });
+        }
+    }
+    let manifest_artifacts_added = if declare {
+        append_standard_artifacts(core_dir, &profile, &manifest, additions)?
+    } else {
+        Vec::new()
+    };
+    let status = if copied.is_empty() {
+        "blocked"
+    } else {
+        "passed"
+    };
+    Ok(CliOutput {
+        human: format!(
+            "standards collect {status}: copied {} artifacts",
+            copied.len()
+        ),
+        json: json!({
+            "status": status,
+            "profile": profile.id,
+            "profile_version": profile.version,
+            "core": manifest.vlnv(),
+            "build_root": build_root,
+            "copied": copied,
+            "declared": declare,
+            "manifest_artifacts_added": manifest_artifacts_added,
+            "limitations": if copied.is_empty() {
+                vec!["No known standards artifacts were found under --build-root.".to_string()]
+            } else {
+                vec!["Collected CI/build outputs are linked into standards evidence; their internal verdicts remain owned by the producing tools.".to_string()]
+            },
+        }),
+    })
+}
+
+#[derive(Clone, Debug)]
+struct StandardsCollectSpec {
+    kind: &'static str,
+    source: String,
+    destination: String,
+}
+
+fn standards_collect_specs(manifest: &CoreManifest) -> Vec<StandardsCollectSpec> {
+    let core = manifest.core.as_str();
+    vec![
+        StandardsCollectSpec {
+            kind: "native-lint",
+            source: "reports/core-lint.json".to_string(),
+            destination: "reports/standards/core-lint.json".to_string(),
+        },
+        StandardsCollectSpec {
+            kind: "simulation-report",
+            source: "reports/core-sim.json".to_string(),
+            destination: "reports/standards/core-sim.json".to_string(),
+        },
+        StandardsCollectSpec {
+            kind: "formal-report",
+            source: "reports/core-formal.json".to_string(),
+            destination: "reports/standards/core-formal.json".to_string(),
+        },
+        StandardsCollectSpec {
+            kind: "spdx-hbom",
+            source: format!("package/{core}.hbom.spdx.json"),
+            destination: format!("hbom/{core}.spdx.json"),
+        },
+    ]
+}
+
+fn resolve_core_output_path(core_dir: &Path, path: &Path) -> PathBuf {
+    if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        core_dir.join(path)
+    }
+}
+
+fn declare_standards_artifacts(
+    core_dir: &Path,
+    profile: &StandardsProfile,
+    manifest: &CoreManifest,
+) -> Result<Vec<String>, CliError> {
+    append_standard_artifacts(
+        core_dir,
+        profile,
+        manifest,
+        conventional_standard_artifact_declarations(core_dir, profile, manifest),
+    )
+}
+
+fn conventional_standard_artifact_declarations(
+    core_dir: &Path,
+    profile: &StandardsProfile,
+    manifest: &CoreManifest,
+) -> Vec<StandardsArtifactDeclaration> {
+    let mut additions = Vec::new();
+    for (kind, path) in conventional_standard_artifact_paths(core_dir, manifest) {
+        if !path.is_file() {
+            continue;
+        }
+        let Some(relative) = relative_core_path(core_dir, &path) else {
+            continue;
+        };
+        let required_for = required_for_artifact_kind(profile, &kind);
+        if required_for.is_empty() {
+            continue;
+        }
+        let category = category_for_required_for(profile, &required_for);
+        let conclusion = if matches!(kind.as_str(), "power-na" | "jtag-na") {
+            "not-applicable"
+        } else {
+            "present"
+        };
+        let sha256 = fs::read(&path)
+            .map(|bytes| sha256_hex(&bytes))
+            .unwrap_or_default();
+        additions.push(StandardsArtifactDeclaration {
+            kind,
+            path: relative,
+            category,
+            required_for,
+            conclusion: conclusion.to_string(),
+            sha256,
+        });
+    }
+    additions
+}
+
+fn append_standard_artifacts(
+    core_dir: &Path,
+    profile: &StandardsProfile,
+    manifest: &CoreManifest,
+    mut additions: Vec<StandardsArtifactDeclaration>,
+) -> Result<Vec<String>, CliError> {
+    let manifest_path = core_dir.join("af-core.toml");
+    let mut raw = fs::read_to_string(&manifest_path).map_err(|err| {
+        CliError::new(
+            "AF_TOML_READ_FAILED",
+            format!("failed to read `{}`: {err}", manifest_path.display()),
+            "Check that the TOML file exists and is readable.",
+            2,
+        )
+    })?;
+    let existing = declared_standard_artifacts(manifest)
+        .iter()
+        .map(|artifact| format!("{}:{}", artifact.kind, artifact.path))
+        .collect::<std::collections::BTreeSet<_>>();
+    additions
+        .retain(|artifact| !existing.contains(&format!("{}:{}", artifact.kind, artifact.path)));
+    if additions.is_empty()
+        && manifest
+            .standards
+            .as_ref()
+            .and_then(|standards| standards.profile.as_ref())
+            .is_some()
+    {
+        return Ok(Vec::new());
+    }
+
+    if !raw.ends_with('\n') {
+        raw.push('\n');
+    }
+    if manifest.standards.is_none() {
+        raw.push_str(&format!("\n[standards]\nprofile = \"{}\"\n", profile.id));
+    } else if manifest
+        .standards
+        .as_ref()
+        .and_then(|standards| standards.profile.as_ref())
+        .is_none()
+    {
+        raw = insert_standards_profile(&raw, &profile.id);
+    }
+    for artifact in &additions {
+        raw.push_str("\n[[standards.artifacts]]\n");
+        raw.push_str(&format!("kind = \"{}\"\n", artifact.kind));
+        raw.push_str(&format!("path = \"{}\"\n", artifact.path));
+        raw.push_str(&format!("category = \"{}\"\n", artifact.category));
+        raw.push_str(&format!(
+            "required_for = [{}]\n",
+            artifact
+                .required_for
+                .iter()
+                .map(u8::to_string)
+                .collect::<Vec<_>>()
+                .join(", ")
+        ));
+        raw.push_str(&format!("conclusion = \"{}\"\n", artifact.conclusion));
+        if !artifact.sha256.is_empty() {
+            raw.push_str(&format!("sha256 = \"{}\"\n", artifact.sha256));
+        }
+    }
+    write_text_file_creating_parent(&manifest_path, &raw)?;
+    Ok(additions
+        .into_iter()
+        .map(|artifact| format!("{}:{}", artifact.kind, artifact.path))
+        .collect())
+}
+
+fn required_for_artifact_kind(profile: &StandardsProfile, kind: &str) -> Vec<u8> {
+    profile
+        .items
+        .iter()
+        .filter(|item| item.required_artifact_kinds.iter().any(|k| k == kind))
+        .map(|item| item.id)
+        .collect()
+}
+
+fn category_for_required_for(profile: &StandardsProfile, required_for: &[u8]) -> String {
+    if required_for.iter().any(|id| {
+        profile
+            .items
+            .iter()
+            .any(|item| item.id == *id && item.category.contains("now"))
+    }) {
+        "now".to_string()
+    } else {
+        "foundation".to_string()
+    }
+}
+
+#[derive(Clone, Debug)]
+struct StandardsArtifactDeclaration {
+    kind: String,
+    path: String,
+    category: String,
+    required_for: Vec<u8>,
+    conclusion: String,
+    sha256: String,
+}
+
+fn insert_standards_profile(raw: &str, profile_id: &str) -> String {
+    let mut out = String::new();
+    let mut inserted = false;
+    for line in raw.lines() {
+        out.push_str(line);
+        out.push('\n');
+        if !inserted && line.trim() == "[standards]" {
+            out.push_str(&format!("profile = \"{profile_id}\"\n"));
+            inserted = true;
+        }
+    }
+    if inserted {
+        out
+    } else {
+        format!("{raw}\n[standards]\nprofile = \"{profile_id}\"\n")
+    }
+}
+
+fn write_scaffold_text_if_missing(
+    path: &Path,
+    content: &str,
+    written: &mut Vec<String>,
+    existing: &mut Vec<String>,
+) -> Result<(), CliError> {
+    if path.exists() {
+        existing.push(path.display().to_string());
+        return Ok(());
+    }
+    write_text_file_creating_parent(path, content)?;
+    written.push(path.display().to_string());
+    Ok(())
+}
+
+fn write_scaffold_json_if_missing(
+    path: &Path,
+    content: &Value,
+    written: &mut Vec<String>,
+    existing: &mut Vec<String>,
+) -> Result<(), CliError> {
+    if path.exists() {
+        existing.push(path.display().to_string());
+        return Ok(());
+    }
+    write_json_file_creating_parent(path, content)?;
+    written.push(path.display().to_string());
+    Ok(())
+}
+
+fn standards_spec_scaffold(profile: &StandardsProfile, manifest: &CoreManifest) -> String {
+    let mut out = format!(
+        "# {} Standards Evidence Spec\n\nCore: `{}`\nProfile: `{}` version `{}`\n\n",
+        manifest.core,
+        manifest.vlnv(),
+        profile.id,
+        profile.version
+    );
+    out.push_str(
+        "This scaffold records evidence anchors for the FPGA/IP-core checklist. Replace TODO text before release.\n\n",
+    );
+    for item in &profile.items {
+        out.push_str(&format!("## {}. {}\n\n", item.id, item.item));
+        out.push_str(&format!("- Category: `{}`\n", item.category));
+        out.push_str(&format!("- Tier relevance: `{}`\n", item.tier_relevance));
+        out.push_str(&format!(
+            "- Required evidence: `{}`\n",
+            item.required_evidence
+        ));
+        if item.category.contains("foundation") {
+            out.push_str(
+                "- Evidence status: N/A placeholder unless this core targets the domain.\n\n",
+            );
+        } else {
+            out.push_str("- Evidence status: TODO - populate with core-specific evidence.\n\n");
+        }
+    }
+    out
+}
+
+fn standards_datasheet_scaffold(manifest: &CoreManifest) -> String {
+    format!(
+        "# {} Datasheet\n\n## Overview\n\nTODO: describe purpose, interfaces, parameters, latency, resource targets, and integration notes for `{}`.\n",
+        manifest.core,
+        manifest.vlnv()
+    )
+}
+
+fn standards_acceptance_scaffold(manifest: &CoreManifest) -> String {
+    format!(
+        "# {} Acceptance Criteria\n\n- CI must pass for lint, simulation, formal checks that are enabled, packaging, and standards evidence validation.\n- Release evidence must reference the exact commit and tool versions.\n",
+        manifest.core
+    )
+}
+
+fn standards_risks_scaffold(manifest: &CoreManifest) -> String {
+    format!(
+        "# {} Risks and Mitigations\n\n| Risk | Mitigation | Evidence |\n|---|---|---|\n| TODO | TODO | TODO |\n",
+        manifest.core
+    )
+}
+
+fn standards_sim_scaffold(manifest: &CoreManifest) -> String {
+    format!(
+        "# {} Simulation Plan\n\n- Exercise reset, nominal transfers, backpressure, parameter bounds, and protocol corner cases.\n- Record simulator, seed, pass/fail status, and generated artifacts.\n",
+        manifest.core
+    )
+}
+
+fn standards_formal_scaffold(manifest: &CoreManifest) -> String {
+    format!(
+        "# {} Formal Verification Plan\n\n- Define safety/liveness properties for handshakes, counters, FSM transitions, and reset convergence.\n- Mark properties as TODO until proof logs are captured.\n",
+        manifest.core
+    )
+}
+
+fn standards_synth_scaffold(manifest: &CoreManifest) -> String {
+    format!(
+        "# {} Synthesis Results\n\n| Tool | Target | Status | Fmax | LUT/ALM | FF | RAM | DSP |\n|---|---|---|---|---|---|---|---|\n| TODO | TODO | NOT MEASURED | NOT MEASURED | NOT MEASURED | NOT MEASURED | NOT MEASURED | NOT MEASURED |\n",
+        manifest.core
+    )
+}
+
+fn standards_board_scaffold(manifest: &CoreManifest) -> String {
+    format!(
+        "# {} Board Demo Plan\n\nNo board demo evidence is captured yet. Add board, constraints, programming flow, and observed behavior when available.\n",
+        manifest.core
+    )
+}
+
+fn standards_ipxact_scaffold(manifest: &CoreManifest) -> String {
+    generate_ipxact_skeleton(manifest, None).content
+}
+
+fn standards_systemrdl_scaffold(manifest: &CoreManifest) -> String {
+    let field_name = manifest
+        .ports
+        .iter()
+        .find(|port| {
+            let name = port.name.to_ascii_lowercase();
+            name.contains("status") || name.contains("counter") || name.contains("cfg")
+        })
+        .map(|port| sanitize_rdl_identifier(&port.name))
+        .unwrap_or_else(|| "generated_placeholder".to_string());
+    format!(
+        "// SPDX-License-Identifier: Apache-2.0\n// SystemRDL 2.0 skeleton generated by af from af-core.toml.\n// Treat this as the register single source of truth before generating RTL headers or UVM RAL.\naddrmap {} {{\n  reg {{\n    field {{ sw = r; hw = w; }} {}[1] = 0;\n  }} standards_status @ 0x0;\n}};\n",
+        sanitize_rdl_identifier(&manifest.core),
+        field_name
+    )
+}
+
+fn standards_power_na_scaffold(manifest: &CoreManifest) -> String {
+    format!(
+        "# {} Power Intent\n\nN/A - generic FPGA core is treated as a single power domain unless an ASIC or low-power integration supplies IEEE 1801 UPF evidence.\n",
+        manifest.core
+    )
+}
+
+fn standards_dft_na_scaffold(manifest: &CoreManifest) -> String {
+    format!(
+        "# {} DFT / JTAG\n\nN/A - generic FPGA core does not include a JTAG TAP, BSDL fragment, or IEEE 1500 core test wrapper. Add DFT evidence only for SoC/ASIC integration variants.\n",
+        manifest.core
+    )
+}
+
+fn standards_verible_scaffold() -> String {
+    "# Verible lint policy placeholder.\n# Keep rules aligned with the project Verilog-2001 portable subset.\n".to_string()
+}
+
+fn standards_ci_scaffold(manifest: &CoreManifest) -> String {
+    format!(
+        "name: {} CI\n\non:\n  push:\n  pull_request:\n\njobs:\n  af-core-check:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - name: Standards evidence placeholder\n        run: echo \"Wire af core standards check for {} in project CI\"\n",
+        manifest.core, manifest.core
+    )
+}
+
+fn standards_safety_scaffold(manifest: &CoreManifest, safety_domain: &str) -> String {
+    let domain_section = match safety_domain {
+        "automotive" => {
+            "## Automotive Hook\n\n- Reference domain: ISO 26262:2018.\n- Reusable-IP pattern: Safety Element out of Context (SEooC).\n- Metrics to populate when requested: FIT target, SPFM, LFM, PMHF, fault model assumptions, integration constraints.\n"
+        }
+        "industrial" => {
+            "## Industrial Hook\n\n- Reference domain: IEC 61508-2:2010.\n- Metrics to populate when requested: SIL target assumptions, diagnostic coverage, proof-test assumptions, fault model assumptions, integration constraints.\n"
+        }
+        "avionics" => {
+            "## Avionics Hook\n\n- Reference domain: DO-254 / FAA AC 20-152A.\n- Evidence to populate when requested: DAL assumptions, planning traceability, verification objectives, tool qualification assumptions, integration constraints.\n"
+        }
+        _ => {
+            "## Domain Hook\n\n- No target safety domain selected. Populate only when a buyer selects automotive, industrial, avionics, or another domain.\n"
+        }
+    };
+    format!(
+        "# {} Safety Manual Placeholder\n\nThis core is not safety-certified. This file is a forward-looking evidence hook only and must not be used as a certification claim.\n\n{}\n## Common Assumptions\n\n- Fault model: TODO.\n- Integration constraints: TODO.\n- Evidence owner: downstream safety program unless explicitly contracted.\n",
+        manifest.core, domain_section
+    )
+}
+
+fn standards_threat_model_scaffold(manifest: &CoreManifest) -> String {
+    let assets = security_assets_from_manifest(manifest);
+    let asset_rows = if assets.is_empty() {
+        "| Asset | Kind | Direction | Width | Interface |\n|---|---|---|---|---|\n| TODO | TODO | TODO | TODO | TODO |\n".to_string()
+    } else {
+        let mut rows =
+            "| Asset | Kind | Direction | Width | Interface |\n|---|---|---|---|---|\n".to_string();
+        for asset in assets {
+            rows.push_str(&format!(
+                "| `{}` | {} | {} | {} | {} |\n",
+                asset.name,
+                asset.kind,
+                asset.direction.unwrap_or_else(|| "n/a".to_string()),
+                asset.width.unwrap_or_else(|| "n/a".to_string()),
+                asset.interface.unwrap_or_else(|| "n/a".to_string())
+            ));
+        }
+        rows
+    };
+    format!(
+        "# {} Threat Model\n\nThis scaffold is not a security certification. It lists manifest-derived assets so CWE/SA-EDI coverage starts from real ports and interfaces.\n\n## Assets\n\n{}\n## Threats\n\n- TODO: list threat scenarios.\n\n## Risks\n\n- TODO: map risks to mitigations and evidence.\n",
+        manifest.core, asset_rows
+    )
+}
+
+fn standards_cwe_scaffold(manifest: &CoreManifest) -> String {
+    format!(
+        "# {} CWE Coverage\n\n| CWE | Applicability | Mitigation | Evidence |\n|---|---|---|---|\n| CWE-1194 | TODO | TODO | TODO |\n",
+        manifest.core
+    )
+}
+
+fn standards_sa_edi_scaffold(manifest: &CoreManifest) -> String {
+    let assets = security_assets_from_manifest(manifest)
+        .into_iter()
+        .map(|asset| {
+            json!({
+                "name": asset.name,
+                "kind": asset.kind,
+                "direction": asset.direction,
+                "width": asset.width,
+                "interface": asset.interface,
+            })
+        })
+        .collect::<Vec<_>>();
+    to_pretty_json(&json!({
+        "schema": "accellera.sa-edi.1.0.placeholder",
+        "core": manifest.vlnv(),
+        "assets": assets,
+        "security_annotations": [],
+        "limitations": [
+            "Placeholder only; populate according to Accellera SA-EDI 1.0 before security claims."
+        ],
+    }))
+}
+
+#[derive(Clone, Debug)]
+struct SecurityAsset {
+    name: String,
+    kind: String,
+    direction: Option<String>,
+    width: Option<String>,
+    interface: Option<String>,
+}
+
+fn security_assets_from_manifest(manifest: &CoreManifest) -> Vec<SecurityAsset> {
+    let mut assets = Vec::new();
+    for port in &manifest.ports {
+        if manifest.clocks.iter().any(|clock| {
+            clock.name == port.name || clock.port.as_deref() == Some(port.name.as_str())
+        }) || manifest.resets.iter().any(|reset| {
+            reset.name == port.name || reset.port.as_deref() == Some(port.name.as_str())
+        }) {
+            continue;
+        }
+        assets.push(SecurityAsset {
+            name: port.name.clone(),
+            kind: port.kind.clone().unwrap_or_else(|| "port".to_string()),
+            direction: Some(port.direction.clone()),
+            width: port.width.as_ref().map(port_width_to_string),
+            interface: port.interface.clone(),
+        });
+    }
+    for interface in &manifest.interfaces {
+        assets.push(SecurityAsset {
+            name: interface.name.clone(),
+            kind: format!("interface:{}", interface.kind),
+            direction: None,
+            width: None,
+            interface: Some(interface.name.clone()),
+        });
+    }
+    assets
+}
+
+fn port_width_to_string(width: &af_manifest::PortWidth) -> String {
+    match width {
+        af_manifest::PortWidth::Integer(value) => value.to_string(),
+        af_manifest::PortWidth::Parameter(value) => value.clone(),
+    }
+}
+
+fn sanitize_rdl_identifier(input: &str) -> String {
+    let mut out = String::new();
+    for (idx, ch) in input.chars().enumerate() {
+        if ch.is_ascii_alphanumeric() || ch == '_' {
+            if idx == 0 && ch.is_ascii_digit() {
+                out.push('_');
+            }
+            out.push(ch);
+        } else {
+            out.push('_');
+        }
+    }
+    if out.is_empty() {
+        "generated_placeholder".to_string()
+    } else {
+        out
+    }
+}
+
+fn core_standards_check(
+    core_dir: &Path,
+    profile_id: &str,
+    strict: bool,
+) -> Result<CliOutput, CliError> {
+    let profile = load_standards_profile(profile_id)?;
+    let checked = check_core(core_dir)?;
+    let manifest = checked.manifest;
+    let mut rows = Vec::new();
+    for item in &profile.items {
+        rows.push(evaluate_standards_item(core_dir, &manifest, item, strict));
+    }
+    let summary = StandardsCheckSummary {
+        total_items: rows.len(),
+        supported_items: rows.iter().filter(|row| row.status == "supported").count(),
+        blocked_items: rows.iter().filter(|row| row.status == "blocked").count(),
+        planned_items: rows.iter().filter(|row| row.status == "planned").count(),
+        foundation_items: rows
+            .iter()
+            .filter(|row| row.category.contains("foundation"))
+            .count(),
+    };
+    let status = if summary.blocked_items == 0 {
+        "passed"
+    } else {
+        "blocked"
+    };
+    let gates = standards_release_gates(&rows);
+    let tool_availability = json!({
+        "tools": standards_tool_availability(&profile),
+    });
+    Ok(CliOutput {
+        human: format!(
+            "standards check {status}: {} supported, {} blocked, {} planned",
+            summary.supported_items, summary.blocked_items, summary.planned_items
+        ),
+        json: json!({
+            "status": status,
+            "profile": profile.id,
+            "profile_version": profile.version,
+            "core": manifest.vlnv(),
+            "summary": summary,
+            "rows": rows,
+            "gates": gates,
+            "tool_availability": tool_availability,
+            "strict": strict,
+            "limitations": [
+                "Safety and security rows are evidence hooks only; this command does not claim certification.",
+                if strict {
+                    "Strict mode requires supported external validators for selected artifact kinds and fails closed when they are unavailable."
+                } else {
+                    "Artifact validation is deterministic and fail-closed. Full external certification and complete vendor-tool schema signoff remain outside this command."
+                }
+            ],
+        }),
+    })
+}
+
+fn standards_release_gates(rows: &[StandardsCheckRow]) -> Value {
+    let blocked_now_rows = rows
+        .iter()
+        .filter(|row| row.category.contains("now") && row.status != "supported")
+        .map(|row| {
+            json!({
+                "checklist_item_id": row.checklist_item_id,
+                "item": row.item,
+                "status": row.status,
+                "validation_status": row.validation_status,
+            })
+        })
+        .collect::<Vec<_>>();
+    let status = if blocked_now_rows.is_empty() {
+        "passed"
+    } else {
+        "blocked"
+    };
+    json!({
+        "commercial_baseline_ready": {
+            "status": status,
+            "required_now_rows_missing": blocked_now_rows.len(),
+            "blocked_rows": blocked_now_rows,
+            "limitations": [
+                "commercial-baseline-ready means all `now` rows have evidence; it is not a certification, safety approval, security evaluation, or vendor signoff.",
+                "foundation rows may remain N/A or planned unless a buyer selects the corresponding domain."
+            ],
+        }
+    })
+}
+
+fn evaluate_standards_item(
+    core_dir: &Path,
+    manifest: &CoreManifest,
+    item: &StandardsChecklistItem,
+    strict: bool,
+) -> StandardsCheckRow {
+    let artifact_validations = standard_item_artifact_validations(core_dir, manifest, item, strict);
+    let aggregate_status = aggregate_validation_status(&artifact_validations);
+    let missing_required_kinds = missing_required_artifact_kinds(item, &artifact_validations);
+    let validation_status = if missing_required_kinds.is_empty()
+        || matches!(aggregate_status.as_str(), "invalid" | "missing")
+    {
+        aggregate_status
+    } else {
+        "partial".to_string()
+    };
+    let evidence = artifact_validations
+        .iter()
+        .filter(|validation| validation.validation_status != "invalid")
+        .flat_map(|validation| validation.evidence.clone())
+        .collect::<Vec<_>>();
+    let foundation = item.category.contains("foundation");
+    let status = if matches!(
+        validation_status.as_str(),
+        "presence" | "schema-valid" | "semantic-valid" | "not-applicable"
+    ) {
+        "supported"
+    } else if foundation {
+        "planned"
+    } else {
+        "blocked"
+    };
+    let mut artifact_limitations = artifact_validations
+        .iter()
+        .flat_map(|validation| validation.limitations.clone())
+        .collect::<Vec<_>>();
+    let limitations = if artifact_validations.is_empty() {
+        let kinds = if item.required_artifact_kinds.is_empty() {
+            "no artifact kind".to_string()
+        } else {
+            item.required_artifact_kinds.join(", ")
+        };
+        if foundation {
+            vec![format!(
+                "Missing foundation hook evidence for checklist item {} ({kinds}); no certification claim is made.",
+                item.id
+            )]
+        } else {
+            vec![format!(
+                "Missing standards evidence for checklist item {} ({kinds}).",
+                item.id
+            )]
+        }
+    } else {
+        artifact_limitations.sort();
+        artifact_limitations.dedup();
+        artifact_limitations
+    };
+    let mut limitations = limitations;
+    if !missing_required_kinds.is_empty() && !artifact_validations.is_empty() {
+        limitations.push(format!(
+            "Missing standards evidence for checklist item {} ({}).",
+            item.id,
+            missing_required_kinds.join(", ")
+        ));
+        limitations.sort();
+        limitations.dedup();
+    }
+    StandardsCheckRow {
+        checklist_item_id: item.id,
+        item: item.item.clone(),
+        category: item.category.clone(),
+        status: status.to_string(),
+        validation_status,
+        standards: item.standards.clone(),
+        evidence,
+        limitations,
+        required_artifact_kinds: item.required_artifact_kinds.clone(),
+        artifact_validations,
+    }
+}
+
+fn standard_item_artifact_validations(
+    core_dir: &Path,
+    manifest: &CoreManifest,
+    item: &StandardsChecklistItem,
+    strict: bool,
+) -> Vec<StandardsArtifactValidation> {
+    let mut validations = Vec::new();
+    let mut seen = std::collections::BTreeSet::new();
+    for artifact in declared_standard_artifacts(manifest) {
+        if item
+            .required_artifact_kinds
+            .iter()
+            .any(|kind| kind == &artifact.kind)
+            || artifact.required_for.contains(&item.id)
+        {
+            let path = core_dir.join(&artifact.path);
+            if path.is_file() {
+                let key = format!("{}:{}", artifact.kind, path.display());
+                if seen.insert(key) {
+                    validations.push(validate_standard_artifact(
+                        core_dir,
+                        manifest,
+                        &artifact.kind,
+                        &path,
+                        "declared",
+                        strict,
+                    ));
+                }
+            }
+        }
+    }
+    for (kind, path) in conventional_standard_artifact_paths(core_dir, manifest) {
+        if item
+            .required_artifact_kinds
+            .iter()
+            .any(|required| required == &kind)
+            && path.is_file()
+        {
+            let key = format!("{kind}:{}", path.display());
+            if seen.insert(key) {
+                validations.push(validate_standard_artifact(
+                    core_dir,
+                    manifest,
+                    &kind,
+                    &path,
+                    "conventional",
+                    strict,
+                ));
+            }
+        }
+    }
+    validations.sort_by(|lhs, rhs| {
+        lhs.kind
+            .cmp(&rhs.kind)
+            .then_with(|| lhs.path.cmp(&rhs.path))
+    });
+    validations
+}
+
+fn aggregate_validation_status(validations: &[StandardsArtifactValidation]) -> String {
+    for status in [
+        "semantic-valid",
+        "schema-valid",
+        "presence",
+        "not-applicable",
+        "invalid",
+    ] {
+        if validations
+            .iter()
+            .any(|validation| validation.validation_status == status)
+        {
+            return status.to_string();
+        }
+    }
+    "missing".to_string()
+}
+
+fn missing_required_artifact_kinds(
+    item: &StandardsChecklistItem,
+    validations: &[StandardsArtifactValidation],
+) -> Vec<String> {
+    let satisfied = validations
+        .iter()
+        .filter(|validation| validation.validation_status != "invalid")
+        .map(|validation| validation.kind.as_str())
+        .collect::<std::collections::BTreeSet<_>>();
+    let mut missing = Vec::new();
+    for group in required_artifact_kind_groups(&item.required_artifact_kinds) {
+        if !group.iter().any(|kind| satisfied.contains(kind.as_str())) {
+            missing.push(group.join("|"));
+        }
+    }
+    missing
+}
+
+fn required_artifact_kind_groups(kinds: &[String]) -> Vec<Vec<String>> {
+    let mut remaining = kinds
+        .iter()
+        .cloned()
+        .collect::<std::collections::BTreeSet<_>>();
+    let mut groups = Vec::new();
+    for alternatives in [
+        ["spdx-hbom", "cyclonedx-hbom"].as_slice(),
+        ["upf", "power-na"].as_slice(),
+        ["dft", "jtag-na"].as_slice(),
+        ["verible-lint", "native-lint"].as_slice(),
+    ] {
+        if alternatives
+            .iter()
+            .all(|alternative| remaining.contains(*alternative))
+        {
+            groups.push(
+                alternatives
+                    .iter()
+                    .map(|alternative| (*alternative).to_string())
+                    .collect(),
+            );
+            for alternative in alternatives {
+                remaining.remove(*alternative);
+            }
+        }
+    }
+    groups.extend(remaining.into_iter().map(|kind| vec![kind]));
+    groups
+}
+
+fn validate_standard_artifact(
+    core_dir: &Path,
+    manifest: &CoreManifest,
+    kind: &str,
+    path: &Path,
+    source: &str,
+    strict: bool,
+) -> StandardsArtifactValidation {
+    let (mut validation_status, mut details) = match kind {
+        "ip-xact" => validate_ipxact_artifact(manifest, path),
+        "systemrdl" => validate_systemrdl_artifact(path),
+        "spdx-hbom" => validate_spdx_hbom_artifact(path),
+        "spdx-header-audit" => validate_spdx_header_audit_artifact(path),
+        "cyclonedx-hbom" => validate_cyclonedx_hbom_artifact(path),
+        "sa-edi" => validate_sa_edi_artifact(path),
+        "security-threat-model" => validate_text_artifact(path, &["asset", "threat", "risk"]),
+        "cwe-coverage" => validate_text_artifact(path, &["CWE", "CWE-"]),
+        "upf" => validate_text_artifact(path, &["create_power_domain", "power_domain"]),
+        "dft" => validate_text_artifact(path, &["CTL", "BSDL", "Boundary", "TAP"]),
+        "power-na" | "jtag-na" => validate_na_artifact(path),
+        _ => ("presence".to_string(), Vec::new()),
+    };
+    if strict && validation_status != "invalid" {
+        if let Some((strict_status, strict_details)) = strict_validate_standard_artifact(kind, path)
+        {
+            validation_status = strict_status;
+            details.extend(strict_details);
+        }
+    }
+    let display_path = path.display().to_string();
+    let evidence = if validation_status == "invalid" {
+        Vec::new()
+    } else {
+        vec![format!(
+            "{source} {kind} artifact: {display_path} ({validation_status})"
+        )]
+    };
+    let limitations = if validation_status == "invalid" {
+        vec![format!(
+            "{kind} artifact semantic validation failed for `{display_path}`: {}",
+            if details.is_empty() {
+                "no details".to_string()
+            } else {
+                details.join("; ")
+            }
+        )]
+    } else if !details.is_empty() {
+        details
+    } else if kind == "spdx-hbom" && !spdx_hbom_file_paths_match_core(core_dir, path) {
+        vec![format!(
+            "spdx-hbom artifact `{display_path}` is structurally valid, but file paths were not proven against the current core tree."
+        )]
+    } else {
+        Vec::new()
+    };
+    StandardsArtifactValidation {
+        kind: kind.to_string(),
+        path: display_path,
+        validation_status,
+        evidence,
+        limitations,
+    }
+}
+
+fn strict_validate_standard_artifact(kind: &str, path: &Path) -> Option<(String, Vec<String>)> {
+    match kind {
+        "ip-xact" => Some(strict_run_file_validator("xmllint", &["--noout"], path)),
+        "systemrdl" => Some(strict_run_file_validator("peakrdl", &["dump"], path)),
+        "verible-lint" => Some(strict_require_tool("verible-verilog-lint")),
+        _ => None,
+    }
+}
+
+fn strict_require_tool(program: &str) -> (String, Vec<String>) {
+    match std::process::Command::new(program)
+        .arg("--version")
+        .output()
+    {
+        Ok(output) if output.status.success() => ("semantic-valid".to_string(), Vec::new()),
+        Ok(output) => (
+            "invalid".to_string(),
+            vec![format!(
+                "strict validation command `{program} --version` failed with status {}: {}{}",
+                output.status,
+                String::from_utf8_lossy(&output.stdout).trim(),
+                String::from_utf8_lossy(&output.stderr).trim()
+            )],
+        ),
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => (
+            "invalid".to_string(),
+            vec![format!("strict validation requires `{program}` in PATH")],
+        ),
+        Err(err) => (
+            "invalid".to_string(),
+            vec![format!(
+                "strict validation failed to run `{program}`: {err}"
+            )],
+        ),
+    }
+}
+
+fn strict_run_file_validator(program: &str, args: &[&str], path: &Path) -> (String, Vec<String>) {
+    let mut command = std::process::Command::new(program);
+    for arg in args {
+        command.arg(arg);
+    }
+    command.arg(path);
+    match command.output() {
+        Ok(output) if output.status.success() => ("semantic-valid".to_string(), Vec::new()),
+        Ok(output) => (
+            "invalid".to_string(),
+            vec![format!(
+                "strict validation command `{program}` failed for `{}` with status {}: {}{}",
+                path.display(),
+                output.status,
+                String::from_utf8_lossy(&output.stdout).trim(),
+                String::from_utf8_lossy(&output.stderr).trim()
+            )],
+        ),
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => (
+            "semantic-valid".to_string(),
+            vec![format!(
+                "external validator `{program}` unavailable; kept built-in semantic validation result"
+            )],
+        ),
+        Err(err) => (
+            "invalid".to_string(),
+            vec![format!(
+                "strict validation failed to run `{program}`: {err}"
+            )],
+        ),
+    }
+}
+
+fn read_artifact_text(path: &Path) -> Result<String, String> {
+    fs::read_to_string(path).map_err(|err| format!("failed to read artifact: {err}"))
+}
+
+fn validate_ipxact_artifact(manifest: &CoreManifest, path: &Path) -> (String, Vec<String>) {
+    let text = match read_artifact_text(path) {
+        Ok(text) => text,
+        Err(err) => return ("invalid".to_string(), vec![err]),
+    };
+    let mut missing = Vec::new();
+    if !text.contains("1685-2022") {
+        missing.push("missing IEEE 1685-2022 namespace/version marker".to_string());
+    }
+    for tag in [
+        "component",
+        "vendor",
+        "library",
+        "name",
+        "version",
+        "busInterfaces",
+        "busInterface",
+        "model",
+        "modelName",
+        "fileSets",
+        "fileSet",
+        "file",
+    ] {
+        if !contains_xml_local_tag(&text, tag) {
+            missing.push(format!("missing `{tag}` element"));
+        }
+    }
+    for (tag, expected) in [
+        ("vendor", manifest.vendor.as_str()),
+        ("library", manifest.library.as_str()),
+        ("name", manifest.core.as_str()),
+        ("version", manifest.version.as_str()),
+    ] {
+        if !contains_xml_element_value(&text, tag, expected) {
+            missing.push(format!("missing `{tag}` value `{expected}`"));
+        }
+    }
+    if missing.is_empty() {
+        ("semantic-valid".to_string(), Vec::new())
+    } else {
+        ("invalid".to_string(), missing)
+    }
+}
+
+fn contains_xml_local_tag(text: &str, tag: &str) -> bool {
+    text.contains(&format!("<{tag}"))
+        || text.contains(&format!(":{tag}"))
+        || text.contains(&format!("</{tag}>"))
+        || text.contains(&format!(":{tag}>"))
+}
+
+fn contains_xml_element_value(text: &str, tag: &str, expected: &str) -> bool {
+    ["ipxact", "spirit", ""].iter().any(|prefix| {
+        let open = if prefix.is_empty() {
+            format!("<{tag}>")
+        } else {
+            format!("<{prefix}:{tag}>")
+        };
+        let close = if prefix.is_empty() {
+            format!("</{tag}>")
+        } else {
+            format!("</{prefix}:{tag}>")
+        };
+        text.contains(&format!("{open}{expected}{close}"))
+    })
+}
+
+fn validate_systemrdl_artifact(path: &Path) -> (String, Vec<String>) {
+    let text = match read_artifact_text(path) {
+        Ok(text) => text,
+        Err(err) => return ("invalid".to_string(), vec![err]),
+    };
+    if text.contains("addrmap") && (text.contains("reg ") || text.contains("field ")) {
+        ("semantic-valid".to_string(), Vec::new())
+    } else {
+        (
+            "invalid".to_string(),
+            vec![
+                "SystemRDL artifact must declare an addrmap and at least one reg/field".to_string(),
+            ],
+        )
+    }
+}
+
+fn validate_spdx_header_audit_artifact(path: &Path) -> (String, Vec<String>) {
+    let raw = match read_artifact_text(path) {
+        Ok(text) => text,
+        Err(err) => return ("invalid".to_string(), vec![err]),
+    };
+    let value: Value = match serde_json::from_str(&raw) {
+        Ok(value) => value,
+        Err(err) => return ("invalid".to_string(), vec![format!("invalid JSON: {err}")]),
+    };
+    if value["kind"] != "accelfury.spdx_header_audit" {
+        return (
+            "invalid".to_string(),
+            vec!["kind must be `accelfury.spdx_header_audit`".to_string()],
+        );
+    }
+    let missing = value["summary"]["missing_headers"].as_u64().unwrap_or(1);
+    if missing == 0 && value["files"].as_array().is_some() {
+        ("semantic-valid".to_string(), Vec::new())
+    } else {
+        (
+            "invalid".to_string(),
+            vec![format!(
+                "SPDX header audit reports {missing} files without SPDX-License-Identifier"
+            )],
+        )
+    }
+}
+
+fn validate_spdx_hbom_artifact(path: &Path) -> (String, Vec<String>) {
+    let raw = match read_artifact_text(path) {
+        Ok(text) => text,
+        Err(err) => return ("invalid".to_string(), vec![err]),
+    };
+    let value: Value = match serde_json::from_str(&raw) {
+        Ok(value) => value,
+        Err(err) => return ("invalid".to_string(), vec![format!("invalid JSON: {err}")]),
+    };
+    let mut missing = Vec::new();
+    if value["kind"] != "accelfury.hbom.spdx" {
+        missing.push("kind must be `accelfury.hbom.spdx`".to_string());
+    }
+    if value["spdx_version"].as_str().is_none() {
+        missing.push("missing `spdx_version`".to_string());
+    }
+    let Some(files) = value["files"].as_array() else {
+        return (
+            "invalid".to_string(),
+            vec!["missing `files` array".to_string()],
+        );
+    };
+    if files.is_empty() {
+        missing.push("files array must not be empty".to_string());
+    }
+    for file in files {
+        if file["path"].as_str().is_none() {
+            missing.push("file entry missing `path`".to_string());
+        }
+        let checksum = &file["checksum"];
+        if checksum["algorithm"] != "SHA256" {
+            missing.push("file checksum algorithm must be SHA256".to_string());
+        }
+        let value = checksum["value"].as_str().unwrap_or_default();
+        if value.len() != 64 || !value.chars().all(|ch| ch.is_ascii_hexdigit()) {
+            missing.push("file checksum value must be 64 hex characters".to_string());
+        }
+    }
+    if missing.is_empty() {
+        ("semantic-valid".to_string(), Vec::new())
+    } else {
+        missing.sort();
+        missing.dedup();
+        ("invalid".to_string(), missing)
+    }
+}
+
+fn spdx_header_audit_report(core_dir: &Path, manifest: &CoreManifest) -> Value {
+    let mut files = standards_audit_candidate_files(core_dir, manifest)
+        .into_iter()
+        .map(|path| {
+            let relative = relative_core_path(core_dir, &path).unwrap_or_else(|| {
+                path.iter()
+                    .map(|component| component.to_string_lossy())
+                    .collect::<Vec<_>>()
+                    .join("/")
+            });
+            let identifier = file_spdx_license_identifier(&path);
+            json!({
+                "path": relative,
+                "has_spdx_header": identifier.is_some(),
+                "spdx_license_identifier": identifier,
+            })
+        })
+        .collect::<Vec<_>>();
+    files.sort_by(|lhs, rhs| {
+        lhs["path"]
+            .as_str()
+            .unwrap_or_default()
+            .cmp(rhs["path"].as_str().unwrap_or_default())
+    });
+    let checked_files = files.len();
+    let missing_headers = files
+        .iter()
+        .filter(|file| !file["has_spdx_header"].as_bool().unwrap_or(false))
+        .count();
+    let status = if missing_headers == 0 {
+        "passed"
+    } else {
+        "blocked"
+    };
+    json!({
+        "generated_by": af_report::GENERATED_BY,
+        "schema_version": "0.1",
+        "kind": "accelfury.spdx_header_audit",
+        "status": status,
+        "core": manifest.vlnv(),
+        "summary": {
+            "checked_files": checked_files,
+            "missing_headers": missing_headers,
+        },
+        "files": files,
+        "limitations": [
+            "Header audit checks SPDX-License-Identifier presence only; license compatibility still requires policy/legal review.",
+            "Generated reports and external dependency trees are intentionally excluded from the scan."
+        ],
+    })
+}
+
+fn standards_audit_candidate_files(core_dir: &Path, manifest: &CoreManifest) -> Vec<PathBuf> {
+    let mut seen = std::collections::BTreeSet::new();
+    let mut files = Vec::new();
+    for rel in &manifest.sources.files {
+        let path = core_dir.join(rel);
+        if path.is_file() && audited_extension(&path) && seen.insert(path.clone()) {
+            files.push(path);
+        }
+    }
+    for testbench in &manifest.testbenches {
+        for rel in &testbench.sources {
+            let path = core_dir.join(rel);
+            if path.is_file() && audited_extension(&path) && seen.insert(path.clone()) {
+                files.push(path);
+            }
+        }
+    }
+    collect_audit_files_recursive(core_dir, core_dir, &mut seen, &mut files);
+    files
+}
+
+fn collect_audit_files_recursive(
+    root: &Path,
+    dir: &Path,
+    seen: &mut std::collections::BTreeSet<PathBuf>,
+    files: &mut Vec<PathBuf>,
+) {
+    let Ok(entries) = fs::read_dir(dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let name = entry.file_name();
+        let name = name.to_string_lossy();
+        if path.is_dir() {
+            if matches!(
+                name.as_ref(),
+                ".git" | ".af-build" | "target" | "node_modules" | "reports" | "hbom"
+            ) {
+                continue;
+            }
+            collect_audit_files_recursive(root, &path, seen, files);
+        } else if audited_extension(&path)
+            && path.strip_prefix(root).is_ok()
+            && seen.insert(path.clone())
+        {
+            files.push(path);
+        }
+    }
+}
+
+fn audited_extension(path: &Path) -> bool {
+    matches!(
+        path.extension().and_then(|ext| ext.to_str()),
+        Some("v" | "sv" | "vh" | "svh" | "md" | "toml" | "rs")
+    )
+}
+
+fn file_spdx_license_identifier(path: &Path) -> Option<String> {
+    let text = fs::read_to_string(path).ok()?;
+    for line in text.lines().take(12) {
+        if let Some((_, tail)) = line.split_once("SPDX-License-Identifier:") {
+            let identifier = tail
+                .trim()
+                .trim_start_matches('#')
+                .trim_start_matches("//")
+                .trim_start_matches("/*")
+                .trim_end_matches("*/")
+                .trim();
+            if !identifier.is_empty() {
+                return Some(identifier.to_string());
+            }
+        }
+    }
+    None
+}
+
+fn spdx_hbom_file_paths_match_core(core_dir: &Path, path: &Path) -> bool {
+    let Ok(raw) = fs::read_to_string(path) else {
+        return false;
+    };
+    let Ok(value) = serde_json::from_str::<Value>(&raw) else {
+        return false;
+    };
+    let Some(files) = value["files"].as_array() else {
+        return false;
+    };
+    files
+        .iter()
+        .filter_map(|file| file["path"].as_str())
+        .all(|rel| core_dir.join(rel).is_file())
+}
+
+fn validate_cyclonedx_hbom_artifact(path: &Path) -> (String, Vec<String>) {
+    let raw = match read_artifact_text(path) {
+        Ok(text) => text,
+        Err(err) => return ("invalid".to_string(), vec![err]),
+    };
+    let value: Value = match serde_json::from_str(&raw) {
+        Ok(value) => value,
+        Err(err) => return ("invalid".to_string(), vec![format!("invalid JSON: {err}")]),
+    };
+    if value["bomFormat"] == "CycloneDX" && value["components"].as_array().is_some() {
+        ("schema-valid".to_string(), Vec::new())
+    } else {
+        (
+            "invalid".to_string(),
+            vec![
+                "CycloneDX HBOM must contain bomFormat=CycloneDX and components array".to_string(),
+            ],
+        )
+    }
+}
+
+fn validate_sa_edi_artifact(path: &Path) -> (String, Vec<String>) {
+    let raw = match read_artifact_text(path) {
+        Ok(text) => text,
+        Err(err) => return ("invalid".to_string(), vec![err]),
+    };
+    let value: Value = match serde_json::from_str(&raw) {
+        Ok(value) => value,
+        Err(err) => return ("invalid".to_string(), vec![format!("invalid JSON: {err}")]),
+    };
+    if value["assets"].as_array().is_some()
+        || value["securityAnnotations"].as_array().is_some()
+        || value["security_annotations"].as_array().is_some()
+    {
+        ("schema-valid".to_string(), Vec::new())
+    } else {
+        (
+            "invalid".to_string(),
+            vec!["SA-EDI artifact must contain assets or security annotations".to_string()],
+        )
+    }
+}
+
+fn validate_text_artifact(path: &Path, markers: &[&str]) -> (String, Vec<String>) {
+    let text = match read_artifact_text(path) {
+        Ok(text) => text,
+        Err(err) => return ("invalid".to_string(), vec![err]),
+    };
+    if markers.iter().any(|marker| text.contains(marker)) {
+        ("semantic-valid".to_string(), Vec::new())
+    } else {
+        (
+            "invalid".to_string(),
+            vec![format!(
+                "artifact must contain one of: {}",
+                markers.join(", ")
+            )],
+        )
+    }
+}
+
+fn validate_na_artifact(path: &Path) -> (String, Vec<String>) {
+    let text = match read_artifact_text(path) {
+        Ok(text) => text.to_ascii_lowercase(),
+        Err(err) => return ("invalid".to_string(), vec![err]),
+    };
+    if text.contains("n/a")
+        || text.contains("not applicable")
+        || text.contains("single power domain")
+        || text.contains("fpga")
+    {
+        ("not-applicable".to_string(), Vec::new())
+    } else {
+        (
+            "invalid".to_string(),
+            vec!["N/A artifact must explicitly justify why the row is not applicable".to_string()],
+        )
+    }
+}
+
+fn declared_standard_artifacts(manifest: &CoreManifest) -> &[StandardsArtifact] {
+    manifest
+        .standards
+        .as_ref()
+        .map(|standards| standards.artifacts.as_slice())
+        .unwrap_or(&[])
+}
+
+fn conventional_standard_artifact_paths(
+    core_dir: &Path,
+    manifest: &CoreManifest,
+) -> Vec<(String, PathBuf)> {
+    let core = manifest.core.as_str();
+    vec![
+        ("spec".to_string(), core_dir.join("docs/spec.md")),
+        (
+            "simulation-plan".to_string(),
+            core_dir.join("sim/README.md"),
+        ),
+        ("formal-plan".to_string(), core_dir.join("formal/README.md")),
+        (
+            "synthesis-report".to_string(),
+            core_dir.join("synth/results.md"),
+        ),
+        ("board-demo".to_string(), core_dir.join("boards/README.md")),
+        ("datasheet".to_string(), core_dir.join("docs/datasheet.md")),
+        ("license".to_string(), core_dir.join("LICENSE")),
+        (
+            "acceptance".to_string(),
+            core_dir.join("docs/acceptance.md"),
+        ),
+        ("risks".to_string(), core_dir.join("docs/risks.md")),
+        (
+            "ip-xact".to_string(),
+            core_dir.join(format!("ipxact/{core}.xml")),
+        ),
+        (
+            "systemrdl".to_string(),
+            core_dir.join(format!("regs/{core}.rdl")),
+        ),
+        (
+            "upf".to_string(),
+            core_dir.join(format!("power/{core}.upf")),
+        ),
+        ("power-na".to_string(), core_dir.join("power/README.md")),
+        ("dft".to_string(), core_dir.join(format!("dft/{core}.ctl"))),
+        ("jtag-na".to_string(), core_dir.join("dft/README.md")),
+        ("verible-lint".to_string(), core_dir.join(".verible.rules")),
+        (
+            "native-lint".to_string(),
+            core_dir.join("reports/core-lint.json"),
+        ),
+        (
+            "native-lint".to_string(),
+            core_dir.join("reports/standards/core-lint.json"),
+        ),
+        (
+            "spdx-header-audit".to_string(),
+            core_dir.join("reports/spdx-header-audit.json"),
+        ),
+        ("ci".to_string(), core_dir.join(".github/workflows/ci.yml")),
+        (
+            "safety-manual".to_string(),
+            core_dir.join("safety/safety_manual.md"),
+        ),
+        (
+            "security-threat-model".to_string(),
+            core_dir.join("security/threat_model.md"),
+        ),
+        ("sa-edi".to_string(), core_dir.join("security/sa-edi.json")),
+        (
+            "cwe-coverage".to_string(),
+            core_dir.join("security/cwe_coverage.md"),
+        ),
+        (
+            "spdx-hbom".to_string(),
+            core_dir.join(format!("hbom/{core}.spdx.json")),
+        ),
+        (
+            "cyclonedx-hbom".to_string(),
+            core_dir.join(format!("hbom/{core}.cdx.json")),
+        ),
+    ]
+}
+
 fn core_package(core_dir: &Path, build_root: &Path, format: &str) -> Result<CliOutput, CliError> {
-    if !matches!(format, "manifest" | "tar.zst") {
+    if !matches!(format, "manifest" | "tar.zst" | "spdx-hbom") {
         return Err(CliError::new(
             "AF_PACKAGE_FORMAT_UNSUPPORTED",
             format!("package format `{format}` is unsupported"),
-            "Use --format manifest or --format tar.zst. The MVP writes a deterministic manifest package descriptor.",
+            "Use --format manifest, tar.zst, or spdx-hbom.",
             2,
         ));
     }
@@ -3069,24 +5419,39 @@ fn core_package(core_dir: &Path, build_root: &Path, format: &str) -> Result<CliO
             5,
         )
     })?;
-    let package_path = package_dir.join(format!("{}-package-manifest.json", checked.manifest.core));
-    let package = json!({
-        "generated_by": af_report::GENERATED_BY,
-        "schema_version": "0.1",
-        "kind": "accelfury.package_manifest",
-        "format": format,
-        "core": checked.manifest.vlnv(),
-        "sources": checked.manifest.sources.files.clone(),
-        "testbenches": checked.manifest.testbenches.clone(),
-        "limitations": checked.limitations.clone(),
-    });
+    let package_path = if format == "spdx-hbom" {
+        package_dir.join(format!("{}.hbom.spdx.json", checked.manifest.core))
+    } else {
+        package_dir.join(format!("{}-package-manifest.json", checked.manifest.core))
+    };
+    let package = if format == "spdx-hbom" {
+        spdx_hbom_package(core_dir, &checked.manifest, &checked.limitations)
+    } else {
+        json!({
+            "generated_by": af_report::GENERATED_BY,
+            "schema_version": "0.1",
+            "kind": "accelfury.package_manifest",
+            "format": format,
+            "core": checked.manifest.vlnv(),
+            "sources": checked.manifest.sources.files.clone(),
+            "testbenches": checked.manifest.testbenches.clone(),
+            "limitations": checked.limitations.clone(),
+        })
+    };
     write_json_file(&package_path, &package)?;
     let mut report = AfReport::for_core("passed", &checked.manifest);
     report.artifacts.push(package_path.display().to_string());
-    report.limitations.push(
-        "MVP package command writes a package manifest descriptor; archive signing/SBOM are future work."
-            .to_string(),
-    );
+    if format == "spdx-hbom" {
+        report.limitations.push(
+            "HBOM captures declared source/provenance metadata; it is not legal advice or a safety/security certification artifact."
+                .to_string(),
+        );
+    } else {
+        report.limitations.push(
+            "MVP package command writes a package manifest descriptor; archive signing is future work."
+                .to_string(),
+        );
+    }
     report.command_payload = Some(CommandPayload::Package(PackagePayload {
         format: format.to_string(),
         manifest_path: package_path.clone(),
@@ -3109,6 +5474,229 @@ fn core_package(core_dir: &Path, build_root: &Path, format: &str) -> Result<CliO
             "reports": written,
         }),
     })
+}
+
+fn spdx_hbom_package(core_dir: &Path, manifest: &CoreManifest, limitations: &[String]) -> Value {
+    let mut file_roles = std::collections::BTreeMap::<String, String>::new();
+    for path in &manifest.sources.files {
+        let role = manifest
+            .sources
+            .roles
+            .get(path)
+            .map(String::as_str)
+            .unwrap_or("rtl");
+        file_roles.insert(path.clone(), role.to_string());
+    }
+    for artifact in declared_standard_artifacts(manifest) {
+        if core_dir.join(&artifact.path).is_file() {
+            file_roles
+                .entry(artifact.path.clone())
+                .or_insert_with(|| "standards-evidence".to_string());
+        }
+    }
+    for (_kind, path) in conventional_standard_artifact_paths(core_dir, manifest) {
+        if path.is_file() {
+            if let Some(relative) = relative_core_path(core_dir, &path) {
+                file_roles
+                    .entry(relative)
+                    .or_insert_with(|| "standards-evidence".to_string());
+            }
+        }
+    }
+
+    let files = file_roles
+        .into_iter()
+        .map(|(path, role)| {
+            let absolute_path = core_dir.join(&path);
+            let checksum = fs::read(&absolute_path)
+                .map(|bytes| {
+                    json!({
+                        "algorithm": "SHA256",
+                        "value": sha256_hex(&bytes),
+                    })
+                })
+                .unwrap_or(Value::Null);
+            let spdx_license_identifier = file_spdx_license_identifier(&absolute_path)
+                .unwrap_or_else(|| "NOASSERTION".to_string());
+            json!({
+                "path": path,
+                "role": role,
+                "spdx_license_identifier": spdx_license_identifier,
+                "checksum": checksum,
+            })
+        })
+        .collect::<Vec<_>>();
+    json!({
+        "generated_by": af_report::GENERATED_BY,
+        "schema_version": "0.1",
+        "kind": "accelfury.hbom.spdx",
+        "spdx_version": "SPDX-3.0.1-compatible",
+        "data_license": "CC0-1.0",
+        "profile": FPGA_IP_CORE_PROFILE_ID,
+        "core": manifest.vlnv(),
+        "package_name": manifest.core,
+        "package_version": manifest.version,
+        "supplier": manifest.vendor,
+        "release": {
+            "semver": manifest.version,
+            "signed_tag_required": true,
+            "commit_sha": current_commit_sha(core_dir).unwrap_or_else(|| "unknown".to_string()),
+            "dirty_tree": git_worktree_dirty(core_dir).unwrap_or(true),
+            "tag": current_git_tag(core_dir),
+            "tag_signature_status": git_tag_signature_status(core_dir),
+        },
+        "files": files,
+        "limitations": limitations,
+    })
+}
+
+fn git_worktree_dirty(core_dir: &Path) -> Option<bool> {
+    let dir = git_command_dir(core_dir)?;
+    let unstaged = std::process::Command::new("git")
+        .args(["diff", "--quiet", "--ignore-submodules", "--"])
+        .current_dir(&dir)
+        .status()
+        .ok()?;
+    let staged = std::process::Command::new("git")
+        .args(["diff", "--cached", "--quiet", "--ignore-submodules", "--"])
+        .current_dir(&dir)
+        .status()
+        .ok()?;
+    Some(!unstaged.success() || !staged.success())
+}
+
+fn current_git_tag(core_dir: &Path) -> Option<String> {
+    let dir = git_command_dir(core_dir)?;
+    let output = std::process::Command::new("git")
+        .args(["describe", "--tags", "--exact-match", "HEAD"])
+        .current_dir(&dir)
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let tag = String::from_utf8(output.stdout).ok()?.trim().to_string();
+    if tag.is_empty() {
+        None
+    } else {
+        Some(tag)
+    }
+}
+
+fn git_tag_signature_status(core_dir: &Path) -> String {
+    let Some(tag) = current_git_tag(core_dir) else {
+        return "not-tagged".to_string();
+    };
+    let Some(dir) = git_command_dir(core_dir) else {
+        return "unknown".to_string();
+    };
+    match std::process::Command::new("git")
+        .args(["tag", "-v", &tag])
+        .current_dir(&dir)
+        .output()
+    {
+        Ok(output) if output.status.success() => "verified".to_string(),
+        Ok(_) => "unverified".to_string(),
+        Err(_) => "unknown".to_string(),
+    }
+}
+
+fn git_command_dir(path: &Path) -> Option<PathBuf> {
+    if path.is_dir() {
+        Some(path.to_path_buf())
+    } else {
+        path.parent().map(Path::to_path_buf)
+    }
+}
+
+fn relative_core_path(core_dir: &Path, path: &Path) -> Option<String> {
+    let relative = path.strip_prefix(core_dir).ok()?;
+    Some(
+        relative
+            .iter()
+            .map(|component| component.to_string_lossy())
+            .collect::<Vec<_>>()
+            .join("/"),
+    )
+}
+
+const SHA256_K: [u32; 64] = [
+    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+    0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+    0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+    0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+    0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
+];
+
+fn sha256_hex(input: &[u8]) -> String {
+    let mut h = [
+        0x6a09e667_u32,
+        0xbb67ae85,
+        0x3c6ef372,
+        0xa54ff53a,
+        0x510e527f,
+        0x9b05688c,
+        0x1f83d9ab,
+        0x5be0cd19,
+    ];
+    let bit_len = (input.len() as u64) * 8;
+    let mut data = input.to_vec();
+    data.push(0x80);
+    while (data.len() % 64) != 56 {
+        data.push(0);
+    }
+    data.extend_from_slice(&bit_len.to_be_bytes());
+
+    for chunk in data.chunks_exact(64) {
+        let mut w = [0_u32; 64];
+        for (idx, word) in chunk.chunks_exact(4).take(16).enumerate() {
+            w[idx] = u32::from_be_bytes([word[0], word[1], word[2], word[3]]);
+        }
+        for idx in 16..64 {
+            let s0 =
+                w[idx - 15].rotate_right(7) ^ w[idx - 15].rotate_right(18) ^ (w[idx - 15] >> 3);
+            let s1 = w[idx - 2].rotate_right(17) ^ w[idx - 2].rotate_right(19) ^ (w[idx - 2] >> 10);
+            w[idx] = w[idx - 16]
+                .wrapping_add(s0)
+                .wrapping_add(w[idx - 7])
+                .wrapping_add(s1);
+        }
+        let mut a = h[0];
+        let mut b = h[1];
+        let mut c = h[2];
+        let mut d = h[3];
+        let mut e = h[4];
+        let mut f = h[5];
+        let mut g = h[6];
+        let mut hh = h[7];
+        for idx in 0..64 {
+            let s1 = e.rotate_right(6) ^ e.rotate_right(11) ^ e.rotate_right(25);
+            let ch = (e & f) ^ ((!e) & g);
+            let temp1 = hh
+                .wrapping_add(s1)
+                .wrapping_add(ch)
+                .wrapping_add(SHA256_K[idx])
+                .wrapping_add(w[idx]);
+            let s0 = a.rotate_right(2) ^ a.rotate_right(13) ^ a.rotate_right(22);
+            let maj = (a & b) ^ (a & c) ^ (b & c);
+            let temp2 = s0.wrapping_add(maj);
+            hh = g;
+            g = f;
+            f = e;
+            e = d.wrapping_add(temp1);
+            d = c;
+            c = b;
+            b = a;
+            a = temp1.wrapping_add(temp2);
+        }
+        for (slot, value) in h.iter_mut().zip([a, b, c, d, e, f, g, hh]) {
+            *slot = slot.wrapping_add(value);
+        }
+    }
+    h.iter().map(|word| format!("{word:08x}")).collect()
 }
 
 fn core_report(input: &Path, build_root: &Path) -> Result<CliOutput, CliError> {
@@ -3145,6 +5733,7 @@ fn core_report(input: &Path, build_root: &Path) -> Result<CliOutput, CliError> {
             current_commit_sha: current_sha.as_deref(),
             placeholder_boards: &placeholder_boards,
         }));
+        report.standards = standards_report_payload(input, &checked.manifest)?;
         report
     } else {
         let mut report = AfReport::new("passed");
@@ -3194,6 +5783,7 @@ fn core_report(input: &Path, build_root: &Path) -> Result<CliOutput, CliError> {
         maturity_blocked_rows: blocked_rows,
         artifact_count: report.artifacts.len(),
     }));
+    let standards_payload = report.standards.clone();
     let written = write_reports_with_aliases(
         build_root.join("reports"),
         "core-report",
@@ -3209,10 +5799,58 @@ fn core_report(input: &Path, build_root: &Path) -> Result<CliOutput, CliError> {
         json: json!({
             "status": "passed",
             "command_payload": report.command_payload,
+            "standards": standards_payload,
             "report": report,
             "reports": written,
         }),
     })
+}
+
+fn standards_report_payload(
+    core_dir: &Path,
+    manifest: &CoreManifest,
+) -> Result<Option<Value>, CliError> {
+    let Some(standards) = manifest.standards.as_ref() else {
+        return Ok(None);
+    };
+    let profile_id = standards
+        .profile
+        .as_deref()
+        .unwrap_or(FPGA_IP_CORE_PROFILE_ID);
+    let profile = load_standards_profile(profile_id)?;
+    let rows = profile
+        .items
+        .iter()
+        .map(|item| evaluate_standards_item(core_dir, manifest, item, false))
+        .collect::<Vec<_>>();
+    let summary = StandardsCheckSummary {
+        total_items: rows.len(),
+        supported_items: rows.iter().filter(|row| row.status == "supported").count(),
+        blocked_items: rows.iter().filter(|row| row.status == "blocked").count(),
+        planned_items: rows.iter().filter(|row| row.status == "planned").count(),
+        foundation_items: rows
+            .iter()
+            .filter(|row| row.category.contains("foundation"))
+            .count(),
+    };
+    let status = if summary.blocked_items == 0 {
+        "passed"
+    } else {
+        "blocked"
+    };
+    let gates = standards_release_gates(&rows);
+    Ok(Some(json!({
+        "status": status,
+        "profile": profile.id,
+        "profile_version": profile.version,
+        "summary": summary,
+        "rows": rows,
+        "gates": gates,
+        "limitations": [
+            "Safety and security rows are evidence hooks only; this report does not claim certification.",
+            "Standards evidence in this report is deterministic and fail-closed; external certification and vendor signoff remain out of scope."
+        ],
+    })))
 }
 
 fn tier_required_rows(tier: &str) -> Result<&'static [&'static str], CliError> {

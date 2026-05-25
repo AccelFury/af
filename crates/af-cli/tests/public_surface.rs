@@ -93,6 +93,7 @@ fn public_docs_do_not_link_to_internal_workspace() {
         "README.md",
         "CONTRIBUTING.md",
         "docs/cli-reference.md",
+        "docs/production-readiness.md",
         "reports/README.md",
     ] {
         let text = read_text(&root.join(rel));
@@ -135,6 +136,7 @@ fn public_readme_is_llm_friendly_without_private_governance() {
         "cargo run -p af-cli --bin af -- doctor --json",
         "cargo test --workspace",
         "ignored workspace",
+        "docs/production-readiness.md",
     ] {
         assert!(readme.contains(required), "README missing {required:?}");
     }

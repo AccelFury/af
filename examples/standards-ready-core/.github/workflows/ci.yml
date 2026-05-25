@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: Apache-2.0
+name: standards-ready-core CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  standards:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Standards check
+        run: |
+          set -euo pipefail
+          af core standards check examples/standards-ready-core --profile fpga-ip-core-v1 --strict --json

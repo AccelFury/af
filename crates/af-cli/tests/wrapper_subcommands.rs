@@ -81,7 +81,7 @@ fn wrapper_litex_emits_python_skeleton() {
 }
 
 #[test]
-fn wrapper_ipxact_emits_xml_with_spirit_namespace() {
+fn wrapper_ipxact_emits_xml_with_1685_2022_namespace() {
     let (exit, value, br) = run_wrapper("ipxact", None);
     assert_eq!(exit, 0);
     assert_eq!(value["status"].as_str(), Some("passed"));
@@ -93,7 +93,8 @@ fn wrapper_ipxact_emits_xml_with_spirit_namespace() {
         .collect();
     assert_eq!(xml_files.len(), 1, "exactly one .xml expected");
     let text = std::fs::read_to_string(xml_files[0].path()).unwrap();
-    assert!(text.contains("<spirit:component"));
+    assert!(text.contains("IPXACT/1685-2022"));
+    assert!(text.contains("<ipxact:component"));
     let _ = std::fs::remove_dir_all(&br);
 }
 

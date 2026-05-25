@@ -222,3 +222,98 @@ fn selfcheck_manifest_targets_resolve() {
         }
     }
 }
+
+#[test]
+fn production_workflow_runs_required_gates() {
+    let workflow = read_to_string(".github/workflows/accelfury.yml");
+    let guard_base = concat!(
+        "AF",
+        "_GUARD_BASE=\"${{ github.event.pull_request.base.sha }}\""
+    );
+    for required in [
+        "workflow_dispatch:",
+        "permissions:",
+        "fetch-depth: 0",
+        "cargo fmt --all -- --check",
+        "cargo clippy --workspace --all-targets -- -D warnings",
+        "cargo test --workspace",
+        guard_base,
+        ".claude/skills/af-cli-contract-guard/check.sh",
+        "manifest validate examples/af-pdm-rx/af-core.toml --json",
+        "core check examples/af-pdm-rx --json",
+        "core report examples/af-pdm-rx --json",
+        "core lint examples/af-pdm-rx --backend native --json",
+        "wrapper generate examples/af-pdm-rx --target fusesoc --json",
+        "wrapper generate examples/af-pdm-rx --target litex --board tang-nano-20k --json",
+        "ci generate --target github-actions",
+        "scripts/docker-smoke.sh",
+        "SHA256SUMS",
+        "actions/upload-artifact@v4",
+    ] {
+        assert!(
+            workflow.contains(required),
+            ".github/workflows/accelfury.yml missing production gate {required:?}"
+        );
+    }
+}
+
+#[test]
+fn docker_smoke_covers_required_open_source_backends() {
+    let dockerfile = read_to_string("Dockerfile");
+    for required in ["verilator", "yosys", "iverilog"] {
+        assert!(
+            dockerfile.contains(required),
+            "Dockerfile must install {required} for production smoke coverage"
+        );
+    }
+
+    let smoke = read_to_string("scripts/docker-smoke.sh");
+    let icarus_core_dir = concat!("AF", "_ICARUS_CORE_DIR:-examples/af-reset-sync");
+    for required in [
+        icarus_core_dir,
+        "== AccelFury Docker smoke: Icarus ==",
+        "core lint \"${ICARUS_CORE_DIR}\" --backend icarus --json | tee \"${BUILD_ROOT}/logs/icarus-lint.json\"",
+        "core sim \"${ICARUS_CORE_DIR}\" --backend icarus --json | tee \"${BUILD_ROOT}/logs/icarus-sim.json\"",
+    ] {
+        assert!(
+            smoke.contains(required),
+            "scripts/docker-smoke.sh missing required Icarus smoke step {required:?}"
+        );
+    }
+}
+
+#[test]
+fn production_docs_pin_claim_boundaries() {
+    let production = read_to_string("docs/production-readiness.md");
+    for required in [
+        "CLI/toolchain",
+        "does not mean FPGA timing closure",
+        "CDC/RDC signoff",
+        "vendor production bitstreams",
+        "hardware programming",
+        "A workflow file alone is",
+        "not production evidence.",
+        "Removing a command, flag, JSON",
+        "field, manifest field, schema property, exit-code meaning, or `AF_*` error code",
+    ] {
+        assert!(
+            production.contains(required),
+            "docs/production-readiness.md missing claim boundary {required:?}"
+        );
+    }
+
+    for rel in [
+        "README.md",
+        "docs/known-limitations.md",
+        "docs/release-process.md",
+        ".github/PULL_REQUEST_TEMPLATE.md",
+    ] {
+        let text = read_to_string(rel);
+        assert!(
+            text.contains("production-readiness")
+                || text.contains("unsupported timing")
+                || text.contains("Production-ready"),
+            "{rel} must reference production readiness or unsupported claims"
+        );
+    }
+}

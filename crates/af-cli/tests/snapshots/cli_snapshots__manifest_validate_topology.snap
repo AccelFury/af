@@ -1,5 +1,6 @@
 ---
 source: crates/af-cli/tests/cli_snapshots.rs
+assertion_line: 98
 expression: topology
 ---
 {
@@ -112,9 +113,11 @@ expression: topology
     },
     "reuse": "<null>",
     "rtl": {
+      "clocking": "<null>",
       "default_clock": "<string>",
       "default_reset": "<string>",
       "language": "<string>",
+      "reset": "<null>",
       "systemverilog_subset": "<null>",
       "top": "<string>",
       "variants": {
@@ -139,6 +142,7 @@ expression: topology
       ],
       "roles": {}
     },
+    "standards": "<null>",
     "stream_interfaces": [],
     "testbenches": [
       {

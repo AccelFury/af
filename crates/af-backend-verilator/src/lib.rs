@@ -202,8 +202,24 @@ where
 
         let spec = verilator_smoke_command(manifest, core_dir);
         let output = self.runner.run(&spec)?;
-        let passed = output.exit_code == Some(0);
-        report.commands.push(CommandRecord::from(output));
+        let mut passed = output.exit_code == Some(0);
+        if !passed && output.stderr.contains("Invalid option: --timing") {
+            report.commands.push(CommandRecord::from(output));
+            report.warnings.push(
+                "Verilator rejected --timing; retried smoke simulation without --timing for legacy tool compatibility."
+                    .to_string(),
+            );
+            report.limitations.push(
+                "Legacy Verilator fallback omitted --timing; delay/timing-control coverage is limited by the installed tool version."
+                    .to_string(),
+            );
+            let fallback = command_without_timing(&spec);
+            let fallback_output = self.runner.run(&fallback)?;
+            passed = fallback_output.exit_code == Some(0);
+            report.commands.push(CommandRecord::from(fallback_output));
+        } else {
+            report.commands.push(CommandRecord::from(output));
+        }
         report.status = if passed {
             BackendStatus::Passed
         } else {
@@ -277,6 +293,12 @@ pub fn verilator_smoke_command(manifest: &CoreManifest, core_dir: &Path) -> Comm
     dedup_preserve_order(&mut args);
 
     CommandSpec::new("verilator").args(args).cwd(core_dir)
+}
+
+fn command_without_timing(spec: &CommandSpec) -> CommandSpec {
+    let mut fallback = spec.clone();
+    fallback.args.retain(|arg| arg != "--timing");
+    fallback
 }
 
 fn select_testbench<'a>(manifest: &'a CoreManifest, backend: &str) -> Option<&'a Testbench> {
@@ -371,7 +393,7 @@ files = ["rtl/demo.sv"]
     fn smoke_argv_includes_declared_testbench_sources() {
         let manifest = CoreManifest::from_toml_str(
             r#"
-af_version = "0.2"
+af_version = "0.1"
 name = "demo"
 vendor = "accelfury"
 library = "ip"
@@ -446,6 +468,71 @@ sources = ["tb/tb_pkg.sv", "tb/tb_demo.sv"]
             .unwrap();
         assert_eq!(report.status, BackendStatus::Passed);
         assert_eq!(report.commands.len(), 2);
+    }
+
+    #[test]
+    fn sim_retries_without_timing_for_legacy_verilator() {
+        let manifest = CoreManifest::from_toml_str(
+            r#"
+af_version = "0.1"
+name = "demo"
+vendor = "accelfury"
+library = "ip"
+core = "demo"
+version = "0.1.0"
+
+[rtl]
+top = "demo"
+language = "systemverilog"
+
+[sources]
+files = ["rtl/demo.sv"]
+
+[[testbenches]]
+name = "smoke"
+backend = "verilator"
+top = "tb_demo"
+sources = ["tb/tb_demo.sv"]
+"#,
+            "af-core.toml",
+        )
+        .unwrap();
+        let version = CommandOutput {
+            spec: CommandSpec::new("verilator"),
+            exit_code: Some(0),
+            stdout: "Verilator 4.038".to_string(),
+            stderr: String::new(),
+        };
+        let timing_failure = CommandOutput {
+            spec: CommandSpec::new("verilator"),
+            exit_code: Some(1),
+            stdout: String::new(),
+            stderr: "%Error: Invalid option: --timing\n".to_string(),
+        };
+        let fallback_pass = CommandOutput {
+            spec: CommandSpec::new("verilator"),
+            exit_code: Some(0),
+            stdout: String::new(),
+            stderr: String::new(),
+        };
+        let backend = VerilatorBackend::new(FakeRunner::new(vec![
+            version,
+            timing_failure,
+            fallback_pass,
+        ]));
+
+        let report = backend
+            .sim(&manifest, Path::new("."), Path::new(".af-build"))
+            .unwrap();
+
+        assert_eq!(report.status, BackendStatus::Passed);
+        assert_eq!(report.commands.len(), 3);
+        assert!(report.commands[1].args.contains(&"--timing".to_string()));
+        assert!(!report.commands[2].args.contains(&"--timing".to_string()));
+        assert!(report
+            .warnings
+            .iter()
+            .any(|warning| warning.contains("rejected --timing")));
     }
 
     #[test]

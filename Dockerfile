@@ -23,6 +23,7 @@ RUN set -eux; \
         python3 \
         python3-pip \
         python3-venv \
+        iverilog \
         verilator \
         yosys; \
     if apt-cache show openfpgaloader >/dev/null 2>&1; then \

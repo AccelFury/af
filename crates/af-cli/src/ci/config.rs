@@ -83,6 +83,18 @@ pub struct CiPolicyConfig {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct CiStandardsConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "default_standards_core_dir")]
+    pub core_dir: String,
+    #[serde(default = "default_standards_profile")]
+    pub profile: String,
+    #[serde(default = "default_artifact_root")]
+    pub build_root: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CiBoardConfig {
     pub name: String,
     #[serde(default = "default_true")]
@@ -113,6 +125,8 @@ pub struct CiConfig {
     pub artifacts: CiArtifactsConfig,
     #[serde(default)]
     pub policy: CiPolicyConfig,
+    #[serde(default, skip_serializing_if = "CiStandardsConfig::is_disabled")]
+    pub standards: CiStandardsConfig,
     #[serde(default)]
     pub boards: Vec<CiBoardConfig>,
 }
@@ -162,6 +176,7 @@ impl ConfigBuilder {
             yosys: CiYosysConfig::default(),
             artifacts: CiArtifactsConfig::default(),
             policy: CiPolicyConfig::default(),
+            standards: CiStandardsConfig::default(),
             boards: Vec::new(),
         }
     }
@@ -271,7 +286,25 @@ impl Default for CiConfig {
             yosys: CiYosysConfig::default(),
             artifacts: CiArtifactsConfig::default(),
             policy: CiPolicyConfig::default(),
+            standards: CiStandardsConfig::default(),
             boards: Vec::new(),
+        }
+    }
+}
+
+impl CiStandardsConfig {
+    pub fn is_disabled(&self) -> bool {
+        !self.enabled
+    }
+}
+
+impl Default for CiStandardsConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            core_dir: default_standards_core_dir(),
+            profile: default_standards_profile(),
+            build_root: default_artifact_root(),
         }
     }
 }
@@ -359,4 +392,12 @@ fn default_yosys_family() -> String {
 
 fn default_artifact_root() -> String {
     "artifacts/openfpga-ci".into()
+}
+
+fn default_standards_core_dir() -> String {
+    ".".into()
+}
+
+fn default_standards_profile() -> String {
+    "fpga-ip-core-v1".into()
 }

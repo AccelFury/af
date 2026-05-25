@@ -28,6 +28,12 @@ pub struct CiInitArgs {
     #[arg(long, default_value = "github")]
     pub provider: String,
     #[arg(long)]
+    pub standards: bool,
+    #[arg(long, default_value = ".")]
+    pub standards_core_dir: String,
+    #[arg(long, default_value = "fpga-ip-core-v1")]
+    pub standards_profile: String,
+    #[arg(long)]
     pub dry_run: bool,
 }
 
@@ -53,7 +59,7 @@ pub fn run(args: &CiInitArgs) -> Result<CliOutput, CliError> {
     let scan = scan_repo(repo_root, &paths);
     let top = determine_top(scan.top_candidates(), args.top.as_deref())?;
     let profile = detect_profile(&scan, &args.hdl);
-    let config = ConfigBuilder {
+    let mut config = ConfigBuilder {
         project: args.project.clone(),
         hdl: args.hdl.clone(),
         rtl_path: args.rtl.clone(),
@@ -63,6 +69,12 @@ pub fn run(args: &CiInitArgs) -> Result<CliOutput, CliError> {
         make_test_detected: args.sim.as_ref().is_some() || scan.has_make_test_target,
     }
     .build();
+    if args.standards {
+        config.standards.enabled = true;
+        config.standards.core_dir = args.standards_core_dir.clone();
+        config.standards.profile = args.standards_profile.clone();
+        config.standards.build_root = config.artifacts.root.clone();
+    }
 
     let rendered = render_all(&config, &scan, profile);
     let outputs = write_init_outputs(repo_root, &config, &rendered, args.dry_run)?;

@@ -1,0 +1,32 @@
+{
+  "kind": "accelfury.hbom.spdx",
+  "spdx_version": "SPDX-3.0.1-compatible",
+  "core": "accelfury:examples:standards_ready_core:0.1.0",
+  "files": [
+    {
+      "path": "rtl/standards_ready_core.v",
+      "role": "source",
+      "spdx_license_identifier": "Apache-2.0",
+      "checksum": {
+        "algorithm": "SHA256",
+        "value": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "path": "ipxact/standards_ready_core.xml",
+      "role": "standards-evidence",
+      "checksum": {
+        "algorithm": "SHA256",
+        "value": "1111111111111111111111111111111111111111111111111111111111111111"
+      }
+    },
+    {
+      "path": "regs/standards_ready_core.rdl",
+      "role": "standards-evidence",
+      "checksum": {
+        "algorithm": "SHA256",
+        "value": "2222222222222222222222222222222222222222222222222222222222222222"
+      }
+    }
+  ]
+}

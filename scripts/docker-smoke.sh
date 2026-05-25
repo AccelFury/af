@@ -5,6 +5,7 @@ set -euo pipefail
 AF_BIN="${AF_BIN:-${CARGO_TARGET_DIR:-target}/debug/af}"
 BUILD_ROOT="${AF_BUILD_ROOT:-/tmp/af-build-smoke}"
 CORE_DIR="${AF_CORE_DIR:-examples/af-pdm-rx}"
+ICARUS_CORE_DIR="${AF_ICARUS_CORE_DIR:-examples/af-reset-sync}"
 
 case "${BUILD_ROOT}" in
   ""|"/"|".")
@@ -27,6 +28,8 @@ if python3 -c "import litex; print('litex import ok')"; then
 else
   echo "LiteX Python package is optional for MVP skeleton generation."
 fi
+iverilog -V | sed -n '1p'
+vvp -V | sed -n '1p'
 yosys -V
 boolector --version | sed -n '1p'
 z3 --version | sed -n '1p'
@@ -55,6 +58,10 @@ echo "== AccelFury Docker smoke: manifest and core checks =="
 echo "== AccelFury Docker smoke: Verilator =="
 "${AF_BIN}" --build-root "${BUILD_ROOT}" core lint "${CORE_DIR}" --backend verilator --json | tee "${BUILD_ROOT}/logs/verilator-lint.json"
 "${AF_BIN}" --build-root "${BUILD_ROOT}" core sim "${CORE_DIR}" --backend verilator --json | tee "${BUILD_ROOT}/logs/verilator-sim.json"
+
+echo "== AccelFury Docker smoke: Icarus =="
+"${AF_BIN}" --build-root "${BUILD_ROOT}" core lint "${ICARUS_CORE_DIR}" --backend icarus --json | tee "${BUILD_ROOT}/logs/icarus-lint.json"
+"${AF_BIN}" --build-root "${BUILD_ROOT}" core sim "${ICARUS_CORE_DIR}" --backend icarus --json | tee "${BUILD_ROOT}/logs/icarus-sim.json"
 
 echo "== AccelFury Docker smoke: FuseSoC and LiteX wrappers =="
 "${AF_BIN}" --build-root "${BUILD_ROOT}" wrapper generate "${CORE_DIR}" --target fusesoc --json | tee "${BUILD_ROOT}/logs/fusesoc-wrapper.json"

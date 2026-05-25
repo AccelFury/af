@@ -73,8 +73,11 @@ if [[ $smoke_only -eq 0 ]]; then
       for f in $(git ls-tree -r "$base" --name-only 2>/dev/null | grep -E '^crates/.*/src/.*\.rs$'); do
         git show "$base:$f" 2>/dev/null
       done
-    } | grep -ohE 'AF_[A-Z][A-Z0-9_]+' | sort -u > /tmp/af-guard-codes-base.txt 2>/dev/null
-    grep -rohE 'AF_[A-Z][A-Z0-9_]+' crates/ 2>/dev/null | sort -u > /tmp/af-guard-codes-now.txt
+    } | grep -ohE 'AF_[A-Z][A-Z0-9_]+' | sed 's/_*$//' | sort -u > /tmp/af-guard-codes-base.txt 2>/dev/null
+    find crates -path '*/src/*' -name '*.rs' -type f -print0 \
+      | xargs -0 grep -ohE 'AF_[A-Z][A-Z0-9_]+' 2>/dev/null \
+      | sed 's/_*$//' \
+      | sort -u > /tmp/af-guard-codes-now.txt
     removed=$(comm -23 /tmp/af-guard-codes-base.txt /tmp/af-guard-codes-now.txt 2>/dev/null | grep -v '^$' || true)
     added=$(comm -13 /tmp/af-guard-codes-base.txt /tmp/af-guard-codes-now.txt 2>/dev/null | grep -v '^$' || true)
     if [[ -n "$removed" ]]; then

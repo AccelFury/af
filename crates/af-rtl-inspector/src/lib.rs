@@ -776,8 +776,7 @@ fn manifest_width_text(width: &PortWidth) -> String {
 fn declaration_declares_port(declaration: &str, port_name: &str) -> bool {
     declaration
         .split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '$'))
-        .filter(|token| !token.is_empty())
-        .last()
+        .rfind(|token| !token.is_empty())
         == Some(port_name)
 }
 

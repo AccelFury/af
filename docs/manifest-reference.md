@@ -1,12 +1,13 @@
 # Manifest Reference
 
-`af-core.toml` v0.1/v0.2/v0.3 describes one IP core.
+`af-core.toml` v0.1/v0.2/v0.3/v0.4 describes one IP core.
 
 If `[rtl].language` is omitted, the parser defaults to `verilog-2001`.
 
 Required root fields:
 
-- `af_version = "0.1"`, `af_version = "0.2"`, or `af_version = "0.3"`
+- `af_version = "0.1"`, `af_version = "0.2"`, `af_version = "0.3"`, or
+  `af_version = "0.4"`
 - `name`
 - `vendor`
 - `library`
@@ -36,6 +37,21 @@ Supported arrays:
 - `[[interfaces]]`: `name`, `kind`, optional `clock`, `reset`
 - `[[testbenches]]`: `name`, `top`, `sources`
 - `[[vectors]]` in v0.2: `name`, `format`, `path`
+
+For honest atomic cores that do not have a clock or reset, v0.4 accepts explicit
+RTL modes instead of fake ports:
+
+```toml
+[rtl]
+top = "mux_tree"
+language = "verilog-2001"
+clocking = "none"
+reset = "none"
+```
+
+When `rtl.clocking = "none"` is present, `[[clocks]]` may be omitted. When
+`rtl.reset = "none"` is present, `[[resets]]` may be omitted. Port and width
+checks remain active, and any declared clock/reset reference must still resolve.
 
 Optional v0.2 fields:
 
@@ -253,3 +269,84 @@ All `report_path` values are validated through the same relative-path rules
 as `[sources]` (no `..`, no absolute prefix). `tool` is bounded by a closed
 vocabulary. Unrecognised values raise `AF_EVIDENCE_VENDOR_TOOL_INVALID` or
 `AF_EVIDENCE_CONCLUSION_INVALID`.
+
+## Standards profile artifacts (optional, v0.4-compatible)
+
+`[standards]` lets a core opt in to a machine-readable evidence profile without
+making the whole `af` manifest FPGA-standards-only. The first built-in profile
+is `fpga-ip-core-v1`; it backs `af core standards check`, the additive
+standards summary in `af core report`, and the generated root `CHECKLIST.md`,
+`compliance_matrix.csv`, and `compliance_matrix.json`.
+
+```toml
+[standards]
+profile = "fpga-ip-core-v1"
+
+[[standards.artifacts]]
+kind = "ip-xact"
+path = "ipxact/my_core.xml"
+standard = "IEEE 1685"
+edition = "2022"
+category = "now"
+required_for = [24]
+conclusion = "present"
+sha256 = "optional-hex-digest"
+
+[[standards.artifacts]]
+kind = "security-threat-model"
+path = "security/threat_model.md"
+category = "foundation"
+required_for = [31]
+conclusion = "placeholder"
+
+[[standards.artifacts]]
+kind = "spdx-header-audit"
+path = "reports/spdx-header-audit.json"
+category = "now"
+required_for = [21]
+conclusion = "passed"
+```
+
+Artifact paths use the same relative-path validation as source and evidence
+paths. `required_for` accepts checklist item ids `1..32`. Safety/security
+artifacts are evidence hooks only; declaring them does not create a
+certification claim.
+
+`af core standards check` reports `validation_status` per checklist row plus
+`artifact_validations` per discovered artifact. Supported statuses are
+`presence`, `schema-valid`, `semantic-valid`, and `not-applicable`; `partial`
+means at least one additive artifact kind is still missing. Invalid or partial
+rows stay blocked/planned with an explicit limitation. The top-level
+`gates.commercial_baseline_ready` gate is `passed` only when all `now` rows have
+evidence; it is not a certification claim.
+
+`af core standards scaffold <core_dir>` can create the conventional evidence
+tree for existing cores. It never overwrites existing evidence files; the
+generated content is a placeholder that must be filled before release claims.
+Add `--declare` to append `[standards]` and `[[standards.artifacts]]` entries
+for generated or already-present conventional files. `af core new
+--standards-profile fpga-ip-core-v1` uses the same declaration path at scaffold
+time, so newly created opt-in cores are immediately checkable by manifest
+evidence rather than only by path convention.
+`af core standards check --strict` opportunistically runs external validators
+for selected artifacts: `xmllint` for IP-XACT and `peakrdl` for SystemRDL.
+If those tools are unavailable, the built-in semantic result is kept and the row
+records a limitation; if an available validator rejects the artifact, the row
+fails closed. `af core standards doctor` exposes the same local tool
+availability probe plus install/container hints, while `af core standards
+drift` reports whether the profile snapshot date needs manual refresh for
+fast-moving pins such as SPDX and CWE.
+
+`af core regs scaffold --declare` appends a `systemrdl` artifact declaration for
+`regs/<core>.rdl`. `af core standards spdx-audit --declare` appends
+`spdx-header-audit` evidence for item 21. `af core standards collect
+--build-root <path> --declare` links known CI/package outputs, such as
+`reports/standards/core-lint.json`, `reports/standards/core-sim.json`,
+`reports/standards/core-formal.json`, and `hbom/<core>.spdx.json`, without
+adding duplicate manifest entries.
+
+`af ci init --standards --standards-core-dir <path>` writes an `[standards]`
+section to `af-ci.toml` for CI workflow rendering. The generated CI job runs
+native lint and SPDX/HBOM packaging, then calls `af core standards collect
+--declare` and `af core standards check --strict`. The CI preset assumes an
+`af` binary is available in PATH or an af-enabled container/profile is used.

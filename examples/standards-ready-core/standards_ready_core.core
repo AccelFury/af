@@ -1,0 +1,12 @@
+CAPI=2:
+name: accelfury:examples:standards_ready_core:0.1.0
+filesets:
+  rtl:
+    files:
+      - rtl/standards_ready_core.v
+    file_type: verilogSource
+targets:
+  default:
+    filesets:
+      - rtl
+    toplevel: standards_ready_core

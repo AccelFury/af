@@ -85,6 +85,7 @@
     "schema_version": {
       "type": "string"
     },
+    "standards": true,
     "status": {
       "type": "string"
     },

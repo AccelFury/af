@@ -118,8 +118,11 @@ fn ipxact_wrapper_writes_valid_xml() {
     let artifact = &report.artifacts[0];
     let text = std::fs::read_to_string(artifact).unwrap();
     assert!(text.starts_with("<?xml version=\"1.0\""));
-    assert!(text.contains("<spirit:component"));
-    assert!(text.contains("<spirit:vendor>accelfury</spirit:vendor>"));
+    assert!(text.contains("1685-2022"));
+    assert!(text.contains("<ipxact:component"));
+    assert!(text.contains("<ipxact:vendor>accelfury</ipxact:vendor>"));
+    assert!(text.contains("<ipxact:fileSets>"));
+    assert!(text.contains("<af:portabilityTier>"));
     assert!(
         report.limitations.iter().any(|l| l.contains("IP-XACT")),
         "ipxact wrapper must disclose its adapter-only nature"

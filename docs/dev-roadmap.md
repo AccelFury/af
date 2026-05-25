@@ -1,6 +1,6 @@
 # AccelFury `af` Quality And Functional Maturity Roadmap
 
-Date: 2026-04-30
+Date: 2026-05-24
 
 Scope: current implementation status against the expanded MVP-0/MVP-1
 specification, with the next engineering milestones for quality, usefulness and
@@ -8,7 +8,15 @@ functional maturity.
 
 ## Current Compliance Snapshot
 
-Status: **MVP-0/MVP-1 baseline operational; MVP-2+ surfaces staged**.
+Status: **Alpha readiness target: MVP-0/MVP-1 baseline operational; MVP-2+
+surfaces staged**.
+
+The alpha-supported CLI surface is intentionally limited to the
+manifest-first development loop: `af doctor`, `af self check`,
+`af manifest validate`, `af core check`, `af core lint`, `af core sim`,
+`af core report`, `af wrapper generate`, and `af ci generate`. Other command
+families can be useful, but their flags, report details, and backend coverage
+remain staged until a later readiness gate promotes them.
 
 Implemented and verified in the codebase:
 

@@ -1,0 +1,11 @@
+{
+  "schema": "Accellera SA-EDI 1.0 compatible scaffold",
+  "core": "accelfury:examples:standards_ready_core:0.1.0",
+  "assets": [
+    {"name": "cfg_enable", "type": "configuration", "securityConcern": "availability"},
+    {"name": "s_data", "type": "stream", "securityConcern": "integrity"},
+    {"name": "m_data", "type": "stream", "securityConcern": "integrity"},
+    {"name": "counter_words", "type": "status", "securityConcern": "diagnostic_integrity"}
+  ],
+  "securityAnnotations": []
+}

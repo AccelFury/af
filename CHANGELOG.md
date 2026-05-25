@@ -2,6 +2,60 @@
 
 ## Unreleased
 
+- Added the opt-in `fpga-ip-core-v1` standards profile, `af core standards`
+  check/export commands, generated checklist/compliance matrix artifacts,
+  manifest `[standards]` evidence declarations, and `spdx-hbom` package
+  output. New additive error codes: `AF_STANDARDS_ARTIFACT_ITEM_INVALID`,
+  `AF_STANDARDS_COLLECT_COPY_FAILED`, `AF_STANDARDS_EXPORT_FORMAT_UNSUPPORTED`,
+  `AF_STANDARDS_PROFILE_UNKNOWN`, and
+  `AF_STANDARDS_SAFETY_DOMAIN_UNSUPPORTED`.
+- `af core standards check` now fail-closes malformed standards artifacts with
+  row-level `validation_status`/`artifact_validations`, and generated
+  `spdx-hbom` packages include SHA-256 checksums for declared source files.
+- `af core standards scaffold` now creates missing `fpga-ip-core-v1` evidence
+  placeholders without overwriting local files, can append idempotent
+  `[standards]`/`[[standards.artifacts]]` manifest declarations with
+  `--declare`, and
+  `af core standards check --strict` fail-closes selected rows when required
+  external validators such as `xmllint`, `peakrdl`, or
+  `verible-verilog-lint` are unavailable.
+- Added standards evidence utilities for the FPGA/IP commercial baseline:
+  `af core standards doctor`, `drift`, `spdx-audit`, `collect`, plus
+  `af core regs scaffold/check`. `standards check` now emits
+  `gates.commercial_baseline_ready` and local `tool_availability`, SPDX audits
+  can be declared as item 21 evidence, and collected CI/package reports are
+  linked into `[[standards.artifacts]]` idempotently.
+- Strengthened the standards flow with `af ci init --standards`, install hints
+  in `standards doctor`, opportunistic `xmllint`/`peakrdl` validation in
+  `standards check --strict`, collection of simulation/formal reports when
+  present, and a complete `examples/standards-ready-core` reference layout.
+- `af wrapper generate --target ipxact` now emits an IEEE 1685-2022-style
+  component skeleton with manifest interfaces, ports, file sets, and AccelFury
+  vendor extensions instead of the old SPIRIT 1.5 skeleton.
+- `af core new` now accepts opt-in `--standards-profile fpga-ip-core-v1` to
+  create standards placeholders and manifest evidence declarations at scaffold
+  time; `af core report` now includes an additive standards summary when
+  `[standards]` is declared; and `spdx-hbom` output now includes present
+  standards evidence artifacts plus commit, dirty-tree, tag, and tag-signature
+  provenance.
+- Manifest v0.4 now supports explicit `rtl.clocking = "none"` and
+  `rtl.reset = "none"` for clockless/resetless atomic cores without fake
+  clock/reset ports. New additive error codes:
+  `AF_RTL_CLOCKING_MODE_INVALID` and `AF_RTL_RESET_MODE_INVALID`.
+- Documented the alpha-readiness scope and gates: the supported CLI surface is
+  the manifest-first loop (`doctor`, `self check`, `manifest validate`,
+  `core check/lint/sim/report`, `wrapper generate`, `ci generate`), while
+  timing closure, CDC/RDC signoff, vendor production bitstreams, and hardware
+  programming remain staged or out of scope.
+- Added production-readiness contract guidance, claims matrix, and CI/release
+  gate expectations for promoting `af` as a CLI/toolchain without overstating
+  timing, CDC/RDC, vendor bitstream, or hardware-ready claims.
+- Docker smoke now installs Icarus Verilog (`iverilog`/`vvp`) and runs an
+  Icarus lint/simulation path on the Verilog-2001 `af-reset-sync` example,
+  while Verilator/Yosys/FuseSoC/LiteX smoke remains on `af-pdm-rx`.
+- The CLI contract guard now compares error-code inventories from
+  `crates/**/src/**/*.rs` on both sides of the diff, avoiding false additive
+  warnings from test-only `AF_*` strings.
 - `af registry check --json` now includes advisory `catalog_readiness` for
   fpga.chat v1 export blockers, including missing board revisions/source
   locators and non-OSI core licenses, without turning structural registry

@@ -1,5 +1,57 @@
 # TODO - AccelFury `af`
 
+## Production-ready blockers
+
+Local production-readiness hardening for `af` as a CLI/toolchain is now staged
+in this workspace. Timing closure, CDC/RDC signoff, vendor production
+bitstreams, and hardware-ready status remain separate evidence-gated claims.
+
+### Closed locally in this workspace
+
+- [x] AF.PROD.STABLE-CONTRACT - Documented the production-supported contract
+  for `af-core.toml`, supported CLI commands, JSON/error envelopes, exit codes,
+  schema/report versioning, and semver compatibility rules in
+  `docs/cli-reference.md`, `docs/release-process.md`, and
+  `docs/production-readiness.md`.
+- [x] AF.PROD.LOCAL-GATES - Hardened the repository gates around `fmt`,
+  `clippy`, `cargo test`, `.claude/skills/af-cli-contract-guard/check.sh`,
+  host CLI smoke, Docker smoke, and checksum generation.
+- [x] AF.PROD.SMOKE-MATRIX-LOCAL - Extended local regression coverage for
+  Verilator, Icarus, Yosys, FuseSoC, LiteX skeleton, Docker flow, broken
+  manifests, missing tools, bad paths, backend-unavailable states, and
+  production docs/workflow invariants.
+- [x] AF.PROD.CONTRACT-GUARD-NOISE - Fixed contract guard error-code scanning
+  so current and base snapshots both scan `crates/**/src/**/*.rs`, avoiding
+  false additive warnings from test-only `AF_*` strings.
+- [x] AF.PROD.CLAIMS-MATRIX - Added a production claims matrix that separates
+  CLI/toolchain readiness from timing, CDC/RDC, vendor bitstream, board-ready,
+  hardware-ready, and security-certification claims.
+
+### Remaining external or owner-gated actions
+
+- [ ] AF.PROD.CI-EVIDENCE - Capture a successful external CI run for the exact
+  release commit. Environment blocker: requires GitHub Actions or equivalent CI
+  with Docker access. Verification: CI run URL, commit SHA, success conclusion,
+  uploaded artifact bundle, and `SHA256SUMS`.
+- [ ] AF.PROD.RELEASE-ARTIFACTS - Publish release artifacts. Environment
+  blocker: requires repository release permissions and release-owner approval.
+  Verification: signed or checksummed Git tag, release notes, binary artifacts,
+  reproducible build instructions, and linked `SHA256SUMS`.
+- [ ] AF.PROD.DOCKER-PUBLISH - Publish the Docker image outside the local
+  machine. Environment blocker: requires registry credentials and project-owner
+  image naming policy. Verification: immutable image digest and release notes
+  linking the digest.
+- [ ] AF.PROD.SUPPORT-OWNER-POLICY - Finalize support/security ownership.
+  Project-owner blocker: choose security contact, support SLA/non-SLA wording,
+  deprecation windows, and audit cadence. Verification: README/release-process
+  links plus a reviewed security/support policy.
+- [ ] AF.PROD.SIGNOFF-CLAIMS - Add separate evidence before claiming timing
+  closure, CDC/RDC signoff, vendor production bitstreams, board-ready status, or
+  hardware-ready status. Evidence blocker: requires vendor tools, board
+  hardware where applicable, captured reports/logs, and reviewed limitations.
+
+## Active lifecycle-tool gaps
+
 Active lifecycle-tool gaps discovered while hardening generated cores.
 
 - [fpga.chat catalog] AF.TODO.BOARDS-REVISION-CAPTURE — `registries/boards.registry.json`
@@ -25,10 +77,12 @@ Active lifecycle-tool gaps discovered while hardening generated cores.
   entries under `catalog_readiness.core_licenses`.
 
 
-- AF.TODO.CLOCKLESS-NORESET-CORE-MANIFESTS — `af` v0.3 manifests currently force at least one `[[clocks]]`, one `[[resets]]` and one `[[ports]]`, and `af core check` requires declared clocks/resets to bind to RTL ports. This blocks honest generic portable cores that are purely combinational (`af-mux-tree`, `af-adder-tree`) or clocked without reset (`af-ram-1r1w`, `af-ram-tdp`, `af-rom`) unless authors add fake reset/clock ports or downgrade to `af_version = "0.1"`. Impact: reusable atomic cores either grow misleading protocol glue or lose v0.3 contract features. Required behavior: v0.3 should support `rtl.clocking = "none"` / `rtl.reset = "none"` or explicit `clockless = true` / `resetless = true`, skip clock/reset binding checks only for those declared modes, keep port and width checks active, and report adapter hints when a composite shell expects clock/reset semantics. Verification: add manifest parser tests, rtl-inspector tests for clockless and resetless cores, compatibility adapter diagnostics, and a wrapper-generation refusal test that fails closed instead of fabricating dummy ports.
-
 ## Recently closed
 
+- AF.TODO.CLOCKLESS-NORESET-CORE-MANIFESTS — v0.4 manifests now accept
+  `rtl.clocking = "none"` and `rtl.reset = "none"` for clockless/resetless
+  atomic cores. Clock/reset array requirements are skipped only for those
+  explicit modes; port and width checks remain active.
 - AF.TODO.MANIFEST-VALIDATE-CWD-PARITY — `af manifest validate af-core.toml`
   now resolves the core directory as `.` when invoked from inside a core
   directory, so same-workspace dependency resolution matches

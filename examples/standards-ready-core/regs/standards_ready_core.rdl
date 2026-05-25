@@ -1,0 +1,9 @@
+// SPDX-License-Identifier: Apache-2.0
+// SystemRDL 2.0 skeleton for standards-ready-core.
+
+addrmap standards_ready_core {
+  reg {
+    field { sw = r; hw = w; } busy[1] = 0;
+    field { sw = r; hw = w; } words[8] = 0;
+  } status @ 0x0;
+};

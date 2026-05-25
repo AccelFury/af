@@ -24,7 +24,7 @@ af manifest validate <path>
 af project classify [path] [--from-spec spec.md] [--output classification.json]
 af project new <project_dir> --class system-platform|product-stack [--name <name>]
 af core check <core_dir>
-af core new <core_dir> --name <name> [--class simple-portable|composite-portable|complex-vendor-aware] [--language verilog-2001] [--profile stream-ip|reset-sync]
+af core new <core_dir> --name <name> [--class simple-portable|composite-portable|complex-vendor-aware] [--language verilog-2001] [--profile stream-ip|reset-sync] [--standards-profile fpga-ip-core-v1]
 af core lint <core_dir> --backend verilator
 af core lint <core_dir> --backend yosys
 af core lint <core_dir> --backend icarus
@@ -32,7 +32,16 @@ af core sim <core_dir> --backend verilator
 af core sim <core_dir> --backend icarus
 af core formal <core_dir> --backend sby
 af core tooling <core_dir> [--require-all]
-af core package <core_dir> --format manifest
+af core package <core_dir> --format manifest|tar.zst|spdx-hbom
+af core regs scaffold <core_dir> [--output regs/<core>.rdl] [--declare]
+af core regs check <core_dir> [--path regs/<core>.rdl]
+af core standards check <core_dir> [--profile fpga-ip-core-v1] [--strict]
+af core standards doctor [--profile fpga-ip-core-v1]
+af core standards drift [--profile fpga-ip-core-v1]
+af core standards export --profile fpga-ip-core-v1 --format json|checklist|csv [--output <path>]
+af core standards scaffold <core_dir> [--profile fpga-ip-core-v1] [--declare] [--safety-domain none|automotive|industrial|avionics]
+af core standards spdx-audit <core_dir> [--output reports/spdx-header-audit.json] [--declare]
+af core standards collect <core_dir> --build-root <path> [--profile fpga-ip-core-v1] [--declare]
 af core report <core_dir_or_build_dir>
 af core verify <core_dir> --tier community|verified-package|enterprise
 af architecture check <core_dir>
@@ -69,7 +78,7 @@ af wrapper generate <core_dir> --target fusesoc
 af wrapper generate <core_dir> --target litex --board <board>
 af wrapper generate <core_dir> --target ipxact
 af wrapper generate <core_dir> --target stream-fifo
-af ci init --project <name> --hdl <verilog-2001|verilog-2005> --rtl <path> --top <module> [--sim <cmd>] [--provider github]
+af ci init --project <name> --hdl <verilog-2001|verilog-2005> --rtl <path> --top <module> [--sim <cmd>] [--provider github] [--standards --standards-core-dir <path> --standards-profile fpga-ip-core-v1]
 af ci render --config af-ci.toml --output .github/workflows/hdl-ci.yml [--dry-run]
 af ci doctor --repo .
 af ci improve --repo . [--workflow .github/workflows/hdl-ci.yml] [--allow-rewrite] [--dry-run]
@@ -98,6 +107,56 @@ under an explicit build root, and avoid inventing unsupported command flags or
 signoff claims. Private notes and scratch artifacts belong under ignored
 local workspace paths, not in public docs or reports.
 ```
+
+## Alpha-supported commands
+
+The alpha-readiness surface is the manifest-first development loop:
+
+- `af doctor`
+- `af self check`
+- `af manifest validate`
+- `af core check`
+- `af core lint`
+- `af core sim`
+- `af core report`
+- `af core regs`
+- `af core standards check`
+- `af core standards doctor`
+- `af core standards drift`
+- `af core standards export`
+- `af core standards scaffold`
+- `af wrapper generate`
+- `af ci generate`
+
+For these commands, `--json` output, documented exit-code bands, typed
+`command_payload` report variants where applicable, and top-level JSON error
+envelopes are part of the alpha contract. The error envelope is always:
+`{ code, message, hint, exit_code, details? }`.
+
+Commands outside this list are available for development and integration work,
+but remain staged or experimental unless their own section states otherwise.
+They must still avoid panics and emit structured errors, but their flags,
+report details, and backend coverage may change before v1.0.
+
+## Production-supported contract
+
+Production-ready releases promote the same manifest-first command set from
+alpha to a stable automation contract. For those commands:
+
+- documented flags and positional arguments are public API;
+- `--json` output must remain deterministic and machine-readable;
+- the top-level error envelope stays `{ code, message, hint, exit_code,
+  details? }`;
+- `exit_code` in JSON must match the process exit code;
+- `AF_*` error-code removals or meaning changes are breaking changes;
+- additive JSON fields are allowed when consumers can ignore them;
+- removals or incompatible type changes require a schema/report version bump,
+  changelog entry, and migration or backward-compatibility note.
+
+Semver policy before v1.0 is still conservative: production-supported commands
+must not break automation inside a patch release. Breaking CLI, manifest, JSON,
+schema, or error-code changes require an explicit pre-release or minor-version
+promotion note in `CHANGELOG.md`.
 
 Stable exit codes:
 
@@ -149,6 +208,10 @@ LLM/CI consumers can branch on shape without sniffing the schema:
 
   Consumers should dispatch on `command_payload.kind` and ignore unknown
   kinds for forward compatibility.
+- **`standards`** — optional and present only when a core manifest declares
+  `[standards]`. It summarizes the selected profile, row counts, limitations,
+  and evidence status from `af core standards check` without making
+  certification or vendor signoff claims.
 - **JSON schema** — the machine-readable schema lives at
   [`schemas/af-report.schema.json`](../schemas/af-report.schema.json). It
   is autogenerated from `crates/af-report::AfReport` (via `schemars`) by
@@ -230,7 +293,11 @@ complex accelerator template. Supported core classes are `simple-portable`,
 `composite-portable`, and `complex-vendor-aware`. Use `--profile reset-sync`
 only with `simple-portable` for an atomic reset synchronizer scaffold with
 `clk`, `src_rst`, `dst_rst`, `STAGES`, `RESET_POLARITY`, and portable Verilog
-policy checks.
+policy checks. Use `--standards-profile fpga-ip-core-v1` to opt into the FPGA
+IP standards evidence scaffold at creation time. The flag validates the profile
+before writing the core, creates the same placeholder files as
+`af core standards scaffold --declare`, and records the generated evidence in
+`[standards]`. Omitting it preserves the smaller universal scaffold.
 
 `af project new` owns system/product scaffolds. Use `--class system-platform`
 for platform projects with cores, platforms, constraints, and security policy
@@ -300,6 +367,102 @@ board/hardware evidence, release/legal evidence, buyer-grade readiness, and
 enterprise-grade readiness using fail-closed statuses such as `supported`,
 `planned`, `blocked`, and `not-applicable`. Buyer-grade and enterprise-grade
 rows remain `blocked` until the corresponding evidence artifacts are present.
+When the manifest declares `[standards]`, the same report includes an additive
+`standards` summary in JSON and a Markdown standards evidence section. This
+summary is evidence traceability only; it does not claim safety, security,
+vendor, or certification signoff.
+
+`af core standards export --profile fpga-ip-core-v1` emits the code-owned FPGA
+standards profile as JSON, Markdown checklist, or CSV compliance matrix. The
+repository-root `CHECKLIST.md`, `compliance_matrix.csv`, and
+`compliance_matrix.json` are generated from this profile; `crates/**` remains
+the source of truth for the item list, standard pins, artifact kinds, and JSON
+shape.
+
+`af core standards check <core_dir> --json` evaluates a core against the
+profile using manifest-declared `[standards]` artifacts plus conventional paths
+such as `ipxact/<core>.xml`, `regs/<core>.rdl`,
+`security/threat_model.md`, and `hbom/<core>.spdx.json`. Missing `now` rows are
+`blocked`; missing `foundation` rows are `planned`. Safety and security rows
+are hooks only and never imply certification. Each row includes
+`validation_status` and `artifact_validations`; invalid artifacts are fail-closed
+and keep the row blocked/planned even when the file exists. `partial` means one
+of the row's additive artifact kinds is still missing; known alternatives such
+as SPDX-vs-CycloneDX HBOM are treated as one-of groups.
+The JSON also includes `gates.commercial_baseline_ready`, which is `passed`
+only when every `now` row has acceptable evidence. This gate is a commercial
+baseline readiness check, not a safety/security/certification claim.
+
+`af core standards check <core_dir> --strict --json` keeps the same JSON shape
+and opportunistically runs external validators for selected artifact kinds. If
+`xmllint` is present it checks `ip-xact`; if `peakrdl` is present it checks
+`systemrdl`; if those tools are missing the built-in semantic result is kept and
+the row records a limitation. A present validator that rejects an artifact still
+fail-closes that artifact as `invalid`. `verible-lint` still requires
+`verible-verilog-lint` when that artifact kind is selected. The top-level
+`tool_availability.tools` array reports the same local PATH probe used by
+`af core standards doctor`.
+
+`af core standards doctor --json` checks local availability of tools that can
+produce or validate standards evidence: `xmllint`, `peakrdl`,
+`verible-verilog-lint`, `verilator`, `sby`, `reuse`, and
+`spdx-sbom-generator`. Each row includes install/container/manual hints.
+Missing tools are reported for planning; they become blocking only when a
+selected evidence producer or validator actually requires them.
+
+`af core standards drift --json` performs an offline freshness check against the
+profile snapshot date. It flags fast-moving pins such as SPDX and CWE on shorter
+review cadences and records that no network freshness verification was made.
+
+`af core standards scaffold <core_dir> --json` writes missing conventional
+evidence placeholders for the profile without overwriting existing files. The
+scaffold includes spec/datasheet/test-plan placeholders, IEEE 1685-2022 IP-XACT
+metadata, a SystemRDL placeholder, N/A notes for UPF/DFT hooks, security/safety
+hook placeholders, CI placeholder, and a deterministic `hbom/<core>.spdx.json`.
+These files are starting points only; they do not create certification,
+buyer-grade, or security claims.
+Add `--declare` to append `[standards]` and `[[standards.artifacts]]` manifest
+entries for the generated or already-present conventional evidence files. The
+command remains idempotent and does not overwrite local evidence content.
+Use `--safety-domain automotive`, `industrial`, or `avionics` to make the
+safety manual placeholder domain-specific while still explicitly saying the core
+is not certified.
+
+`af core regs scaffold <core_dir> --json` writes a manifest-derived
+`regs/<core>.rdl` SystemRDL skeleton and can declare it as standards evidence
+with `--declare`. `af core regs check <core_dir> --json` validates the skeleton
+semantically enough for the standards gate: it must contain an `addrmap` and at
+least one register/field. It does not replace a full `peakrdl` or UVM RAL flow.
+
+`af core standards spdx-audit <core_dir> --json` scans `.v`, `.sv`, `.md`,
+`.toml`, and `.rs` files for `SPDX-License-Identifier` headers and writes
+`reports/spdx-header-audit.json`. With `--declare`, the report is linked to
+checklist item 21. The audit checks presence, not legal compatibility.
+
+`af core standards collect <core_dir> --build-root <path> --json` copies known
+CI/build outputs into standards evidence locations. Today this includes
+`reports/core-lint.json`, `reports/core-sim.json`, and
+`reports/core-formal.json` to `reports/standards/`, plus
+`package/<core>.hbom.spdx.json` to `hbom/<core>.spdx.json`; `--declare` links
+the copied files into `[[standards.artifacts]]` idempotently.
+
+`af ci init --standards --standards-core-dir <path>` enables a standards CI
+preset in `af-ci.toml`. Rendered workflows add a `standards_evidence` job that
+requires an `af` binary in PATH, runs native lint and SPDX/HBOM packaging into
+the CI build root, performs `spdx-audit --declare`, collects those outputs into
+standards artifacts, and finishes with `af core standards check --strict`.
+The job does not install tools automatically; use `af core standards doctor`
+for local install hints. `examples/standards-ready-core` is the minimal in-tree
+reference layout for this flow.
+
+`af core package <core_dir> --format spdx-hbom` writes a deterministic
+`*.hbom.spdx.json` provenance document under `--build-root/package/`. The HBOM
+lists declared source files plus present standards evidence artifacts, roles,
+SHA-256 file checksums, and release provenance fields for the current commit,
+tree dirty status, exact tag, and tag-signature verification status. It is not
+legal advice and does not replace license review. When a file has an
+`SPDX-License-Identifier` header, the HBOM file row carries that identifier;
+otherwise it uses `NOASSERTION`.
 
 The `board_hardware_evidence` row enumerates every board declared by the
 manifest with an explicit `(draft)` or `(verified-or-unknown)` tag, and adds a
@@ -382,12 +545,12 @@ Constructor / Report Engine / Registry Sync) lives in
 
 | Manifesto name | Actual command(s)                                                    |
 |----------------|----------------------------------------------------------------------|
-| `af init core` | `af core new <dir> --name <name> [--class ... --profile ...]`        |
+| `af init core` | `af core new <dir> --name <name> [--class ... --profile ... --standards-profile ...]` |
 | `af check`     | `af core check <core_dir>` + `af architecture check <core_dir>` + `af manifest validate <core_dir>` |
 | `af sim`       | `af core sim <core_dir> --backend verilator` or `... --backend icarus` |
 | `af synth`     | `af core lint <core_dir> --backend yosys` or `af backend run yosys --target synthesis --core-dir <core_dir>` |
 | `af report`    | `af core report <core_or_build>` or `af report <input>`              |
-| `af package`   | `af core package <core_dir> [--format manifest]`                     |
+| `af package`   | `af core package <core_dir> [--format manifest|spdx-hbom]`           |
 | `af doctor`    | `af doctor`                                                          |
 
 Do not invent the manifesto names as actual subcommands. `af` refuses unknown

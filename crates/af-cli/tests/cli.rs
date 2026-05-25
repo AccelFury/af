@@ -451,8 +451,9 @@ fn wrapper_generate_ipxact_writes_skeleton() {
     assert!(wrapper.is_file());
     let content = std::fs::read_to_string(wrapper).unwrap();
     assert!(content.starts_with("<?xml version=\"1.0\""));
-    assert!(content.contains("<spirit:component"));
-    assert!(content.contains("<spirit:name>af-pdm-rx</spirit:name>"));
+    assert!(content.contains("IPXACT/1685-2022"));
+    assert!(content.contains("<ipxact:component"));
+    assert!(content.contains("<ipxact:name>af-pdm-rx</ipxact:name>"));
 }
 
 #[test]

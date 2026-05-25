@@ -64,6 +64,95 @@ fn ci_init_generates_workflow_and_docs() {
 }
 
 #[test]
+fn ci_init_with_standards_generates_standards_job_and_config() {
+    let dir = tempdir().unwrap();
+    write_text(
+        &dir.path().join("rtl").join("core_only.v"),
+        "module af_ci_cli_test();\nendmodule\n",
+    );
+    write_text(
+        &dir.path().join("af-core.toml"),
+        r#"af_version = "0.4"
+name = "af-ci-cli-test"
+vendor = "accelfury"
+library = "examples"
+core = "af_ci_cli_test"
+version = "0.1.0"
+category = "utility"
+portability_level = "U0"
+priority = "P0"
+maturity = "preview"
+known_limitations = []
+
+[metadata]
+license = "Apache-2.0"
+authors = ["AccelFury contributors"]
+description = "CI standards preset test core."
+
+[rtl]
+top = "af_ci_cli_test"
+language = "verilog-2001"
+default_clock = "clk"
+default_reset = "rst"
+
+[sources]
+files = ["rtl/core_only.v"]
+
+[[clocks]]
+name = "clk"
+port = "clk"
+
+[[resets]]
+name = "rst"
+port = "rst"
+active = "high"
+style = "sync"
+clock_domain = "clk"
+
+[[ports]]
+name = "clk"
+direction = "input"
+width = 1
+kind = "clock"
+"#,
+    );
+
+    let mut cmd = Command::cargo_bin("af").unwrap();
+    cmd.args(["ci", "init"])
+        .args(["--repo", dir.path().to_str().unwrap()])
+        .args(["--project", "af_ci_cli_test"])
+        .args(["--hdl", "verilog-2001"])
+        .args(["--rtl", "rtl"])
+        .args(["--top", "af_ci_cli_test"])
+        .args(["--standards"])
+        .args(["--standards-core-dir", "."])
+        .assert()
+        .success();
+
+    let config = fs::read_to_string(dir.path().join("af-ci.toml")).unwrap();
+    assert!(config.contains("[standards]"));
+    assert!(config.contains("enabled = true"));
+    assert!(config.contains("core_dir = \".\""));
+    assert!(config.contains("profile = \"fpga-ip-core-v1\""));
+
+    let workflow = fs::read_to_string(dir.path().join(".github/workflows/hdl-ci.yml")).unwrap();
+    assert!(workflow.contains("standards_evidence:"));
+    assert!(workflow.contains("core standards doctor"));
+    assert!(workflow.contains("core standards spdx-audit"));
+    assert!(workflow.contains("core standards collect"));
+    assert!(workflow.contains("core standards check"));
+    assert!(workflow.contains("--strict"));
+
+    let mut validate = Command::cargo_bin("af").unwrap();
+    validate
+        .args(["ci", "validate"])
+        .args(["--repo", dir.path().to_str().unwrap()])
+        .arg("--json")
+        .assert()
+        .success();
+}
+
+#[test]
 fn ci_init_dry_run_does_not_modify_filesystem() {
     let dir = tempdir().unwrap();
     write_text(

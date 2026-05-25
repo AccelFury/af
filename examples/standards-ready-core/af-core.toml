@@ -1,0 +1,162 @@
+# SPDX-License-Identifier: Apache-2.0
+
+af_version = "0.3"
+name = "standards-ready-core"
+vendor = "accelfury"
+library = "examples"
+core = "standards_ready_core"
+version = "0.1.0"
+category = "utility"
+portability_level = "U0"
+priority = "P0"
+maturity = "preview"
+known_limitations = [
+  "Reference standards-evidence example only; not hardware-validated.",
+  "Safety and security files are scaffolds and do not claim certification.",
+]
+
+[metadata]
+license = "AccelFury Source Available License v1.0"
+authors = ["AccelFury contributors"]
+repository = "https://github.com/AccelFury/af"
+description = "Minimal portable ready/valid counter core with complete standards evidence layout."
+
+[rtl]
+top = "standards_ready_core"
+language = "verilog-2001"
+default_clock = "clk"
+default_reset = "rst"
+
+[sources]
+files = ["rtl/standards_ready_core.v"]
+
+[[parameters]]
+name = "DATA_WIDTH"
+value = "8"
+kind = "integer"
+description = "Payload width in bits."
+
+[[clocks]]
+name = "clk"
+port = "clk"
+description = "Single synchronous clock domain."
+
+[[resets]]
+name = "rst"
+port = "rst"
+active = "high"
+style = "sync"
+clock_domain = "clk"
+asynchronous = false
+
+[[ports]]
+name = "clk"
+direction = "input"
+width = 1
+kind = "clock"
+clock = "clk"
+
+[[ports]]
+name = "rst"
+direction = "input"
+width = 1
+kind = "reset"
+clock = "clk"
+reset = "rst"
+
+[[ports]]
+name = "s_valid"
+direction = "input"
+width = 1
+clock = "clk"
+reset = "rst"
+
+[[ports]]
+name = "s_ready"
+direction = "output"
+width = 1
+clock = "clk"
+reset = "rst"
+
+[[ports]]
+name = "s_data"
+direction = "input"
+width = 8
+clock = "clk"
+reset = "rst"
+
+[[ports]]
+name = "m_valid"
+direction = "output"
+width = 1
+clock = "clk"
+reset = "rst"
+
+[[ports]]
+name = "m_ready"
+direction = "input"
+width = 1
+clock = "clk"
+reset = "rst"
+
+[[ports]]
+name = "m_data"
+direction = "output"
+width = 8
+clock = "clk"
+reset = "rst"
+
+[[ports]]
+name = "cfg_enable"
+direction = "input"
+width = 1
+clock = "clk"
+reset = "rst"
+
+[[ports]]
+name = "status_busy"
+direction = "output"
+width = 1
+clock = "clk"
+reset = "rst"
+
+[[ports]]
+name = "counter_words"
+direction = "output"
+width = 8
+clock = "clk"
+reset = "rst"
+
+[[interfaces]]
+name = "stream_in"
+kind = "ready_valid"
+clock = "clk"
+reset = "rst"
+
+[[interfaces]]
+name = "stream_out"
+kind = "ready_valid"
+clock = "clk"
+reset = "rst"
+
+[formal]
+enabled = false
+properties = []
+
+[[verification_required]]
+kind = "simulation"
+description = "Reference example has a documented simulation plan; runnable testbench is intentionally out of scope."
+
+[[verification_required]]
+kind = "formal-cdc-assumption"
+description = "Reference example records formal assumptions as a placeholder, without claiming proof coverage."
+
+[standards]
+profile = "fpga-ip-core-v1"
+
+[[standards.artifacts]]
+kind = "fusesoc-core"
+path = "standards_ready_core.core"
+category = "now"
+required_for = [19]
+conclusion = "present"

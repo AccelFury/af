@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
+pub mod standards;
+
 pub use af_complexity::PortabilityLevel;
 use af_complexity::ProjectClass;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use standards::StandardsDeclaration;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Component, Path, PathBuf};
 use thiserror::Error;
@@ -32,7 +35,7 @@ impl ManifestError {
         match self {
             ManifestError::Read { .. } => "Check that the manifest path exists and is readable.",
             ManifestError::Parse { .. } => {
-                "Fix TOML syntax and schema shape. Required v0.2/v0.3 fields include af_version, name, vendor, library, core, version, [rtl], [sources], clocks, resets, ports, and relative source paths; use `af core new` for a valid scaffold or migrate legacy project metadata."
+                "Fix TOML syntax and schema shape. Required v0.2+ fields include af_version, name, vendor, library, core, version, [rtl], [sources], clocks, resets, ports, and relative source paths; use `af core new` for a valid scaffold or migrate legacy project metadata."
             }
             ManifestError::Validation { .. } => {
                 "Fix the listed manifest issues before running backend commands."
@@ -146,6 +149,8 @@ pub struct CoreManifest {
     pub verification_required: Vec<VerificationGate>,
     #[serde(default)]
     pub evidence: Option<EvidenceDeclaration>,
+    #[serde(default)]
+    pub standards: Option<StandardsDeclaration>,
 }
 
 impl CoreManifest {
@@ -206,11 +211,11 @@ impl CoreManifest {
     pub fn validate(&self) -> ManifestValidationReport {
         let mut issues = Vec::new();
 
-        if !matches!(self.af_version.as_str(), "0.1" | "0.2" | "0.3") {
+        if !matches!(self.af_version.as_str(), "0.1" | "0.2" | "0.3" | "0.4") {
             issues.push(ValidationIssue::new(
                 "AF_MANIFEST_VERSION_UNSUPPORTED",
                 format!("unsupported af_version `{}`", self.af_version),
-                "Use af_version = \"0.1\", af_version = \"0.2\", or af_version = \"0.3\".",
+                "Use af_version = \"0.1\", \"0.2\", \"0.3\", or \"0.4\".",
             ));
         }
         if let Some(kind) = &self.kind {
@@ -243,6 +248,26 @@ impl CoreManifest {
                 "Use one of: systemverilog, verilog, verilog-2001, vhdl.",
             ));
         }
+        let clocking_none = self.rtl.clocking.as_deref() == Some("none");
+        let reset_none = self.rtl.reset.as_deref() == Some("none");
+        if let Some(mode) = &self.rtl.clocking {
+            if mode != "none" {
+                issues.push(ValidationIssue::new(
+                    "AF_RTL_CLOCKING_MODE_INVALID",
+                    format!("rtl.clocking has unsupported mode `{mode}`"),
+                    "Use rtl.clocking = \"none\" only for explicitly clockless cores, or omit the field.",
+                ));
+            }
+        }
+        if let Some(mode) = &self.rtl.reset {
+            if mode != "none" {
+                issues.push(ValidationIssue::new(
+                    "AF_RTL_RESET_MODE_INVALID",
+                    format!("rtl.reset has unsupported mode `{mode}`"),
+                    "Use rtl.reset = \"none\" only for explicitly resetless cores, or omit the field.",
+                ));
+            }
+        }
 
         if self.sources.files.is_empty() {
             issues.push(ValidationIssue::new(
@@ -251,24 +276,30 @@ impl CoreManifest {
                 "Add one or more source files relative to the core directory.",
             ));
         }
-        if matches!(self.af_version.as_str(), "0.2" | "0.3") && self.clocks.is_empty() {
+        if matches!(self.af_version.as_str(), "0.2" | "0.3" | "0.4")
+            && self.clocks.is_empty()
+            && !clocking_none
+        {
             issues.push(ValidationIssue::new(
                 "AF_MANIFEST_V02_REQUIRED_ARRAY_EMPTY",
-                "v0.2/v0.3 manifest requires at least one [[clocks]] entry",
-                "Add one clock entry under [[clocks]].",
+                "v0.2+ manifest requires at least one [[clocks]] entry",
+                "Add one clock entry under [[clocks]] or set rtl.clocking = \"none\" for a clockless core.",
             ));
         }
-        if matches!(self.af_version.as_str(), "0.2" | "0.3") && self.resets.is_empty() {
+        if matches!(self.af_version.as_str(), "0.2" | "0.3" | "0.4")
+            && self.resets.is_empty()
+            && !reset_none
+        {
             issues.push(ValidationIssue::new(
                 "AF_MANIFEST_V02_REQUIRED_ARRAY_EMPTY",
-                "v0.2/v0.3 manifest requires at least one [[resets]] entry",
-                "Add one reset entry under [[resets]].",
+                "v0.2+ manifest requires at least one [[resets]] entry",
+                "Add one reset entry under [[resets]] or set rtl.reset = \"none\" for a resetless core.",
             ));
         }
-        if matches!(self.af_version.as_str(), "0.2" | "0.3") && self.ports.is_empty() {
+        if matches!(self.af_version.as_str(), "0.2" | "0.3" | "0.4") && self.ports.is_empty() {
             issues.push(ValidationIssue::new(
                 "AF_MANIFEST_V02_REQUIRED_ARRAY_EMPTY",
-                "v0.2/v0.3 manifest requires at least one [[ports]] entry",
+                "v0.2+ manifest requires at least one [[ports]] entry",
                 "Add one port entry under [[ports]].",
             ));
         }
@@ -280,6 +311,33 @@ impl CoreManifest {
             .chain(self.sources.include_dirs.iter())
         {
             validate_manifest_path(path, &mut issues);
+        }
+        if let Some(standards) = &self.standards {
+            if let Some(profile) = &standards.profile {
+                if standards::StandardsProfile::by_id(profile).is_none() {
+                    issues.push(ValidationIssue::new(
+                        "AF_STANDARDS_PROFILE_UNKNOWN",
+                        format!("unknown standards profile `{profile}`"),
+                        "Use profile = \"fpga-ip-core-v1\" or omit [standards].",
+                    ));
+                }
+            }
+            for artifact in &standards.artifacts {
+                validate_manifest_path(&artifact.path, &mut issues);
+                require_non_empty("standards.artifacts.kind", &artifact.kind, &mut issues);
+                for item in &artifact.required_for {
+                    if !(1..=32).contains(item) {
+                        issues.push(ValidationIssue::new(
+                            "AF_STANDARDS_ARTIFACT_ITEM_INVALID",
+                            format!(
+                                "standards artifact `{}` references unsupported checklist item {item}",
+                                artifact.path
+                            ),
+                            "Use checklist item ids 1 through 32 for fpga-ip-core-v1.",
+                        ));
+                    }
+                }
+            }
         }
         let source_files: BTreeSet<&str> = self.sources.files.iter().map(String::as_str).collect();
         for (path, role) in &self.sources.roles {
@@ -519,16 +577,15 @@ impl CoreManifest {
             .iter()
             .filter_map(|reset| reset.port.as_deref())
             .collect();
-        validate_contracts(
-            &self.contracts,
-            &parameter_names,
-            &clocks,
-            &clock_ports,
-            &resets,
-            &reset_ports,
-            &port_names,
-            &mut issues,
-        );
+        let contract_ctx = ContractValidationContext {
+            parameter_names: &parameter_names,
+            clocks: &clocks,
+            clock_ports: &clock_ports,
+            resets: &resets,
+            reset_ports: &reset_ports,
+            ports: &port_names,
+        };
+        validate_contracts(&self.contracts, contract_ctx, &mut issues);
 
         if let Some(default_clock) = &self.rtl.default_clock {
             if !clocks.contains(default_clock.as_str())
@@ -849,6 +906,10 @@ pub struct Rtl {
     pub language: String,
     #[serde(default)]
     pub systemverilog_subset: Option<bool>,
+    #[serde(default)]
+    pub clocking: Option<String>,
+    #[serde(default)]
+    pub reset: Option<String>,
     #[serde(default)]
     pub default_clock: Option<String>,
     #[serde(default)]
@@ -1465,14 +1526,18 @@ fn is_width_identifier_token(value: &str) -> bool {
         && chars.all(|ch| ch.is_ascii_alphanumeric() || ch == '_')
 }
 
+struct ContractValidationContext<'a> {
+    parameter_names: &'a BTreeSet<&'a str>,
+    clocks: &'a BTreeSet<&'a str>,
+    clock_ports: &'a BTreeSet<&'a str>,
+    resets: &'a BTreeSet<&'a str>,
+    reset_ports: &'a BTreeSet<&'a str>,
+    ports: &'a BTreeSet<&'a str>,
+}
+
 fn validate_contracts(
     contracts: &Contracts,
-    parameter_names: &BTreeSet<&str>,
-    clocks: &BTreeSet<&str>,
-    clock_ports: &BTreeSet<&str>,
-    resets: &BTreeSet<&str>,
-    reset_ports: &BTreeSet<&str>,
-    ports: &BTreeSet<&str>,
+    ctx: ContractValidationContext<'_>,
     issues: &mut Vec<ValidationIssue>,
 ) {
     if let Some(fifo) = &contracts.fifo {
@@ -1522,9 +1587,9 @@ fn validate_contracts(
         require_ident("contracts.protocols.kind", &protocol.kind, issues);
         require_ident("contracts.protocols.interface", &protocol.interface, issues);
         if let Some(clock) = &protocol.clock {
-            if !clocks.contains(clock.as_str())
-                && !clock_ports.contains(clock.as_str())
-                && !ports.contains(clock.as_str())
+            if !ctx.clocks.contains(clock.as_str())
+                && !ctx.clock_ports.contains(clock.as_str())
+                && !ctx.ports.contains(clock.as_str())
             {
                 issues.push(ValidationIssue::new(
                     "AF_CLOCK_UNKNOWN",
@@ -1537,9 +1602,9 @@ fn validate_contracts(
             }
         }
         if let Some(reset) = &protocol.reset {
-            if !resets.contains(reset.as_str())
-                && !reset_ports.contains(reset.as_str())
-                && !ports.contains(reset.as_str())
+            if !ctx.resets.contains(reset.as_str())
+                && !ctx.reset_ports.contains(reset.as_str())
+                && !ctx.ports.contains(reset.as_str())
             {
                 issues.push(ValidationIssue::new(
                     "AF_RESET_UNKNOWN",
@@ -1555,7 +1620,7 @@ fn validate_contracts(
             validate_width_expr(
                 &format!("contracts.protocols.{}.data_width", protocol.name),
                 data_width,
-                parameter_names,
+                ctx.parameter_names,
                 issues,
             );
         }
@@ -1587,7 +1652,7 @@ fn validate_contracts(
             validate_width_expr(
                 "contracts.reset_modes.parameter_overrides",
                 value,
-                parameter_names,
+                ctx.parameter_names,
                 issues,
             );
         }
@@ -1678,7 +1743,7 @@ fn validate_v02_required_shape(value: &Value, issues: &mut Vec<ValidationIssue>)
 
     if !matches!(
         table.get("af_version").and_then(Value::as_str),
-        Some("0.2" | "0.3")
+        Some("0.2" | "0.3" | "0.4")
     ) {
         return;
     }
@@ -1691,7 +1756,7 @@ fn validate_v02_required_shape(value: &Value, issues: &mut Vec<ValidationIssue>)
         {
             issues.push(ValidationIssue::new(
                 "AF_MANIFEST_V02_REQUIRED_FIELD_MISSING",
-                format!("v0.2/v0.3 manifest requires root field `{field}`"),
+                format!("v0.2+ manifest requires root field `{field}`"),
                 format!("Set `{field}` at the root of af-core.toml before migration."),
             ));
         }
@@ -1700,7 +1765,7 @@ fn validate_v02_required_shape(value: &Value, issues: &mut Vec<ValidationIssue>)
     let Some(rtl) = table.get("rtl").and_then(Value::as_table) else {
         issues.push(ValidationIssue::new(
             "AF_MANIFEST_V02_REQUIRED_FIELD_MISSING",
-            "v0.2/v0.3 manifest requires [rtl]",
+            "v0.2+ manifest requires [rtl]",
             "Add an [rtl] table with at least a `top` field.",
         ));
         return;
@@ -1712,7 +1777,7 @@ fn validate_v02_required_shape(value: &Value, issues: &mut Vec<ValidationIssue>)
     {
         issues.push(ValidationIssue::new(
             "AF_MANIFEST_V02_REQUIRED_FIELD_MISSING",
-            "v0.2/v0.3 manifest requires `rtl.top`",
+            "v0.2+ manifest requires `rtl.top`",
             "Set the RTL top module name with `top = \"...\"`.",
         ));
     }
@@ -1720,7 +1785,7 @@ fn validate_v02_required_shape(value: &Value, issues: &mut Vec<ValidationIssue>)
     let Some(sources) = table.get("sources").and_then(Value::as_table) else {
         issues.push(ValidationIssue::new(
             "AF_MANIFEST_V02_REQUIRED_FIELD_MISSING",
-            "v0.2/v0.3 manifest requires [sources].files",
+            "v0.2+ manifest requires [sources].files",
             "Add a `[sources]` table with at least one source entry in `files`.",
         ));
         return;
@@ -1732,21 +1797,33 @@ fn validate_v02_required_shape(value: &Value, issues: &mut Vec<ValidationIssue>)
     {
         issues.push(ValidationIssue::new(
             "AF_MANIFEST_V02_REQUIRED_FIELD_MISSING",
-            "v0.2/v0.3 manifest requires `[sources].files`",
+            "v0.2+ manifest requires `[sources].files`",
             "Populate `[sources].files` with one or more relative source paths.",
         ));
     }
 
-    for field in ["clocks", "resets", "ports"] {
+    let clocking_declared = rtl.get("clocking").and_then(Value::as_str).is_some();
+    let reset_declared = rtl.get("reset").and_then(Value::as_str).is_some();
+    for (field, optional_mode_declared) in [
+        ("clocks", clocking_declared),
+        ("resets", reset_declared),
+        ("ports", false),
+    ] {
         if table
             .get(field)
             .and_then(Value::as_array)
             .is_none_or(Vec::is_empty)
+            && !optional_mode_declared
         {
+            let mode_hint = match field {
+                "clocks" => " or set `rtl.clocking = \"none\"` for a clockless core",
+                "resets" => " or set `rtl.reset = \"none\"` for a resetless core",
+                _ => "",
+            };
             issues.push(ValidationIssue::new(
                 "AF_MANIFEST_V02_REQUIRED_FIELD_MISSING",
-                format!("v0.2/v0.3 manifest requires `{field}`"),
-                format!("Add at least one `[[{field}]]` entry for v0.2/v0.3 manifests."),
+                format!("v0.2+ manifest requires `{field}`"),
+                format!("Add at least one `[[{field}]]` entry for v0.2+ manifests{mode_hint}."),
             ));
         }
     }
@@ -2273,6 +2350,147 @@ compatibility_profile = "af_stream_v1"
         assert_eq!(manifest.resources.memory[0].backend_policy, "prefer_vendor");
         assert!(manifest.constructor.as_ref().unwrap().export);
         assert!(manifest.validate().valid);
+    }
+
+    #[test]
+    fn parses_v04_standards_artifacts() {
+        let manifest = CoreManifest::from_toml_str(
+            r#"
+af_version = "0.4"
+name = "standards-demo"
+vendor = "accelfury"
+library = "ip"
+core = "standards_demo"
+version = "0.1.0"
+
+[rtl]
+top = "standards_demo"
+language = "verilog-2001"
+
+[sources]
+files = ["rtl/standards_demo.v"]
+
+[[clocks]]
+name = "clk"
+port = "clk"
+
+[[resets]]
+name = "rst"
+port = "rst"
+active = "high"
+
+[[ports]]
+name = "clk"
+direction = "input"
+width = 1
+
+[[ports]]
+name = "rst"
+direction = "input"
+width = 1
+
+[standards]
+profile = "fpga-ip-core-v1"
+
+[[standards.artifacts]]
+kind = "ip-xact"
+path = "ipxact/standards_demo.xml"
+standard = "IEEE 1685"
+edition = "2022"
+category = "now"
+required_for = [24]
+conclusion = "present"
+"#,
+            "af-core.toml",
+        )
+        .unwrap();
+        let standards = manifest.standards.as_ref().unwrap();
+        assert_eq!(standards.profile.as_deref(), Some("fpga-ip-core-v1"));
+        assert_eq!(standards.artifacts[0].kind, "ip-xact");
+        assert_eq!(standards.artifacts[0].required_for, vec![24]);
+        assert!(manifest.validate().valid);
+    }
+
+    #[test]
+    fn v04_allows_explicit_clockless_resetless_core() {
+        let manifest = CoreManifest::from_toml_str(
+            r#"
+af_version = "0.4"
+name = "mux-demo"
+vendor = "accelfury"
+library = "ip"
+core = "mux_demo"
+version = "0.1.0"
+
+[rtl]
+top = "mux_demo"
+language = "verilog-2001"
+clocking = "none"
+reset = "none"
+
+[sources]
+files = ["rtl/mux_demo.v"]
+
+[[ports]]
+name = "a"
+direction = "input"
+width = 1
+
+[[ports]]
+name = "y"
+direction = "output"
+width = 1
+"#,
+            "af-core.toml",
+        )
+        .unwrap();
+        assert_eq!(manifest.rtl.clocking.as_deref(), Some("none"));
+        assert_eq!(manifest.rtl.reset.as_deref(), Some("none"));
+        assert!(manifest.clocks.is_empty());
+        assert!(manifest.resets.is_empty());
+    }
+
+    #[test]
+    fn v04_rejects_unknown_clocking_and_reset_modes() {
+        let err = CoreManifest::from_toml_str(
+            r#"
+af_version = "0.4"
+name = "bad-modes"
+vendor = "accelfury"
+library = "ip"
+core = "bad_modes"
+version = "0.1.0"
+
+[rtl]
+top = "bad_modes"
+language = "verilog-2001"
+clocking = "implicit"
+reset = "magic"
+
+[sources]
+files = ["rtl/bad_modes.v"]
+
+[[ports]]
+name = "y"
+direction = "output"
+width = 1
+"#,
+            "af-core.toml",
+        )
+        .unwrap_err();
+        let messages = match err {
+            ManifestError::Validation { issues } => issues
+                .into_iter()
+                .map(|issue| issue.message)
+                .collect::<Vec<_>>(),
+            other => panic!("expected validation error, got {other:?}"),
+        };
+        assert!(messages
+            .iter()
+            .any(|message| message.contains("rtl.clocking has unsupported mode")));
+        assert!(messages
+            .iter()
+            .any(|message| message.contains("rtl.reset has unsupported mode")));
     }
 
     #[test]

@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ipxact:component xmlns:ipxact="http://www.accellera.org/XMLSchema/IPXACT/1685-2022" xmlns:af="https://accelfury.dev/ipxact/vendor-extensions/1.0">
+  <ipxact:vendor>accelfury</ipxact:vendor>
+  <ipxact:library>examples</ipxact:library>
+  <ipxact:name>standards_ready_core</ipxact:name>
+  <ipxact:version>0.1.0</ipxact:version>
+  <ipxact:description>IEEE 1685-2022 IP-XACT component skeleton for standards-ready-core.</ipxact:description>
+  <ipxact:busInterfaces>
+    <ipxact:busInterface>
+      <ipxact:name>stream_in</ipxact:name>
+      <ipxact:description>Manifest interface kind: ready_valid</ipxact:description>
+    </ipxact:busInterface>
+    <ipxact:busInterface>
+      <ipxact:name>stream_out</ipxact:name>
+      <ipxact:description>Manifest interface kind: ready_valid</ipxact:description>
+    </ipxact:busInterface>
+  </ipxact:busInterfaces>
+  <ipxact:model>
+    <ipxact:views>
+      <ipxact:view>
+        <ipxact:name>rtl</ipxact:name>
+        <ipxact:envIdentifier>accelfury:rtl</ipxact:envIdentifier>
+        <ipxact:modelName>standards_ready_core</ipxact:modelName>
+        <ipxact:fileSetRef>
+          <ipxact:localName>standards_ready_core_files</ipxact:localName>
+        </ipxact:fileSetRef>
+      </ipxact:view>
+    </ipxact:views>
+    <ipxact:ports>
+      <ipxact:port><ipxact:name>clk</ipxact:name><ipxact:wire><ipxact:direction>input</ipxact:direction></ipxact:wire></ipxact:port>
+      <ipxact:port><ipxact:name>rst</ipxact:name><ipxact:wire><ipxact:direction>input</ipxact:direction></ipxact:wire></ipxact:port>
+      <ipxact:port><ipxact:name>s_valid</ipxact:name><ipxact:wire><ipxact:direction>input</ipxact:direction></ipxact:wire></ipxact:port>
+      <ipxact:port><ipxact:name>s_ready</ipxact:name><ipxact:wire><ipxact:direction>output</ipxact:direction></ipxact:wire></ipxact:port>
+      <ipxact:port><ipxact:name>s_data</ipxact:name><ipxact:wire><ipxact:direction>input</ipxact:direction></ipxact:wire></ipxact:port>
+      <ipxact:port><ipxact:name>m_valid</ipxact:name><ipxact:wire><ipxact:direction>output</ipxact:direction></ipxact:wire></ipxact:port>
+      <ipxact:port><ipxact:name>m_ready</ipxact:name><ipxact:wire><ipxact:direction>input</ipxact:direction></ipxact:wire></ipxact:port>
+      <ipxact:port><ipxact:name>m_data</ipxact:name><ipxact:wire><ipxact:direction>output</ipxact:direction></ipxact:wire></ipxact:port>
+      <ipxact:port><ipxact:name>cfg_enable</ipxact:name><ipxact:wire><ipxact:direction>input</ipxact:direction></ipxact:wire></ipxact:port>
+      <ipxact:port><ipxact:name>status_busy</ipxact:name><ipxact:wire><ipxact:direction>output</ipxact:direction></ipxact:wire></ipxact:port>
+      <ipxact:port><ipxact:name>counter_words</ipxact:name><ipxact:wire><ipxact:direction>output</ipxact:direction></ipxact:wire></ipxact:port>
+    </ipxact:ports>
+  </ipxact:model>
+  <ipxact:fileSets>
+    <ipxact:fileSet>
+      <ipxact:name>standards_ready_core_files</ipxact:name>
+      <ipxact:file>
+        <ipxact:name>rtl/standards_ready_core.v</ipxact:name>
+        <ipxact:fileType>verilogSource</ipxact:fileType>
+      </ipxact:file>
+    </ipxact:fileSet>
+  </ipxact:fileSets>
+  <ipxact:vendorExtensions>
+    <af:portabilityTier>U0</af:portabilityTier>
+    <af:topSource>rtl/standards_ready_core.v</af:topSource>
+  </ipxact:vendorExtensions>
+</ipxact:component>

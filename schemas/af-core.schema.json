@@ -1,13 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "AccelFury af-core.toml v0.1/v0.2/v0.3",
-  "description": "Manifest for a single AccelFury core. Mirrors the CoreManifest struct in crates/af-manifest. New v0.3 fields portability_level/priority/maturity/verification_required are optional and parallel to complexity.class.",
+  "title": "AccelFury af-core.toml v0.1/v0.2/v0.3/v0.4",
+  "description": "Manifest for a single AccelFury core. Mirrors the CoreManifest struct in crates/af-manifest. New v0.4 surfaces include standards evidence declarations and explicit clockless/resetless RTL modes.",
   "type": "object",
   "required": ["name", "vendor", "library", "core", "version", "rtl", "sources"],
   "properties": {
-    "af_version": { "type": "string", "enum": ["0.1", "0.2", "0.3"] },
-    "schema_version": { "type": "string", "enum": ["0.1", "0.2", "0.3"], "description": "Deprecated alias for af_version." },
-    "manifest_version": { "type": "string", "enum": ["0.1", "0.2", "0.3"], "description": "Deprecated alias for af_version." },
+    "af_version": { "type": "string", "enum": ["0.1", "0.2", "0.3", "0.4"] },
+    "schema_version": { "type": "string", "enum": ["0.1", "0.2", "0.3", "0.4"], "description": "Deprecated alias for af_version." },
+    "manifest_version": { "type": "string", "enum": ["0.1", "0.2", "0.3", "0.4"], "description": "Deprecated alias for af_version." },
     "kind": { "type": "string", "enum": ["accelfury.core"] },
     "name": { "type": "string" },
     "vendor": { "type": "string" },
@@ -48,6 +48,8 @@
         "top": { "type": "string" },
         "language": { "enum": ["systemverilog", "verilog", "verilog-2001", "vhdl"] },
         "systemverilog_subset": { "type": "boolean" },
+        "clocking": { "type": "string", "enum": ["none"] },
+        "reset": { "type": "string", "enum": ["none"] },
         "default_clock": { "type": "string" },
         "default_reset": { "type": "string" },
         "variants": {
@@ -411,6 +413,33 @@
             "board_id": { "type": "string" },
             "report_path": { "type": "string" },
             "date": { "type": "string", "description": "ISO-8601 date." }
+          }
+        }
+      }
+    },
+    "standards": {
+      "type": "object",
+      "description": "Optional standards evidence profile declarations for reusable FPGA/IP cores.",
+      "properties": {
+        "profile": { "type": "string", "enum": ["fpga-ip-core-v1"] },
+        "artifacts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["kind", "path"],
+            "properties": {
+              "kind": { "type": "string" },
+              "path": { "type": "string" },
+              "standard": { "type": "string" },
+              "edition": { "type": "string" },
+              "category": { "type": "string" },
+              "required_for": {
+                "type": "array",
+                "items": { "type": "integer", "minimum": 1, "maximum": 32 }
+              },
+              "conclusion": { "type": "string" },
+              "sha256": { "type": "string" }
+            }
           }
         }
       }

@@ -1,0 +1,819 @@
+{
+  "profile_id": "fpga-ip-core-v1",
+  "profile_version": "1.0",
+  "rows": [
+    {
+      "category": "now",
+      "checklist_item": "Purpose",
+      "checklist_item_id": 1,
+      "evidence_artifact_required": "docs/spec.md section 1",
+      "maps_to_standard": "(none)",
+      "portability_tier_relevance": "U0-U4",
+      "relevant_clause_or_area": "n/a",
+      "required_artifact_kinds": [
+        "spec"
+      ],
+      "standard_edition_year": "n/a"
+    },
+    {
+      "category": "now",
+      "checklist_item": "Target users",
+      "checklist_item_id": 2,
+      "evidence_artifact_required": "docs/spec.md section 2",
+      "maps_to_standard": "(none)",
+      "portability_tier_relevance": "U0-U4",
+      "relevant_clause_or_area": "n/a",
+      "required_artifact_kinds": [
+        "spec"
+      ],
+      "standard_edition_year": "n/a"
+    },
+    {
+      "category": "now",
+      "checklist_item": "Use cases",
+      "checklist_item_id": 3,
+      "evidence_artifact_required": "docs/spec.md section 3",
+      "maps_to_standard": "IEEE 1012",
+      "portability_tier_relevance": "U0-U4",
+      "relevant_clause_or_area": "V&V concept of operations",
+      "required_artifact_kinds": [
+        "spec"
+      ],
+      "standard_edition_year": "2024"
+    },
+    {
+      "category": "now",
+      "checklist_item": "Non-goals",
+      "checklist_item_id": 4,
+      "evidence_artifact_required": "docs/spec.md section 4",
+      "maps_to_standard": "(none)",
+      "portability_tier_relevance": "U0-U4",
+      "relevant_clause_or_area": "n/a",
+      "required_artifact_kinds": [
+        "spec"
+      ],
+      "standard_edition_year": "n/a"
+    },
+    {
+      "category": "now",
+      "checklist_item": "Portability tier (U0-U4)",
+      "checklist_item_id": 5,
+      "evidence_artifact_required": "docs/spec.md section 5 + IP-XACT tier tag",
+      "maps_to_standard": "IEEE 1685",
+      "portability_tier_relevance": "U0-U4",
+      "relevant_clause_or_area": "vendor extensions / componentParameters",
+      "required_artifact_kinds": [
+        "spec",
+        "ip-xact"
+      ],
+      "standard_edition_year": "2022"
+    },
+    {
+      "category": "now",
+      "checklist_item": "Interface",
+      "checklist_item_id": 6,
+      "evidence_artifact_required": "docs/spec.md section 6 + ipxact/component.xml",
+      "maps_to_standard": "IEEE 1685",
+      "portability_tier_relevance": "U0-U4",
+      "relevant_clause_or_area": "busInterfaces / abstractionDefinition",
+      "required_artifact_kinds": [
+        "spec",
+        "ip-xact"
+      ],
+      "standard_edition_year": "2022"
+    },
+    {
+      "category": "now",
+      "checklist_item": "Interface",
+      "checklist_item_id": 6,
+      "evidence_artifact_required": "docs/spec.md section 6 + ipxact/component.xml",
+      "maps_to_standard": "Accellera SystemRDL",
+      "portability_tier_relevance": "U0-U4",
+      "relevant_clause_or_area": "register interface description",
+      "required_artifact_kinds": [
+        "spec",
+        "ip-xact"
+      ],
+      "standard_edition_year": "2.0 (Jan 2018)"
+    },
+    {
+      "category": "now",
+      "checklist_item": "Parameters",
+      "checklist_item_id": 7,
+      "evidence_artifact_required": "docs/spec.md section 7 + RTL parameters",
+      "maps_to_standard": "IEEE 1685",
+      "portability_tier_relevance": "U0-U4",
+      "relevant_clause_or_area": "componentParameters",
+      "required_artifact_kinds": [
+        "spec"
+      ],
+      "standard_edition_year": "2022"
+    },
+    {
+      "category": "now",
+      "checklist_item": "Parameters",
+      "checklist_item_id": 7,
+      "evidence_artifact_required": "docs/spec.md section 7 + RTL parameters",
+      "maps_to_standard": "IEEE 1364 / IEEE 1800",
+      "portability_tier_relevance": "U0-U4",
+      "relevant_clause_or_area": "parameter declarations",
+      "required_artifact_kinds": [
+        "spec"
+      ],
+      "standard_edition_year": "2005 / 2023"
+    },
+    {
+      "category": "now",
+      "checklist_item": "Architecture",
+      "checklist_item_id": 8,
+      "evidence_artifact_required": "docs/spec.md section 8 + block diagram",
+      "maps_to_standard": "IEEE 1012",
+      "portability_tier_relevance": "U0-U4",
+      "relevant_clause_or_area": "design description adjacent process",
+      "required_artifact_kinds": [
+        "spec"
+      ],
+      "standard_edition_year": "2024"
+    },
+    {
+      "category": "now",
+      "checklist_item": "Datapath / control FSM",
+      "checklist_item_id": 9,
+      "evidence_artifact_required": "docs/spec.md section 9 + FSM diagram",
+      "maps_to_standard": "IEEE 1364",
+      "portability_tier_relevance": "U0-U4",
+      "relevant_clause_or_area": "procedural blocks and FSM coding",
+      "required_artifact_kinds": [
+        "spec"
+      ],
+      "standard_edition_year": "2001 subset"
+    },
+    {
+      "category": "now",
+      "checklist_item": "Datapath / control FSM",
+      "checklist_item_id": 9,
+      "evidence_artifact_required": "docs/spec.md section 9 + FSM diagram",
+      "maps_to_standard": "lowRISC Verilog Style Guide",
+      "portability_tier_relevance": "U0-U4",
+      "relevant_clause_or_area": "FSM style",
+      "required_artifact_kinds": [
+        "spec"
+      ],
+      "standard_edition_year": "continuous"
+    },
+    {
+      "category": "now",
+      "checklist_item": "Reset / clock / CDC behaviour",
+      "checklist_item_id": 10,
+      "evidence_artifact_required": "docs/spec.md section 10 + CDC notes",
+      "maps_to_standard": "CDC/RDC methodology",
+      "portability_tier_relevance": "U0-U4",
+      "relevant_clause_or_area": "Cummings SNUG 2008, vendor CDC guides, Accellera CDC/RDC 1.0",
+      "required_artifact_kinds": [
+        "spec"
+      ],
+      "standard_edition_year": "no single IEEE/ISO standard"
+    },
+    {
+      "category": "now",
+      "checklist_item": "Protocol semantics",
+      "checklist_item_id": 11,
+      "evidence_artifact_required": "docs/spec.md section 11 + timing diagrams",
+      "maps_to_standard": "IEEE 1685",
+      "portability_tier_relevance": "U0-U4",
+      "relevant_clause_or_area": "abstractionDefinition",
+      "required_artifact_kinds": [
+        "spec"
+      ],
+      "standard_edition_year": "2022"
+    },
+    {
+      "category": "now",
+      "checklist_item": "Error / status / counter behaviour",
+      "checklist_item_id": 12,
+      "evidence_artifact_required": "docs/spec.md section 12 + regs.rdl",
+      "maps_to_standard": "Accellera SystemRDL",
+      "portability_tier_relevance": "U0-U4",
+      "relevant_clause_or_area": "field/register semantics",
+      "required_artifact_kinds": [
+        "spec",
+        "systemrdl"
+      ],
+      "standard_edition_year": "2.0 (Jan 2018)"
+    },
+    {
+      "category": "now",
+      "checklist_item": "Error / status / counter behaviour",
+      "checklist_item_id": 12,
+      "evidence_artifact_required": "docs/spec.md section 12 + regs.rdl",
+      "maps_to_standard": "IEEE 1685",
+      "portability_tier_relevance": "U0-U4",
+      "relevant_clause_or_area": "register descriptions",
+      "required_artifact_kinds": [
+        "spec",
+        "systemrdl"
+      ],
+      "standard_edition_year": "2022"
+    },
+    {
+      "category": "now",
+      "checklist_item": "Timing and latency",
+      "checklist_item_id": 13,
+      "evidence_artifact_required": "docs/spec.md section 13 + latency table",
+      "maps_to_standard": "Vendor datasheet conventions",
+      "portability_tier_relevance": "U0-U4",
+      "relevant_clause_or_area": "AMD PGxxx / Intel UG-xxxxx style latency tables",
+      "required_artifact_kinds": [
+        "spec"
+      ],
+      "standard_edition_year": "continuous"
+    },
+    {
+      "category": "now",
+      "checklist_item": "Corner cases",
+      "checklist_item_id": 14,
+      "evidence_artifact_required": "docs/spec.md section 14",
+      "maps_to_standard": "IEEE 1012",
+      "portability_tier_relevance": "U0-U4",
+      "relevant_clause_or_area": "V&V activities",
+      "required_artifact_kinds": [
+        "spec"
+      ],
+      "standard_edition_year": "2024"
+    },
+    {
+      "category": "now",
+      "checklist_item": "Simulation plan",
+      "checklist_item_id": 15,
+      "evidence_artifact_required": "sim/README.md + test plan",
+      "maps_to_standard": "IEEE 1800.2",
+      "portability_tier_relevance": "U0-U4",
+      "relevant_clause_or_area": "UVM",
+      "required_artifact_kinds": [
+        "simulation-plan"
+      ],
+      "standard_edition_year": "2020"
+    },
+    {
+      "category": "now",
+      "checklist_item": "Simulation plan",
+      "checklist_item_id": 15,
+      "evidence_artifact_required": "sim/README.md + test plan",
+      "maps_to_standard": "IEEE 1800",
+      "portability_tier_relevance": "U0-U4",
+      "relevant_clause_or_area": "SVA",
+      "required_artifact_kinds": [
+        "simulation-plan"
+      ],
+      "standard_edition_year": "2023"
+    },
+    {
+      "category": "now",
+      "checklist_item": "Simulation plan",
+      "checklist_item_id": 15,
+      "evidence_artifact_required": "sim/README.md + test plan",
+      "maps_to_standard": "IEEE 1850",
+      "portability_tier_relevance": "U0-U4",
+      "relevant_clause_or_area": "PSL",
+      "required_artifact_kinds": [
+        "simulation-plan"
+      ],
+      "standard_edition_year": "2010"
+    },
+    {
+      "category": "now",
+      "checklist_item": "Simulation plan",
+      "checklist_item_id": 15,
+      "evidence_artifact_required": "sim/README.md + test plan",
+      "maps_to_standard": "ISO/IEC/IEEE 29119",
+      "portability_tier_relevance": "U0-U4",
+      "relevant_clause_or_area": "test process/docs/techniques",
+      "required_artifact_kinds": [
+        "simulation-plan"
+      ],
+      "standard_edition_year": "2021-2024"
+    },
+    {
+      "category": "now/foundation",
+      "checklist_item": "Formal verification plan",
+      "checklist_item_id": 16,
+      "evidence_artifact_required": "formal/README.md + property files",
+      "maps_to_standard": "IEEE 1800",
+      "portability_tier_relevance": "U0-U2",
+      "relevant_clause_or_area": "SVA",
+      "required_artifact_kinds": [
+        "formal-plan"
+      ],
+      "standard_edition_year": "2023"
+    },
+    {
+      "category": "now/foundation",
+      "checklist_item": "Formal verification plan",
+      "checklist_item_id": 16,
+      "evidence_artifact_required": "formal/README.md + property files",
+      "maps_to_standard": "IEEE 1850",
+      "portability_tier_relevance": "U0-U2",
+      "relevant_clause_or_area": "PSL",
+      "required_artifact_kinds": [
+        "formal-plan"
+      ],
+      "standard_edition_year": "2010"
+    },
+    {
+      "category": "now/foundation",
+      "checklist_item": "Formal verification plan",
+      "checklist_item_id": 16,
+      "evidence_artifact_required": "formal/README.md + property files",
+      "maps_to_standard": "IEEE 1012",
+      "portability_tier_relevance": "U0-U2",
+      "relevant_clause_or_area": "V&V process",
+      "required_artifact_kinds": [
+        "formal-plan"
+      ],
+      "standard_edition_year": "2024"
+    },
+    {
+      "category": "now",
+      "checklist_item": "Synthesis targets",
+      "checklist_item_id": 17,
+      "evidence_artifact_required": "synth/results.md",
+      "maps_to_standard": "IEEE 1364",
+      "portability_tier_relevance": "U0-U4",
+      "relevant_clause_or_area": "portable synthesis baseline",
+      "required_artifact_kinds": [
+        "synthesis-report"
+      ],
+      "standard_edition_year": "2001 subset"
+    },
+    {
+      "category": "now",
+      "checklist_item": "Synthesis targets",
+      "checklist_item_id": 17,
+      "evidence_artifact_required": "synth/results.md",
+      "maps_to_standard": "IEEE 1800",
+      "portability_tier_relevance": "U0-U4",
+      "relevant_clause_or_area": "restricted synthesis subset",
+      "required_artifact_kinds": [
+        "synthesis-report"
+      ],
+      "standard_edition_year": "2023"
+    },
+    {
+      "category": "now",
+      "checklist_item": "Board demo plan",
+      "checklist_item_id": 18,
+      "evidence_artifact_required": "boards/<board>/README.md",
+      "maps_to_standard": "(none)",
+      "portability_tier_relevance": "U0-U2",
+      "relevant_clause_or_area": "n/a",
+      "required_artifact_kinds": [
+        "board-demo"
+      ],
+      "standard_edition_year": "n/a"
+    },
+    {
+      "category": "now",
+      "checklist_item": "Repository structure",
+      "checklist_item_id": 19,
+      "evidence_artifact_required": "repo layout + <core>.core",
+      "maps_to_standard": "IEEE 1685",
+      "portability_tier_relevance": "U0-U4",
+      "relevant_clause_or_area": "fileSets",
+      "required_artifact_kinds": [
+        "fusesoc-core"
+      ],
+      "standard_edition_year": "2022"
+    },
+    {
+      "category": "now",
+      "checklist_item": "Repository structure",
+      "checklist_item_id": 19,
+      "evidence_artifact_required": "repo layout + <core>.core",
+      "maps_to_standard": "FuseSoC core file",
+      "portability_tier_relevance": "U0-U4",
+      "relevant_clause_or_area": ".core package convention",
+      "required_artifact_kinds": [
+        "fusesoc-core"
+      ],
+      "standard_edition_year": "continuous"
+    },
+    {
+      "category": "now",
+      "checklist_item": "Documentation requirements",
+      "checklist_item_id": 20,
+      "evidence_artifact_required": "docs/datasheet.md",
+      "maps_to_standard": "ISO/IEC/IEEE 26515",
+      "portability_tier_relevance": "U0-U4",
+      "relevant_clause_or_area": "user documentation process, informative",
+      "required_artifact_kinds": [
+        "datasheet"
+      ],
+      "standard_edition_year": "2018"
+    },
+    {
+      "category": "now",
+      "checklist_item": "License / provenance notes",
+      "checklist_item_id": 21,
+      "evidence_artifact_required": "LICENSE, NOTICE, SPDX headers",
+      "maps_to_standard": "SPDX License List",
+      "portability_tier_relevance": "U0-U4",
+      "relevant_clause_or_area": "license identifiers",
+      "required_artifact_kinds": [
+        "license",
+        "spdx-header-audit",
+        "spdx-hbom"
+      ],
+      "standard_edition_year": "pin at release time"
+    },
+    {
+      "category": "now",
+      "checklist_item": "License / provenance notes",
+      "checklist_item_id": 21,
+      "evidence_artifact_required": "LICENSE, NOTICE, SPDX headers",
+      "maps_to_standard": "CERN-OHL-2.0 / Apache-2.0 / MIT / BSD-3-Clause",
+      "portability_tier_relevance": "U0-U4",
+      "relevant_clause_or_area": "license policy",
+      "required_artifact_kinds": [
+        "license",
+        "spdx-header-audit",
+        "spdx-hbom"
+      ],
+      "standard_edition_year": "various"
+    },
+    {
+      "category": "now",
+      "checklist_item": "License / provenance notes",
+      "checklist_item_id": 21,
+      "evidence_artifact_required": "LICENSE, NOTICE, SPDX headers",
+      "maps_to_standard": "IEEE 1735",
+      "portability_tier_relevance": "U0-U4",
+      "relevant_clause_or_area": "explicitly disallowed unless commercially fenced",
+      "required_artifact_kinds": [
+        "license",
+        "spdx-header-audit",
+        "spdx-hbom"
+      ],
+      "standard_edition_year": "2023"
+    },
+    {
+      "category": "now",
+      "checklist_item": "Acceptance criteria",
+      "checklist_item_id": 22,
+      "evidence_artifact_required": "docs/acceptance.md + CI evidence",
+      "maps_to_standard": "IEEE 1012",
+      "portability_tier_relevance": "U0-U4",
+      "relevant_clause_or_area": "acceptance test activities",
+      "required_artifact_kinds": [
+        "acceptance"
+      ],
+      "standard_edition_year": "2024"
+    },
+    {
+      "category": "now",
+      "checklist_item": "Acceptance criteria",
+      "checklist_item_id": 22,
+      "evidence_artifact_required": "docs/acceptance.md + CI evidence",
+      "maps_to_standard": "ISO/IEC/IEEE 29119-3",
+      "portability_tier_relevance": "U0-U4",
+      "relevant_clause_or_area": "test completion report",
+      "required_artifact_kinds": [
+        "acceptance"
+      ],
+      "standard_edition_year": "2021"
+    },
+    {
+      "category": "now/foundation",
+      "checklist_item": "Risks and mitigations",
+      "checklist_item_id": 23,
+      "evidence_artifact_required": "docs/risks.md",
+      "maps_to_standard": "ISO 26262-9",
+      "portability_tier_relevance": "U0-U4",
+      "relevant_clause_or_area": "ASIL-oriented analyses, forward-looking",
+      "required_artifact_kinds": [
+        "risks"
+      ],
+      "standard_edition_year": "2018"
+    },
+    {
+      "category": "now",
+      "checklist_item": "IP-XACT packaging + machine-readable metadata",
+      "checklist_item_id": 24,
+      "evidence_artifact_required": "ipxact/<core>.xml",
+      "maps_to_standard": "IEEE 1685",
+      "portability_tier_relevance": "U0-U4",
+      "relevant_clause_or_area": "components, busInterfaces, abstractionDefinition, design, generators",
+      "required_artifact_kinds": [
+        "ip-xact"
+      ],
+      "standard_edition_year": "2022"
+    },
+    {
+      "category": "now",
+      "checklist_item": "Register description (single source of truth)",
+      "checklist_item_id": 25,
+      "evidence_artifact_required": "regs/<core>.rdl",
+      "maps_to_standard": "Accellera SystemRDL",
+      "portability_tier_relevance": "U0-U4",
+      "relevant_clause_or_area": "field/register/regfile/address map",
+      "required_artifact_kinds": [
+        "systemrdl"
+      ],
+      "standard_edition_year": "2.0 (Jan 2018)"
+    },
+    {
+      "category": "now",
+      "checklist_item": "Register description (single source of truth)",
+      "checklist_item_id": 25,
+      "evidence_artifact_required": "regs/<core>.rdl",
+      "maps_to_standard": "IEEE 1800.2",
+      "portability_tier_relevance": "U0-U4",
+      "relevant_clause_or_area": "UVM RAL",
+      "required_artifact_kinds": [
+        "systemrdl"
+      ],
+      "standard_edition_year": "2020"
+    },
+    {
+      "category": "foundation",
+      "checklist_item": "Power intent (or N/A justification)",
+      "checklist_item_id": 26,
+      "evidence_artifact_required": "power/<core>.upf or N/A note",
+      "maps_to_standard": "IEEE 1801",
+      "portability_tier_relevance": "U2-U4",
+      "relevant_clause_or_area": "UPF 4.0 power intent",
+      "required_artifact_kinds": [
+        "upf",
+        "power-na"
+      ],
+      "standard_edition_year": "2024 (published Mar 2025)"
+    },
+    {
+      "category": "foundation",
+      "checklist_item": "DFT / test access",
+      "checklist_item_id": 27,
+      "evidence_artifact_required": "dft/<core>.ctl, BSDL fragment, or N/A note",
+      "maps_to_standard": "IEEE 1149.1",
+      "portability_tier_relevance": "U2-U4",
+      "relevant_clause_or_area": "JTAG TAP and boundary scan",
+      "required_artifact_kinds": [
+        "dft",
+        "jtag-na"
+      ],
+      "standard_edition_year": "2013 inactive-reserved / legacy hook"
+    },
+    {
+      "category": "foundation",
+      "checklist_item": "DFT / test access",
+      "checklist_item_id": 27,
+      "evidence_artifact_required": "dft/<core>.ctl, BSDL fragment, or N/A note",
+      "maps_to_standard": "IEEE 1500",
+      "portability_tier_relevance": "U2-U4",
+      "relevant_clause_or_area": "embedded core test / CTL",
+      "required_artifact_kinds": [
+        "dft",
+        "jtag-na"
+      ],
+      "standard_edition_year": "2022"
+    },
+    {
+      "category": "now",
+      "checklist_item": "Coding-style and lint",
+      "checklist_item_id": 28,
+      "evidence_artifact_required": ".verible.rules + lint-clean CI",
+      "maps_to_standard": "lowRISC Verilog Style Guide",
+      "portability_tier_relevance": "U0-U4",
+      "relevant_clause_or_area": "RTL style",
+      "required_artifact_kinds": [
+        "verible-lint",
+        "native-lint"
+      ],
+      "standard_edition_year": "continuous"
+    },
+    {
+      "category": "now",
+      "checklist_item": "Coding-style and lint",
+      "checklist_item_id": 28,
+      "evidence_artifact_required": ".verible.rules + lint-clean CI",
+      "maps_to_standard": "Verible",
+      "portability_tier_relevance": "U0-U4",
+      "relevant_clause_or_area": "lint/format",
+      "required_artifact_kinds": [
+        "verible-lint",
+        "native-lint"
+      ],
+      "standard_edition_year": "continuous"
+    },
+    {
+      "category": "now",
+      "checklist_item": "Coding-style and lint",
+      "checklist_item_id": 28,
+      "evidence_artifact_required": ".verible.rules + lint-clean CI",
+      "maps_to_standard": "IEEE 1800",
+      "portability_tier_relevance": "U0-U4",
+      "relevant_clause_or_area": "restricted subset policy",
+      "required_artifact_kinds": [
+        "verible-lint",
+        "native-lint"
+      ],
+      "standard_edition_year": "2023"
+    },
+    {
+      "category": "now",
+      "checklist_item": "CI, reproducibility, semantic versioning",
+      "checklist_item_id": 29,
+      "evidence_artifact_required": ".github/workflows/*.yml, VERSION, CHANGELOG.md",
+      "maps_to_standard": "SemVer",
+      "portability_tier_relevance": "U0-U4",
+      "relevant_clause_or_area": "MAJOR.MINOR.PATCH",
+      "required_artifact_kinds": [
+        "ci"
+      ],
+      "standard_edition_year": "2.0.0"
+    },
+    {
+      "category": "now",
+      "checklist_item": "CI, reproducibility, semantic versioning",
+      "checklist_item_id": 29,
+      "evidence_artifact_required": ".github/workflows/*.yml, VERSION, CHANGELOG.md",
+      "maps_to_standard": "ISO/IEC/IEEE 29119-2",
+      "portability_tier_relevance": "U0-U4",
+      "relevant_clause_or_area": "test process",
+      "required_artifact_kinds": [
+        "ci"
+      ],
+      "standard_edition_year": "2021"
+    },
+    {
+      "category": "foundation",
+      "checklist_item": "Safety hooks (forward-looking)",
+      "checklist_item_id": 30,
+      "evidence_artifact_required": "safety/safety_manual.md placeholder or populated manual",
+      "maps_to_standard": "ISO 26262",
+      "portability_tier_relevance": "U0-U4",
+      "relevant_clause_or_area": "HW/supporting/semiconductor guidance",
+      "required_artifact_kinds": [
+        "safety-manual"
+      ],
+      "standard_edition_year": "2018"
+    },
+    {
+      "category": "foundation",
+      "checklist_item": "Safety hooks (forward-looking)",
+      "checklist_item_id": 30,
+      "evidence_artifact_required": "safety/safety_manual.md placeholder or populated manual",
+      "maps_to_standard": "IEC 61508-2",
+      "portability_tier_relevance": "U0-U4",
+      "relevant_clause_or_area": "SIL hardware requirements",
+      "required_artifact_kinds": [
+        "safety-manual"
+      ],
+      "standard_edition_year": "2010"
+    },
+    {
+      "category": "foundation",
+      "checklist_item": "Safety hooks (forward-looking)",
+      "checklist_item_id": 30,
+      "evidence_artifact_required": "safety/safety_manual.md placeholder or populated manual",
+      "maps_to_standard": "DO-254 / FAA AC 20-152A",
+      "portability_tier_relevance": "U0-U4",
+      "relevant_clause_or_area": "airborne electronic hardware",
+      "required_artifact_kinds": [
+        "safety-manual"
+      ],
+      "standard_edition_year": "2000 / 2020"
+    },
+    {
+      "category": "foundation",
+      "checklist_item": "Security hooks (forward-looking, actionable now)",
+      "checklist_item_id": 31,
+      "evidence_artifact_required": "security/threat_model.md, security/sa-edi.json, CWE coverage",
+      "maps_to_standard": "MITRE CWE-1194",
+      "portability_tier_relevance": "U0-U4",
+      "relevant_clause_or_area": "Hardware Design view",
+      "required_artifact_kinds": [
+        "security-threat-model",
+        "sa-edi",
+        "cwe-coverage"
+      ],
+      "standard_edition_year": "CWE List v4.20 (30 Apr 2026)"
+    },
+    {
+      "category": "foundation",
+      "checklist_item": "Security hooks (forward-looking, actionable now)",
+      "checklist_item_id": 31,
+      "evidence_artifact_required": "security/threat_model.md, security/sa-edi.json, CWE coverage",
+      "maps_to_standard": "NIST IR 8517",
+      "portability_tier_relevance": "U0-U4",
+      "relevant_clause_or_area": "hardware security failure scenarios",
+      "required_artifact_kinds": [
+        "security-threat-model",
+        "sa-edi",
+        "cwe-coverage"
+      ],
+      "standard_edition_year": "13 Nov 2024"
+    },
+    {
+      "category": "foundation",
+      "checklist_item": "Security hooks (forward-looking, actionable now)",
+      "checklist_item_id": 31,
+      "evidence_artifact_required": "security/threat_model.md, security/sa-edi.json, CWE coverage",
+      "maps_to_standard": "Accellera SA-EDI",
+      "portability_tier_relevance": "U0-U4",
+      "relevant_clause_or_area": "IP security annotations",
+      "required_artifact_kinds": [
+        "security-threat-model",
+        "sa-edi",
+        "cwe-coverage"
+      ],
+      "standard_edition_year": "1.0 (14 Jul 2021)"
+    },
+    {
+      "category": "foundation",
+      "checklist_item": "Security hooks (forward-looking, actionable now)",
+      "checklist_item_id": 31,
+      "evidence_artifact_required": "security/threat_model.md, security/sa-edi.json, CWE coverage",
+      "maps_to_standard": "IEEE P3164",
+      "portability_tier_relevance": "U0-U4",
+      "relevant_clause_or_area": "future security annotation standard",
+      "required_artifact_kinds": [
+        "security-threat-model",
+        "sa-edi",
+        "cwe-coverage"
+      ],
+      "standard_edition_year": "draft / PAR active"
+    },
+    {
+      "category": "foundation",
+      "checklist_item": "Security hooks (forward-looking, actionable now)",
+      "checklist_item_id": 31,
+      "evidence_artifact_required": "security/threat_model.md, security/sa-edi.json, CWE coverage",
+      "maps_to_standard": "FIPS 140-3",
+      "portability_tier_relevance": "U0-U4",
+      "relevant_clause_or_area": "crypto modules only",
+      "required_artifact_kinds": [
+        "security-threat-model",
+        "sa-edi",
+        "cwe-coverage"
+      ],
+      "standard_edition_year": "2019"
+    },
+    {
+      "category": "foundation",
+      "checklist_item": "Security hooks (forward-looking, actionable now)",
+      "checklist_item_id": 31,
+      "evidence_artifact_required": "security/threat_model.md, security/sa-edi.json, CWE coverage",
+      "maps_to_standard": "ISO/IEC 15408",
+      "portability_tier_relevance": "U0-U4",
+      "relevant_clause_or_area": "Common Criteria only if evaluated",
+      "required_artifact_kinds": [
+        "security-threat-model",
+        "sa-edi",
+        "cwe-coverage"
+      ],
+      "standard_edition_year": "2022"
+    },
+    {
+      "category": "now",
+      "checklist_item": "HBOM / provenance / SBOM-equivalent",
+      "checklist_item_id": 32,
+      "evidence_artifact_required": "hbom/<core>.spdx.json or CycloneDX",
+      "maps_to_standard": "SPDX Specification",
+      "portability_tier_relevance": "U0-U4",
+      "relevant_clause_or_area": "SBOM/HBOM document format",
+      "required_artifact_kinds": [
+        "spdx-hbom",
+        "cyclonedx-hbom"
+      ],
+      "standard_edition_year": "3.0.1"
+    },
+    {
+      "category": "now",
+      "checklist_item": "HBOM / provenance / SBOM-equivalent",
+      "checklist_item_id": 32,
+      "evidence_artifact_required": "hbom/<core>.spdx.json or CycloneDX",
+      "maps_to_standard": "SPDX License List",
+      "portability_tier_relevance": "U0-U4",
+      "relevant_clause_or_area": "license expression grammar",
+      "required_artifact_kinds": [
+        "spdx-hbom",
+        "cyclonedx-hbom"
+      ],
+      "standard_edition_year": "pin at release time"
+    },
+    {
+      "category": "now",
+      "checklist_item": "HBOM / provenance / SBOM-equivalent",
+      "checklist_item_id": 32,
+      "evidence_artifact_required": "hbom/<core>.spdx.json or CycloneDX",
+      "maps_to_standard": "CycloneDX",
+      "portability_tier_relevance": "U0-U4",
+      "relevant_clause_or_area": "alternative HBOM profile",
+      "required_artifact_kinds": [
+        "spdx-hbom",
+        "cyclonedx-hbom"
+      ],
+      "standard_edition_year": "continuous"
+    }
+  ],
+  "snapshot_date": "2026-05-25"
+}
