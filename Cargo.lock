@@ -19,7 +19,7 @@ checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
 
 [[package]]
 name = "af-architecture"
-version = "0.1.0"
+version = "0.2.0-rc.1"
 dependencies = [
  "af-manifest",
  "serde",
@@ -31,7 +31,7 @@ dependencies = [
 
 [[package]]
 name = "af-backend"
-version = "0.1.0"
+version = "0.2.0-rc.1"
 dependencies = [
  "af-manifest",
  "af-security",
@@ -43,7 +43,7 @@ dependencies = [
 
 [[package]]
 name = "af-backend-flash"
-version = "0.1.0"
+version = "0.2.0-rc.1"
 dependencies = [
  "af-backend",
  "af-manifest",
@@ -51,7 +51,7 @@ dependencies = [
 
 [[package]]
 name = "af-backend-fusesoc"
-version = "0.1.0"
+version = "0.2.0-rc.1"
 dependencies = [
  "af-manifest",
  "af-security",
@@ -63,7 +63,7 @@ dependencies = [
 
 [[package]]
 name = "af-backend-icarus"
-version = "0.1.0"
+version = "0.2.0-rc.1"
 dependencies = [
  "af-backend",
  "af-manifest",
@@ -73,7 +73,7 @@ dependencies = [
 
 [[package]]
 name = "af-backend-litex"
-version = "0.1.0"
+version = "0.2.0-rc.1"
 dependencies = [
  "af-backend",
  "af-manifest",
@@ -82,7 +82,7 @@ dependencies = [
 
 [[package]]
 name = "af-backend-native"
-version = "0.1.0"
+version = "0.2.0-rc.1"
 dependencies = [
  "af-backend",
  "af-core",
@@ -93,7 +93,7 @@ dependencies = [
 
 [[package]]
 name = "af-backend-nextpnr"
-version = "0.1.0"
+version = "0.2.0-rc.1"
 dependencies = [
  "af-backend",
  "af-manifest",
@@ -103,7 +103,7 @@ dependencies = [
 
 [[package]]
 name = "af-backend-sby"
-version = "0.1.0"
+version = "0.2.0-rc.1"
 dependencies = [
  "af-backend",
  "af-manifest",
@@ -112,7 +112,7 @@ dependencies = [
 
 [[package]]
 name = "af-backend-vendor"
-version = "0.1.0"
+version = "0.2.0-rc.1"
 dependencies = [
  "af-backend",
  "af-manifest",
@@ -120,7 +120,7 @@ dependencies = [
 
 [[package]]
 name = "af-backend-verilator"
-version = "0.1.0"
+version = "0.2.0-rc.1"
 dependencies = [
  "af-backend",
  "af-manifest",
@@ -132,7 +132,7 @@ dependencies = [
 
 [[package]]
 name = "af-backend-yosys"
-version = "0.1.0"
+version = "0.2.0-rc.1"
 dependencies = [
  "af-backend",
  "af-manifest",
@@ -141,7 +141,7 @@ dependencies = [
 
 [[package]]
 name = "af-board-db"
-version = "0.1.0"
+version = "0.2.0-rc.1"
 dependencies = [
  "proptest",
  "serde",
@@ -153,7 +153,7 @@ dependencies = [
 
 [[package]]
 name = "af-ci"
-version = "0.1.0"
+version = "0.2.0-rc.1"
 dependencies = [
  "serde",
  "tempfile",
@@ -162,7 +162,7 @@ dependencies = [
 
 [[package]]
 name = "af-cli"
-version = "0.1.0"
+version = "0.2.0-rc.1"
 dependencies = [
  "af-architecture",
  "af-backend",
@@ -209,7 +209,7 @@ dependencies = [
 
 [[package]]
 name = "af-compatibility"
-version = "0.1.0"
+version = "0.2.0-rc.1"
 dependencies = [
  "af-manifest",
  "serde",
@@ -220,7 +220,7 @@ dependencies = [
 
 [[package]]
 name = "af-complexity"
-version = "0.1.0"
+version = "0.2.0-rc.1"
 dependencies = [
  "proptest",
  "schemars",
@@ -233,7 +233,7 @@ dependencies = [
 
 [[package]]
 name = "af-constructor-export"
-version = "0.1.0"
+version = "0.2.0-rc.1"
 dependencies = [
  "af-board-db",
  "af-manifest",
@@ -245,7 +245,7 @@ dependencies = [
 
 [[package]]
 name = "af-core"
-version = "0.1.0"
+version = "0.2.0-rc.1"
 dependencies = [
  "af-manifest",
  "af-rtl-inspector",
@@ -258,14 +258,14 @@ dependencies = [
 
 [[package]]
 name = "af-field-ref"
-version = "0.1.0"
+version = "0.2.0-rc.1"
 dependencies = [
  "serde",
 ]
 
 [[package]]
 name = "af-host"
-version = "0.1.0"
+version = "0.2.0-rc.1"
 dependencies = [
  "assert_cmd",
  "clap",
@@ -274,7 +274,7 @@ dependencies = [
 
 [[package]]
 name = "af-manifest"
-version = "0.1.0"
+version = "0.2.0-rc.1"
 dependencies = [
  "af-complexity",
  "proptest",
@@ -287,7 +287,7 @@ dependencies = [
 
 [[package]]
 name = "af-report"
-version = "0.1.0"
+version = "0.2.0-rc.1"
 dependencies = [
  "af-backend",
  "af-manifest",
@@ -300,7 +300,7 @@ dependencies = [
 
 [[package]]
 name = "af-resource-model"
-version = "0.1.0"
+version = "0.2.0-rc.1"
 dependencies = [
  "af-manifest",
  "af-vendor-db",
@@ -311,7 +311,7 @@ dependencies = [
 
 [[package]]
 name = "af-rtl-inspector"
-version = "0.1.0"
+version = "0.2.0-rc.1"
 dependencies = [
  "af-manifest",
  "af-security",
@@ -323,7 +323,7 @@ dependencies = [
 
 [[package]]
 name = "af-security"
-version = "0.1.0"
+version = "0.2.0-rc.1"
 dependencies = [
  "proptest",
  "schemars",
@@ -334,7 +334,7 @@ dependencies = [
 
 [[package]]
 name = "af-signoff"
-version = "0.1.0"
+version = "0.2.0-rc.1"
 dependencies = [
  "af-complexity",
  "serde",
@@ -344,7 +344,7 @@ dependencies = [
 
 [[package]]
 name = "af-template"
-version = "0.1.0"
+version = "0.2.0-rc.1"
 dependencies = [
  "af-complexity",
  "serde",
@@ -354,7 +354,7 @@ dependencies = [
 
 [[package]]
 name = "af-vectors"
-version = "0.1.0"
+version = "0.2.0-rc.1"
 dependencies = [
  "af-field-ref",
  "clap",
@@ -366,7 +366,7 @@ dependencies = [
 
 [[package]]
 name = "af-vendor-db"
-version = "0.1.0"
+version = "0.2.0-rc.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -374,7 +374,7 @@ dependencies = [
 
 [[package]]
 name = "af-wrapper-gen"
-version = "0.1.0"
+version = "0.2.0-rc.1"
 dependencies = [
  "af-backend-fusesoc",
  "af-backend-litex",

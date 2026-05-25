@@ -108,3 +108,26 @@ jobs:
         with:
           name: accelfury-docker-reports
           path: .af-build/docker-smoke/**
+  external-ci-evidence:
+    runs-on: ubuntu-latest
+    needs: [rust, docker-open-source-flow]
+    if: success()
+    steps:
+      - name: Write exact-run CI evidence
+        run: |
+          set -euo pipefail
+          mkdir -p .af-build/release
+          cat > .af-build/release/ci-evidence.json <<'JSON'
+          {
+            "workflow_run_url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+            "commit_sha": "${{ github.sha }}",
+            "conclusion": "success",
+            "artifact_bundle": "accelfury-reports,accelfury-docker-reports,accelfury-ci-evidence",
+            "sha256sums": "accelfury-reports/.af-build/SHA256SUMS + accelfury-docker-reports/.af-build/docker-smoke/SHA256SUMS"
+          }
+          JSON
+          sha256sum .af-build/release/ci-evidence.json > .af-build/release/SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: accelfury-ci-evidence
+          path: .af-build/release/**

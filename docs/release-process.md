@@ -27,8 +27,19 @@ structured `BackendUnavailable` state.
 
 ## Production release gate
 
-Before marking `af` production-ready as a CLI/toolchain:
+Before marking `af` production-ready as a CLI/toolchain, the authoritative
+gate is:
 
+```bash
+af release check --json
+```
+
+The command writes `.af-build/release/release-readiness.json` and fails closed
+when any required release evidence is missing. Before invoking it for a public
+release:
+
+- commit or discard all local edits so the source-tree-clean gate can bind
+  evidence to one exact commit SHA;
 - confirm `docs/production-readiness.md`, `docs/cli-reference.md`,
   `docs/known-limitations.md`, README, and the PR template agree on supported
   and unsupported claims;
@@ -44,8 +55,17 @@ Before marking `af` production-ready as a CLI/toolchain:
 - capture `SHA256SUMS` for release artifacts and smoke reports;
 - require external CI evidence for release claims: workflow run URL, commit SHA,
   conclusion `success`, artifact bundle, and checksums;
+- require a Linux x86_64 release binary bundle plus `SHA256SUMS`;
+- require a published Docker image digest plus smoke evidence checksums;
 - update `CHANGELOG.md` with every additive or breaking CLI, manifest, JSON,
   schema, exit-code, or error-code contract change.
+
+The repeatable GitHub path is `.github/workflows/release.yml`: provide the
+release tag, target ref, and a successful `AccelFury CI` run id for the same
+commit. The workflow downloads the exact-run CI evidence, builds the release
+binary, publishes `ghcr.io/<owner>/af:<tag>`, records the immutable digest,
+runs Docker smoke, calls `af release check --json`, uploads the readiness
+bundle, then creates the tag and GitHub Release from `CHANGELOG.md` notes.
 
 Production-ready `af` does not promote timing closure, CDC/RDC signoff, vendor
 bitstream production, board-ready, hardware-ready, or security-certification

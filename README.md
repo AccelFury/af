@@ -1,145 +1,145 @@
 # AccelFury `af`
 
-`af` is a Rust CLI for building reusable FPGA/IP cores as verifiable
-engineering artifacts: manifest, portable RTL policy checks, simulation and
-formal hooks, packaging metadata, CI, standards evidence, reports, and clear
-readiness limits.
+`af` is a Rust CLI for turning FPGA/IP-core work into reusable engineering
+artifacts: manifests, portable RTL checks, wrappers, CI, standards evidence,
+machine-readable reports, and explicit readiness limits.
 
-The project is in **alpha**. The supported command surface is documented in
-[docs/cli-reference.md](docs/cli-reference.md); JSON contracts, manifest
-schema details, and some reports may still change before v1.0.
+The project is **alpha**. The stable surface for users and automation is
+documented in [docs/cli-reference.md](docs/cli-reference.md); JSON contracts and
+some report details may still change before v1.0.
 
-## Why It Exists
+## Why Use It
 
-FPGA work often gets stuck between a useful RTL block and something another
-engineer can safely reuse. `af` closes that gap by making evidence explicit:
-what the core is, which portability rules it follows, which tools were run,
-which wrappers and package formats exist, and which claims are still not
-proven.
+FPGA projects often stop at "the RTL works on my machine". `af` helps close the
+gap between a useful block and something another engineer can evaluate, reuse,
+or publish:
 
-Use `af` when you want to:
+- scaffold portable or vendor-aware FPGA/IP cores with a consistent layout;
+- validate `af-core.toml` manifests and common portability mistakes;
+- generate FuseSoC, LiteX, IP-XACT, HBOM, and CI surfaces;
+- collect lint, simulation, formal, package, and standards evidence;
+- keep unsupported claims visible instead of implying fake signoff;
+- give coding agents a deterministic CLI and `--json` contracts.
 
-- scaffold a portable or vendor-aware FPGA/IP core with a consistent layout;
-- validate `af-core.toml` manifests and RTL portability rules;
-- generate FuseSoC, LiteX, IP-XACT, HBOM, and CI artifacts;
-- collect lint/sim/formal/package evidence into machine-readable reports;
-- prepare cores for FPGA-community reuse without claiming fake signoff;
-- give coding agents a deterministic backend instead of hand-written guesses.
+`af` is useful for IP-core authors, FPGA teams, open-source maintainers,
+commercial evaluators, and AI-assisted workflows that need reproducible project
+state rather than hand-written guesses.
 
-`af` does not generate production HDL "by magic". It helps make real FPGA/IP
-work repeatable, inspectable, and easier to publish.
+## Install
 
-## Who It Helps
+From a checkout:
 
-- IP-core authors who want reusable, documented, portable cores.
-- FPGA teams that need CI, reports, wrappers, and readiness gates.
-- Open-source maintainers preparing cores for external users.
-- Commercial evaluators who need provenance, standards evidence, and honest
-  limitations before integration.
-- AI-assisted workflows that need stable CLI contracts and JSON output.
+```bash
+cargo install --path crates/af-cli
+af doctor --json
+```
+
+Without installing:
+
+```bash
+cargo run -p af-cli --bin af -- doctor --json
+```
+
+Release binaries are published with `SHA256SUMS`; Docker releases use immutable
+GHCR digests recorded by the release gate. See
+[docs/reproducible-builds.md](docs/reproducible-builds.md).
 
 ## Quick Start
 
 Prerequisites: Linux, `git`, `make`, `python3`, and a stable Rust toolchain.
 Optional HDL tools include Verilator, Icarus Verilog, Yosys, SymbiYosys,
-Verible, `xmllint`, and PeakRDL. Docker can be used when you do not want to
-install HDL tools on the host.
+Verible, `xmllint`, and PeakRDL. Docker can carry the heavier tool profile.
 
 ```bash
-# Check the local environment
-cargo run -p af-cli --bin af -- doctor --json
+# 1. Check the host/tool profile.
+af doctor --json
 
-# Create a portable FPGA/IP core with standards placeholders
-cargo run -p af-cli --bin af -- core new ./work/af-demo \
+# 2. Create a portable core with standards placeholders.
+af core new ./work/af-demo \
   --name af-demo \
   --class simple-portable \
-  --standards-profile fpga-ip-core-v1
+  --standards-profile fpga-ip-core-v1 \
+  --json
 
-# Validate the core and produce a report
-cargo run -p af-cli --bin af -- core check ./work/af-demo --json
-cargo run -p af-cli --bin af -- core report ./work/af-demo --json
+# 3. Validate the manifest and RTL portability policy.
+af core check ./work/af-demo --json
+af core report ./work/af-demo --json
 
-# Check standards evidence and optional external tooling
-cargo run -p af-cli --bin af -- core standards doctor --json
-cargo run -p af-cli --bin af -- core standards check ./work/af-demo --strict --json
+# 4. Generate integration metadata.
+af wrapper generate ./work/af-demo --target fusesoc --json
+af wrapper generate ./work/af-demo --target ipxact --json
+
+# 5. Enable standards evidence and CI collection.
+af core standards doctor --json
+af core standards check ./work/af-demo --strict --json
+af ci init --standards --standards-core-dir ./work/af-demo --project af-demo --hdl verilog --rtl rtl --json
 ```
 
-Generate wrappers and CI:
-
-```bash
-cargo run -p af-cli --bin af -- wrapper generate ./work/af-demo --target fusesoc
-cargo run -p af-cli --bin af -- wrapper generate ./work/af-demo --target ipxact
-cargo run -p af-cli --bin af -- ci init --standards --standards-core-dir ./work/af-demo
-```
-
-Try a complete reference layout:
-
-```bash
-cargo run -p af-cli --bin af -- core standards check examples/standards-ready-core --strict --json
-```
+For a guided walkthrough, see
+[docs/first-10-minutes.md](docs/first-10-minutes.md). For ready examples, start
+with [examples/README.md](examples/README.md).
 
 ## What `af` Does
 
-- Creates portable, composite, and vendor-aware core scaffolds.
-- Validates `af-core.toml` manifests and portable RTL policy.
-- Generates wrapper/package metadata for FuseSoC, LiteX, and IP-XACT.
-- Collects lint, simulation, formal, package, and standards evidence.
-- Reports reusable-core maturity without promoting unsupported claims.
-- Maintains board, toolchain, core, schema, and standards surfaces.
+- **Start a core:** `af core new` creates manifest, RTL, legal files, docs, and
+  optional standards placeholders.
+- **Check reuse blockers:** `af core check` catches hidden PLLs, vendor
+  primitives, encrypted netlists, implicit resets, and unsupported generic-core
+  constructs.
+- **Package integration:** `af wrapper generate` emits FuseSoC, LiteX, and
+  IP-XACT outputs from the manifest-first model.
+- **Collect evidence:** lint, sim, formal, package, CI, and standards commands
+  produce reports that downstream tools can read.
+- **Assess readiness:** `af core report`, `af core verify`, `af release check`,
+  and standards checks show what is supported, missing, planned, or out of
+  scope.
+
+Full references live in [docs/core-author-guide.md](docs/core-author-guide.md),
+[docs/manifest-reference.md](docs/manifest-reference.md), and
+[docs/production-readiness.md](docs/production-readiness.md).
 
 ## Common Workflows
 
-- **Start a core:** `af core new` creates the manifest, RTL, legal files,
-  docs, and optional standards evidence placeholders.
-- **Check portability:** `af core check` rejects common reuse blockers such as
-  hidden PLLs, vendor primitives, encrypted netlists, implicit resets, and
-  SystemVerilog-only constructs in generic portable cores.
-- **Run evidence:** `af core lint`, `af core sim`, package commands, and CI
-  jobs produce reports that can be collected as standards artifacts.
-- **Package integration:** `af wrapper generate` emits FuseSoC, LiteX, and
-  IP-XACT outputs from the manifest-first model.
-- **Assess readiness:** `af core report`, `af core verify`, and standards
-  checks show what is supported, missing, planned, or out of scope.
-
-See [docs/core-author-guide.md](docs/core-author-guide.md) and
-[docs/manifest-reference.md](docs/manifest-reference.md) for the full core
-authoring flow.
+- **Start:** create a core from a portable, composite, or vendor-aware template.
+- **Check:** validate manifest, legal boundary, RTL portability, and standards
+  placeholders.
+- **Package:** emit integration wrappers and metadata from the manifest.
+- **Report:** collect evidence into JSON and Markdown outputs for review.
+- **Release:** use `af release check --json` to keep publication claims gated by
+  explicit evidence.
 
 ## Standards Profile
 
-The optional `fpga-ip-core-v1` profile helps IP authors prepare evidence that
-FPGA users and commercial integrators expect:
+The optional `fpga-ip-core-v1` profile helps FPGA/IP authors prepare evidence
+that users and commercial integrators expect:
 
 - IP-XACT component metadata;
-- SystemRDL register description skeletons;
+- SystemRDL register-description skeletons;
 - SPDX headers and HBOM output;
 - lint/sim/formal/package report collection;
 - standards drift checks;
-- safety/security scaffolds that do not claim certification.
+- safety/security scaffolds without certification claims.
 
-Start with:
+Start from:
 
 ```bash
-cargo run -p af-cli --bin af -- core standards doctor --json
-cargo run -p af-cli --bin af -- core standards scaffold ./work/af-demo --declare
-cargo run -p af-cli --bin af -- core standards collect ./work/af-demo --declare --json
-cargo run -p af-cli --bin af -- core standards check ./work/af-demo --strict --json
+af core standards doctor --json
+af core standards scaffold ./work/af-demo --declare --json
+af core standards collect ./work/af-demo --declare --json
+af core standards check ./work/af-demo --strict --json
 ```
 
-The canonical checklist and traceability matrix are in
-[CHECKLIST.md](CHECKLIST.md) and [compliance_matrix.csv](compliance_matrix.csv).
+The checklist and traceability matrix are in [CHECKLIST.md](CHECKLIST.md) and
+[compliance_matrix.csv](compliance_matrix.csv).
 
-## Using Skills
+## Skills And Agents
 
-This repository includes workflow skills for contributors and coding agents.
-They are plain Markdown instructions, so they can be followed manually or used
-by compatible assistants.
+This repository includes plain Markdown workflow skills for contributors and
+compatible coding agents.
 
-- `.claude/skills/**` contains contributor workflows for this repository:
-  bootstrapping cores, debugging portability violations, refreshing evidence,
-  verifying tiers, and guarding CLI contracts.
-- `skills/af-*` contains installable Codex skills. Refresh a local Codex
-  mirror with:
+- `.claude/skills/**` contains repo contributor workflows such as CLI contract
+  guarding, evidence refresh, portability debugging, and release checks.
+- `skills/af-*` contains installable Codex skills. Refresh a local Codex mirror:
 
 ```bash
 bash scripts/install-af-codex-skills.sh
@@ -153,15 +153,15 @@ bash scripts/check-af-skills.sh
 
 ## LLM and Automation Guidance
 
-For automation and agents, prefer `--json` on `af` commands and read
-[docs/agent-workflow.md](docs/agent-workflow.md) before inventing command
-names, flags, JSON shapes, or issue templates.
+Automation should prefer `--json` and follow
+[docs/agent-workflow.md](docs/agent-workflow.md) before inventing command names,
+flags, JSON shapes, or issue templates.
 
-- Keep generated outputs under `.af-build/` or another explicit build root.
-- Keep local scratch notes and private working artifacts in ignored workspace
-  paths such as `.af-build/`, `.af-tools/`, `archive/`, and agent caches.
-- Do not claim timing, CDC/RDC, security, vendor, or board signoff unless a
-  command report or vendor artifact proves it.
+## Publication Boundaries
+
+Keep generated outputs under `.af-build/` or another explicit build root. Do
+not commit `target/`, `.af-build/`, per-core `artifacts/`, local agent state,
+IDE state, secrets, or raw scratch logs; keep these in an ignored workspace.
 
 ## What `af` Does Not Prove
 
@@ -169,18 +169,14 @@ names, flags, JSON shapes, or issue templates.
 CDC/RDC signoff, board hardware readiness, security certification, or vendor
 implementation signoff unless specific evidence has been captured and linked.
 
-For current claim boundaries, see
-[docs/production-readiness.md](docs/production-readiness.md) and
-[docs/known-limitations.md](docs/known-limitations.md).
-
 ## Repository Map
 
-- `crates/` - Rust crates and the CLI implementation.
-- `examples/` - reusable core examples and standards-ready reference core.
+- `crates/` - Rust crates and CLI implementation.
+- `examples/` - reusable core examples and standards-ready references.
 - `docs/` - CLI, manifest, architecture, CI, licensing, and release guides.
 - `registries/` - board, core, family, and toolchain registries.
 - `schemas/` - JSON schemas for public machine-readable contracts.
-- `skills/` and `.claude/skills/` - reusable contributor/agent workflows.
+- `skills/` and `.claude/skills/` - contributor and agent workflows.
 
 ## Development Checks
 
@@ -194,24 +190,15 @@ cargo test --workspace
 bash scripts/check-af-skills.sh
 ```
 
-Keep generated outputs under `.af-build/` or another explicit build root.
-Do not commit `target/`, `.af-build/`, per-core `artifacts/`, local agent
-state, IDE state, secrets, or raw scratch logs.
+## Contributing And Licensing
 
-## Contributing
+Use the issue templates under [.github/ISSUE_TEMPLATE](.github/ISSUE_TEMPLATE).
+For CLI, JSON, manifest, registry, schema, or error-code changes, read
+[CONTRIBUTING.md](CONTRIBUTING.md) and run the contract guard.
 
-Open an issue if something is broken, unclear, or missing. Issue templates live
-under [.github/ISSUE_TEMPLATE](.github/ISSUE_TEMPLATE). For CLI, JSON,
-manifest, registry, schema, or error-code changes, read
-[CONTRIBUTING.md](CONTRIBUTING.md) and run the contract guard before a PR.
-
-## Licensing
-
-The repository preserves file-level licensing. Rust crates use the workspace
-package metadata, imported tooling and RTL keep their original SPDX terms, and
-full license texts live in [LICENSES/](LICENSES/).
-
-Reusable IP cores created by `af core new` use the AccelFury source-available
-core license boundary with `LICENSE`, `COMMERCIAL-LICENSE.md`, and `NOTICE`
-files. For closed-source or commercial use beyond community terms, see
+The repository preserves file-level licensing. Rust crates use workspace package
+metadata, imported tooling and RTL keep their original SPDX terms, and full
+license texts live in [LICENSES/](LICENSES/). Cores generated by `af core new`
+use the AccelFury source-available core license boundary with `LICENSE`,
+`COMMERCIAL-LICENSE.md`, and `NOTICE`; commercial terms are summarized in
 [COMMERCIAL.md](COMMERCIAL.md).

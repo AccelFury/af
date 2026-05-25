@@ -45,7 +45,7 @@ Implemented and verified in the codebase:
 Still intentionally out of scope:
 
 - full SystemVerilog parser/signoff;
-- timing closure, CDC/RDC signoff and vendor bitstream production;
+- not timing closure, CDC/RDC signoff or vendor bitstream production;
 - GUI, package registry and automatic generation of complex hardware logic;
 - production Vivado/Quartus/Radiant flows;
 - PDM-to-PCM conversion in `af-pdm-rx`.

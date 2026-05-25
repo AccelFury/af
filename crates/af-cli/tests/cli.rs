@@ -39,6 +39,54 @@ fn doctor_json_works_without_optional_tools() {
 }
 
 #[test]
+fn release_check_json_reports_blocked_gates_without_local_execution() {
+    let root = repo_root();
+    let build = tempdir().unwrap();
+    let mut cmd = Command::cargo_bin("af").unwrap();
+    cmd.current_dir(root)
+        .args([
+            "--build-root",
+            build.path().to_str().unwrap(),
+            "release",
+            "check",
+            "--skip-local-checks",
+            "--allow-blocked",
+            "--json",
+        ])
+        .assert()
+        .success()
+        .stdout(contains("\"kind\": \"release\""))
+        .stdout(contains("\"status\": \"blocked\""))
+        .stdout(contains("\"id\": \"source-tree-clean\""))
+        .stdout(contains("\"id\": \"local-quality-gates\""))
+        .stdout(contains("\"id\": \"external-ci-evidence\""))
+        .stdout(contains("\"id\": \"release-artifacts\""))
+        .stdout(contains("\"id\": \"docker-image\""))
+        .stdout(contains("\"id\": \"docs-claim-audit\""))
+        .stdout(contains("release-readiness.json"));
+}
+
+#[test]
+fn release_check_fails_closed_by_default() {
+    let root = repo_root();
+    let build = tempdir().unwrap();
+    let mut cmd = Command::cargo_bin("af").unwrap();
+    cmd.current_dir(root)
+        .args([
+            "--build-root",
+            build.path().to_str().unwrap(),
+            "release",
+            "check",
+            "--skip-local-checks",
+            "--json",
+        ])
+        .assert()
+        .failure()
+        .stdout(contains("\"code\": \"AF_RELEASE_READINESS_BLOCKED\""))
+        .stdout(contains("release-readiness.json"));
+}
+
+#[test]
 fn command_lifecycle_logging_is_colored_and_enabled_by_default() {
     let mut colored = Command::cargo_bin("af").unwrap();
     colored

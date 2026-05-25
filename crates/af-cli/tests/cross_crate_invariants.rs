@@ -226,6 +226,7 @@ fn selfcheck_manifest_targets_resolve() {
 #[test]
 fn production_workflow_runs_required_gates() {
     let workflow = read_to_string(".github/workflows/accelfury.yml");
+    let release_workflow = read_to_string(".github/workflows/release.yml");
     let guard_base = concat!(
         "AF",
         "_GUARD_BASE=\"${{ github.event.pull_request.base.sha }}\""
@@ -253,6 +254,25 @@ fn production_workflow_runs_required_gates() {
         assert!(
             workflow.contains(required),
             ".github/workflows/accelfury.yml missing production gate {required:?}"
+        );
+    }
+
+    for required in [
+        "ci_run_id:",
+        "cargo build --locked --release -p af-cli --bin af",
+        "sha256sum \"af-${TAG}-x86_64-unknown-linux-gnu.tar.gz\" > SHA256SUMS",
+        "docker push \"$IMAGE\"",
+        "docker buildx imagetools inspect \"$IMAGE\"",
+        "release check",
+        "--ci-evidence .af-build/release/ci-evidence.json",
+        "--artifact-dir .af-build/release/artifacts",
+        "--docker-evidence .af-build/release/docker-image.json",
+        "--output .af-build/release/release-readiness.json",
+        "gh release create \"$TAG\"",
+    ] {
+        assert!(
+            release_workflow.contains(required),
+            ".github/workflows/release.yml missing release gate {required:?}"
         );
     }
 }

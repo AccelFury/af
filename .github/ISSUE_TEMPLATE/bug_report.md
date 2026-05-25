@@ -13,6 +13,9 @@ labels: bug
 ```bash
 # The exact commands you ran.
 # Use --json so the failure has structured fields.
+af doctor --json
+af self check --json
+af agent context --from-error <error.json>
 ```
 
 ## Expected vs actual

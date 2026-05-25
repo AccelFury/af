@@ -23,8 +23,8 @@ in core.
   - constraint format: PCF
   - open-source flow through Yosys + nextpnr-ice40
   - strict pinbank review required before attaching peripherals
-  - carry-chain behavior differs by package; validate timing closure on
-    timing-critical arithmetic
+  - carry-chain behavior differs by package; timing closure validation is
+    required for timing-critical arithmetic
 
 ## Lattice ECP5 notes
 

@@ -10,6 +10,7 @@ pub mod ci_run_local;
 pub mod ci_validate;
 pub mod core_new;
 pub mod evidence;
+pub mod release_check;
 pub mod self_check;
 pub mod wrapper;
 

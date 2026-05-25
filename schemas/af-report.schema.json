@@ -408,6 +408,47 @@
               ]
             }
           }
+        },
+        {
+          "type": "object",
+          "required": [
+            "commit_sha",
+            "gate_summary",
+            "gates",
+            "kind",
+            "readiness_path",
+            "target_tag",
+            "target_version"
+          ],
+          "properties": {
+            "commit_sha": {
+              "type": "string"
+            },
+            "gate_summary": {
+              "$ref": "#/definitions/ReleaseGateSummary"
+            },
+            "gates": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/ReleaseGate"
+              }
+            },
+            "kind": {
+              "type": "string",
+              "enum": [
+                "release"
+              ]
+            },
+            "readiness_path": {
+              "type": "string"
+            },
+            "target_tag": {
+              "type": "string"
+            },
+            "target_version": {
+              "type": "string"
+            }
+          }
         }
       ]
     },
@@ -539,6 +580,68 @@
         },
         "status": {
           "type": "string"
+        }
+      }
+    },
+    "ReleaseGate": {
+      "type": "object",
+      "required": [
+        "id",
+        "required",
+        "status",
+        "summary"
+      ],
+      "properties": {
+        "evidence": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "id": {
+          "type": "string"
+        },
+        "limitations": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "status": {
+          "type": "string"
+        },
+        "summary": {
+          "type": "string"
+        }
+      }
+    },
+    "ReleaseGateSummary": {
+      "type": "object",
+      "required": [
+        "blocked",
+        "passed",
+        "total"
+      ],
+      "properties": {
+        "blocked": {
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0.0
+        },
+        "passed": {
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0.0
+        },
+        "total": {
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0.0
         }
       }
     },

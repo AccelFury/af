@@ -87,6 +87,7 @@ af ci validate --repo . [--config af-ci.toml]
 af ci run-local --repo . --profile sim|synth|doctor [--dry-run]
 af ci generate --target github-actions
 af ci generate --target github-actions --backends native,verilator,yosys --optional-fail-closed
+af release check [--tag vX.Y.Z] [--ci-evidence <path>] [--artifact-dir <path>] [--docker-evidence <path>] [--output <path>]
 af agent kinds
 af agent context [--from-error <file.json>]
 af agent issue --kind <kind> --title <s> [--summary <s>] [--from-error <file>] [--output <file>]
@@ -127,6 +128,7 @@ The alpha-readiness surface is the manifest-first development loop:
 - `af core standards scaffold`
 - `af wrapper generate`
 - `af ci generate`
+- `af release check`
 
 For these commands, `--json` output, documented exit-code bands, typed
 `command_payload` report variants where applicable, and top-level JSON error
@@ -205,6 +207,8 @@ LLM/CI consumers can branch on shape without sniffing the schema:
   - `tooling` → `{ total_tools, available_tools, missing_tools }`
   - `doctor` → `{ overall_status, total_tools, available_tools, missing_tools }`
   - `flash` → `{ backend, backend_status }`
+  - `release` → `{ target_version, target_tag, commit_sha, readiness_path,
+    gate_summary, gates }`
 
   Consumers should dispatch on `command_payload.kind` and ignore unknown
   kinds for forward compatibility.
@@ -239,6 +243,15 @@ with source `https://github.com/AccelFury/af-pdm-rx`, `examples/af-mod-add`,
 and optional local standalone projects such as `af-mod-add` and
 `af-reset-sync`. Missing optional targets are skipped or reported as warnings;
 missing or failing required targets return `AF_SELF_CHECK_FAILED`.
+
+`af release check --json` is the fail-closed production gate for publishing
+`af` itself. It writes `<build_root>/release/release-readiness.json` and checks
+clean source-tree state, local quality gates, external CI evidence for the exact
+commit, release binary checksums, Docker image digest/smoke evidence, and
+README/docs claim discipline.
+By default a blocked gate exits with `AF_RELEASE_READINESS_BLOCKED` (exit 2);
+use `--allow-blocked` only when inspecting the readiness report before all
+external evidence exists.
 
 `af tooling` is the first-class missing-tool remediation surface. Use
 `af tooling check --json` for non-mutating diagnostics, `af tooling plan --json`

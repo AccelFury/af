@@ -198,3 +198,15 @@ Open an issue with the `Question / "how do I X"` template. State the
 goal, the commands you tried, and where you got stuck. The same applies
 to "I think the docs are wrong" — that is a documentation bug and
 absolutely worth reporting.
+
+For bugs, prefer a reproducible report with structured output:
+
+```bash
+af doctor --json
+af self check --json
+af <failing command> --json > error.json
+af agent context --from-error error.json
+```
+
+Attach the JSON payload and command output to the issue. It lets maintainers
+reproduce the exact CLI/report contract instead of guessing from prose.

@@ -20,7 +20,7 @@ Success metrics:
 
 Non-goals:
 
-- timing signoff;
+- not timing signoff;
 - full SystemVerilog parsing;
-- vendor bitstream production by default;
+- not vendor bitstream production by default;
 - PDM-to-PCM audio conversion in `af-pdm-rx`.

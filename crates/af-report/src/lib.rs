@@ -172,6 +172,7 @@ pub enum CommandPayload {
     Tooling(ToolingPayload),
     Doctor(DoctorPayload),
     Flash(FlashPayload),
+    Release(ReleasePayload),
 }
 
 #[derive(Clone, Debug, Deserialize, JsonSchema, Serialize, PartialEq, Eq)]
@@ -246,6 +247,35 @@ pub struct DoctorPayload {
 pub struct FlashPayload {
     pub backend: String,
     pub backend_status: String,
+}
+
+#[derive(Clone, Debug, Deserialize, JsonSchema, Serialize, PartialEq, Eq)]
+pub struct ReleasePayload {
+    pub target_version: String,
+    pub target_tag: String,
+    pub commit_sha: String,
+    pub readiness_path: String,
+    pub gate_summary: ReleaseGateSummary,
+    pub gates: Vec<ReleaseGate>,
+}
+
+#[derive(Clone, Debug, Deserialize, JsonSchema, Serialize, PartialEq, Eq)]
+pub struct ReleaseGateSummary {
+    pub total: usize,
+    pub passed: usize,
+    pub blocked: usize,
+}
+
+#[derive(Clone, Debug, Deserialize, JsonSchema, Serialize, PartialEq, Eq)]
+pub struct ReleaseGate {
+    pub id: String,
+    pub status: String,
+    pub required: bool,
+    pub summary: String,
+    #[serde(default)]
+    pub evidence: Vec<String>,
+    #[serde(default)]
+    pub limitations: Vec<String>,
 }
 
 impl AfReport {
@@ -1391,7 +1421,7 @@ conclusion = "success"
     {
       "tool": "af",
       "available": true,
-      "version": "0.1.0"
+      "version": "0.2.0-rc.1"
     },
     {
       "tool": "fake",
@@ -1441,7 +1471,7 @@ conclusion = "success"
 
 ## Tool Versions
 
-- `af`: 0.1.0
+- `af`: 0.2.0-rc.1
 - `fake`: fake 1.0
 
 ## Commands

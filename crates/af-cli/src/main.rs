@@ -175,10 +175,19 @@ enum Commands {
         #[command(subcommand)]
         command: CiCommand,
     },
+    Release {
+        #[command(subcommand)]
+        command: ReleaseCommand,
+    },
     Agent {
         #[command(subcommand)]
         command: AgentCommand,
     },
+}
+
+#[derive(Subcommand, Debug)]
+enum ReleaseCommand {
+    Check(commands::release_check::ReleaseCheckArgs),
 }
 
 #[derive(Subcommand, Debug)]
@@ -918,7 +927,14 @@ fn command_path(command: &Commands) -> String {
         Commands::Vectors { command } => format!("vectors {}", vectors_command_name(command)),
         Commands::Wrapper { command } => format!("wrapper {}", wrapper_command_name(command)),
         Commands::Ci { command } => format!("ci {}", ci_command_name(command)),
+        Commands::Release { command } => format!("release {}", release_command_name(command)),
         Commands::Agent { command } => format!("agent {}", agent_command_name(command)),
+    }
+}
+
+fn release_command_name(command: &ReleaseCommand) -> &'static str {
+    match command {
+        ReleaseCommand::Check(_) => "check",
     }
 }
 
@@ -1407,6 +1423,9 @@ fn execute(cli: &Cli) -> Result<CliOutput, CliError> {
                 backends.as_slice(),
                 *optional_fail_closed,
             ),
+        },
+        Commands::Release { command } => match command {
+            ReleaseCommand::Check(args) => commands::release_check::run(args, &cli.build_root),
         },
         Commands::Agent { command } => agent_dispatch(command),
     }

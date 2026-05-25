@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- No changes yet.
+
+## 0.2.0-rc.1 - 2026-05-25
+
+- Added the fail-closed `af release check --json` production gate, release
+  readiness report payload, GitHub release workflow, external CI evidence
+  bundle, Docker digest evidence, and release artifact checksum validation.
+  New additive error code: `AF_RELEASE_READINESS_BLOCKED`.
+- Added reproducible build and first-10-minutes documentation, GitHub private
+  vulnerability reporting policy, supported-version/deprecation policy, and an
+  examples overview including the generated `vendor-aware-skeleton` reference.
 - Added the opt-in `fpga-ip-core-v1` standards profile, `af core standards`
   check/export commands, generated checklist/compliance matrix artifacts,
   manifest `[standards]` evidence declarations, and `spdx-hbom` package

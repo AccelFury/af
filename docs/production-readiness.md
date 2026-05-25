@@ -10,7 +10,7 @@ supported without separate evidence.
 The production-supported surface is the manifest-first loop documented in
 `docs/cli-reference.md`: `doctor`, `self check`, `manifest validate`,
 `core check`, `core lint`, `core sim`, `core report`, `wrapper generate`, and
-`ci generate`.
+`ci generate`, plus `release check` for the repository release gate.
 
 For that surface, production releases must preserve:
 
@@ -32,7 +32,10 @@ Production candidates must pass:
 - `.claude/skills/af-cli-contract-guard/check.sh`;
 - host CLI smoke for the production-supported manifest-first commands;
 - Docker smoke through `make smoke`;
-- artifact checksum generation with `SHA256SUMS`.
+- artifact checksum generation with `SHA256SUMS`;
+- `af release check --json` with a clean source tree, exact-run CI evidence,
+  release artifact checksums, Docker digest/smoke evidence, and docs claim
+  audit.
 
 External release evidence must include the CI run URL, commit SHA, success
 conclusion, uploaded artifact bundle, and checksums. A workflow file alone is

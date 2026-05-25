@@ -45,8 +45,8 @@ focused library crates.
 The MVP is manifest-first. It avoids:
 
 - full SystemVerilog parsing;
-- CDC/RDC/timing signoff;
-- vendor bitstream generation;
+- not CDC/RDC/timing signoff;
+- not vendor bitstream generation;
 - package publishing behavior;
 - automatic generation of critical hardware logic.
 

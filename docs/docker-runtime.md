@@ -21,6 +21,15 @@ logic.
 
 ## Commands
 
+Use the published release image when validating a released tag:
+
+```bash
+docker run --rm -v "$PWD:/work" -w /work ghcr.io/accelfury/af@sha256:<digest> scripts/docker-smoke.sh
+```
+
+The digest is recorded in `.af-build/release/docker-image.json` by the release
+workflow and is consumed by `af release check --json`.
+
 Build the runtime:
 
 ```bash
