@@ -277,6 +277,13 @@ jobs:
             -e RUSTUP_TOOLCHAIN=$RUST_TOOLCHAIN \
             -e CARGO_TARGET_DIR=/tmp/af-target \
             accelfury-af:ci scripts/docker-smoke.sh
+      - name: Normalize Docker smoke ownership
+        if: always()
+        run: |
+          set -euo pipefail
+          if [ -d .af-build/docker-smoke ]; then
+            sudo chown -R "$(id -u):$(id -g)" .af-build/docker-smoke
+          fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:

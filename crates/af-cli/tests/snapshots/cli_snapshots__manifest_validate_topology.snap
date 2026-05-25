@@ -66,8 +66,11 @@ expression: topology
       ],
       "description": "<string>",
       "display_name": "<null>",
+      "homepage": "<null>",
       "license": "<string>",
-      "repository": "<string>"
+      "maintainers": [],
+      "repository": "<string>",
+      "summary": "<null>"
     },
     "name": "<string>",
     "parameters": [

@@ -890,13 +890,30 @@ pub struct Metadata {
     #[serde(default)]
     pub display_name: Option<String>,
     #[serde(default)]
+    pub summary: Option<String>,
+    #[serde(default)]
     pub license: Option<String>,
     #[serde(default)]
     pub authors: Vec<String>,
     #[serde(default)]
+    pub maintainers: Vec<Maintainer>,
+    #[serde(default)]
     pub repository: Option<String>,
     #[serde(default)]
+    pub homepage: Option<String>,
+    #[serde(default)]
     pub description: Option<String>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, JsonSchema, Serialize, PartialEq)]
+pub struct Maintainer {
+    pub name: String,
+    #[serde(default)]
+    pub email: Option<String>,
+    #[serde(default)]
+    pub role: Option<String>,
+    #[serde(default)]
+    pub homepage: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, JsonSchema, Serialize, PartialEq)]
@@ -2925,6 +2942,64 @@ DATA_BITS = "DATA_BITS"
         assert!(issues
             .iter()
             .any(|issue| issue.code == "AF_CONTRACT_VALUE_INVALID"));
+    }
+
+    #[test]
+    fn metadata_accepts_structured_maintainers_homepage_and_summary() {
+        let raw = valid_manifest().replace(
+            "[metadata]\nlicense = \"Apache-2.0\"\nauthors = [\"AccelFury\"]\ndescription = \"Example core\"",
+            r#"[metadata]
+license = "Apache-2.0"
+summary = "Short marketplace summary."
+authors = ["AccelFury"]
+repository = "https://example.invalid/af/example"
+homepage = "https://example.invalid/products/example"
+description = "Long-form description."
+
+[[metadata.maintainers]]
+name = "Primary Maintainer"
+email = "maint@example.invalid"
+role = "rtl-lead"
+homepage = "https://example.invalid/people/maint"
+
+[[metadata.maintainers]]
+name = "Releases"
+"#,
+        );
+        let manifest = CoreManifest::from_toml_str(&raw, "af-core.toml").unwrap();
+        assert_eq!(
+            manifest.metadata.summary.as_deref(),
+            Some("Short marketplace summary.")
+        );
+        assert_eq!(
+            manifest.metadata.homepage.as_deref(),
+            Some("https://example.invalid/products/example")
+        );
+        assert_eq!(manifest.metadata.maintainers.len(), 2);
+        assert_eq!(manifest.metadata.maintainers[0].name, "Primary Maintainer");
+        assert_eq!(
+            manifest.metadata.maintainers[0].email.as_deref(),
+            Some("maint@example.invalid")
+        );
+        assert_eq!(
+            manifest.metadata.maintainers[0].role.as_deref(),
+            Some("rtl-lead")
+        );
+        assert_eq!(manifest.metadata.maintainers[1].name, "Releases");
+        assert!(manifest.metadata.maintainers[1].email.is_none());
+        // Legacy authors list still populated.
+        assert_eq!(manifest.metadata.authors, vec!["AccelFury".to_string()]);
+        assert!(manifest.validate().valid);
+    }
+
+    #[test]
+    fn metadata_without_new_fields_still_parses() {
+        // Backward compatibility: existing manifests with only legacy fields keep working.
+        let manifest = CoreManifest::from_toml_str(valid_manifest(), "af-core.toml").unwrap();
+        assert!(manifest.metadata.maintainers.is_empty());
+        assert!(manifest.metadata.homepage.is_none());
+        assert!(manifest.metadata.summary.is_none());
+        assert!(manifest.validate().valid);
     }
 
     fn validation_issues(err: ManifestError) -> Vec<ValidationIssue> {

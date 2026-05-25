@@ -51,9 +51,32 @@
       "additionalProperties": true,
       "properties": {
         "display_name": { "type": "string" },
+        "summary": {
+          "type": "string",
+          "description": "One-line marketplace summary; complements `description` (long form). Optional, additive since v0.3."
+        },
         "license": { "type": "string" },
         "authors": { "type": "array", "items": { "type": "string" } },
+        "maintainers": {
+          "type": "array",
+          "description": "Structured maintainer entries for marketplace and audit listings. Coexists with `authors` (legacy string list); both may be populated. Additive since v0.3.",
+          "items": {
+            "type": "object",
+            "required": ["name"],
+            "additionalProperties": false,
+            "properties": {
+              "name": { "type": "string" },
+              "email": { "type": "string" },
+              "role": { "type": "string" },
+              "homepage": { "type": "string" }
+            }
+          }
+        },
         "repository": { "type": "string" },
+        "homepage": {
+          "type": "string",
+          "description": "Public product/marketing page for the core. Distinct from `repository` (source URL). Optional, additive since v0.3."
+        },
         "description": { "type": "string" }
       }
     },
