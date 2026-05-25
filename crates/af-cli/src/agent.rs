@@ -179,14 +179,10 @@ pub fn discover_github_repo(repo_root: &Path) -> Option<(String, String)> {
 fn parse_github_remote(url: &str) -> Option<(String, String)> {
     let tail = if let Some(rest) = url.strip_prefix("git@github.com:") {
         rest
-    } else if let Some(rest) = url
-        .strip_prefix("https://github.com/")
-        .or_else(|| url.strip_prefix("http://github.com/"))
-        .or_else(|| url.strip_prefix("ssh://git@github.com/"))
-    {
-        rest
     } else {
-        return None;
+        url.strip_prefix("https://github.com/")
+            .or_else(|| url.strip_prefix("http://github.com/"))
+            .or_else(|| url.strip_prefix("ssh://git@github.com/"))?
     };
     let tail = tail.strip_suffix(".git").unwrap_or(tail);
     let mut parts = tail.splitn(2, '/');
